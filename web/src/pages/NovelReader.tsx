@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { CompanionComment, ReadingSession } from "@ss/shared";
+import type {
+  ParsedBookChapter,
+  ParsedBookResource
+} from "../features/book-import/types.js";
+import { FootnotedChapter } from "../features/book-reader/FootnotedChapter.js";
 import { useHorizontalPaging } from "../hooks/useHorizontalPaging.js";
 import type { CompanionLayout } from "../hooks/useReadingHostLayout.js";
 import {
@@ -13,6 +18,8 @@ import { ReadingSyncStatus } from "../components/ReadingSyncStatus.js";
 export function NovelReader(props: {
   session: ReadingSession;
   chunks: string[];
+  structuredChapter?: ParsedBookChapter;
+  structuredResources?: ParsedBookResource[];
   onPosition: (index: number) => void;
   onLook: (currentText: string, selectedText: string) => void;
   onSaveQuote: (content: string) => void;
@@ -42,7 +49,7 @@ export function NovelReader(props: {
     0,
     Math.min(props.chunks.length - 1, props.session.userCurrentPosition.index - 1)
   );
-  const current = props.chunks[index] ?? "";
+  const current = props.structuredChapter?.text ?? props.chunks[index] ?? "";
   const [selected, setSelected] = useState("");
   const previous = () => props.onPosition(Math.max(1, index));
   const next = () => props.onPosition(Math.min(props.chunks.length, index + 2));
@@ -61,7 +68,11 @@ export function NovelReader(props: {
     >
       <ReaderHeader
         title={props.session.title}
-        progress={`第 ${index + 1} 段 / 共 ${props.chunks.length} 段`}
+        progress={
+          props.structuredChapter
+            ? props.structuredChapter.title
+            : `第 ${index + 1} 段 / 共 ${props.chunks.length} 段`
+        }
         fullscreenLabel={props.fullscreenLabel}
         onBack={props.onBack}
         onFullscreen={props.onFullscreen}
@@ -81,9 +92,19 @@ export function NovelReader(props: {
             setSelected(window.getSelection()?.toString().trim() ?? "");
           }}
         >
-          <article className="novel-paper">
-            {current.split("\n").map((line, lineIndex) => <p key={lineIndex}>{line}</p>)}
-          </article>
+          {props.structuredChapter ? (
+            <FootnotedChapter
+              chapter={props.structuredChapter}
+              resources={props.structuredResources}
+              className="novel-paper"
+            />
+          ) : (
+            <article className="novel-paper">
+              {current.split("\n").map((line, lineIndex) => (
+                <p key={lineIndex}>{line}</p>
+              ))}
+            </article>
+          )}
           <div className="page-buttons">
             <button onClick={previous} disabled={index === 0}>上一段</button>
             <span>{index + 1} / {props.chunks.length}</span>
