@@ -1,0 +1,1 @@
+export const EPUB_DOM_HELPERS_VERSION = 1;
