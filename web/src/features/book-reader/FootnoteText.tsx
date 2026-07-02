@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type {
   ParsedBookFootnote,
@@ -51,8 +51,8 @@ const closeStyle: CSSProperties = {
 };
 
 export function FootnoteText({ text, references = [], notes = [] }: FootnoteTextProps) {
-  const [openNoteId, setOpenNoteId] = useState<string | null>(null);
-  const rootRef = useRef<HTMLSpanElement>(null);
+  const ownerId = useId();
+  const [openReferenceId, setOpenReferenceId] = useState<string | null>(null);
   const notesById = useMemo(
     () => new Map(notes.map((note) => [note.id, note])),
     [notes]
@@ -62,12 +62,22 @@ export function FootnoteText({ text, references = [], notes = [] }: FootnoteText
     .sort((left, right) => left.offset - right.offset);
 
   useEffect(() => {
-    if (!openNoteId) return;
+    if (!openReferenceId) return;
     const closeOnPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpenNoteId(null);
+      const target = event.target;
+      const element =
+        target instanceof Element
+          ? target
+          : target instanceof Node
+            ? target.parentElement
+            : null;
+      const clickedOwner = element
+        ?.closest<HTMLElement>("[data-footnote-owner]")
+        ?.dataset.footnoteOwner;
+      if (clickedOwner !== ownerId) setOpenReferenceId(null);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenNoteId(null);
+      if (event.key === "Escape") setOpenReferenceId(null);
     };
     document.addEventListener("pointerdown", closeOnPointerDown);
     document.addEventListener("keydown", closeOnEscape);
@@ -75,28 +85,32 @@ export function FootnoteText({ text, references = [], notes = [] }: FootnoteText
       document.removeEventListener("pointerdown", closeOnPointerDown);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [openNoteId]);
+  }, [openReferenceId, ownerId]);
 
   let cursor = 0;
   return (
-    <span ref={rootRef} className="book-text-with-footnotes">
+    <span className="book-text-with-footnotes">
       {sortedReferences.map((reference) => {
         const note = notesById.get(reference.noteId);
         const before = text.slice(cursor, reference.offset);
         cursor = reference.offset;
-        const popoverId = `footnote-popover-${reference.id}`;
-        const isOpen = openNoteId === reference.noteId;
+        const popoverId = `${ownerId}-${reference.id}`;
+        const isOpen = openReferenceId === reference.id;
         return (
           <Fragment key={reference.id}>
             {before}
-            <span className="book-footnote-anchor" style={anchorStyle}>
+            <span
+              className="book-footnote-anchor"
+              style={anchorStyle}
+              data-footnote-owner={ownerId}
+            >
               <button
                 type="button"
                 className="book-footnote-trigger"
                 style={triggerStyle}
                 aria-expanded={isOpen}
                 aria-controls={popoverId}
-                onClick={() => setOpenNoteId(isOpen ? null : reference.noteId)}
+                onClick={() => setOpenReferenceId(isOpen ? null : reference.id)}
               >
                 {reference.label}
               </button>
@@ -117,7 +131,7 @@ export function FootnoteText({ text, references = [], notes = [] }: FootnoteText
                     className="book-footnote-close"
                     style={closeStyle}
                     aria-label="关闭脚注"
-                    onClick={() => setOpenNoteId(null)}
+                    onClick={() => setOpenReferenceId(null)}
                   >
                     ×
                   </button>
