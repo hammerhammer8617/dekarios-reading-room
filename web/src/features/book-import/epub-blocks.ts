@@ -1,23 +1,44 @@
-import type { ParsedBookBlock } from "./types.js";
+import type {
+  ParsedBookBlock,
+  ParsedBookFootnote
+} from "./types.js";
 import { epubDirectoryName, resolveEpubPath } from "./epub-path.js";
+import { extractTextAndFootnoteRefs } from "./epub-footnotes.js";
+
+export interface EpubBlockExtractionOptions {
+  notesByTarget?: ReadonlyMap<string, ParsedBookFootnote>;
+  footnoteContainers?: ReadonlySet<Element>;
+}
 
 export function extractEpubBlocks(
   body: Element,
   chapterId: string,
-  chapterPath: string
+  chapterPath: string,
+  options: EpubBlockExtractionOptions = {}
 ): ParsedBookBlock[] {
   const blocks: ParsedBookBlock[] = [];
+  const notesByTarget = options.notesByTarget ?? new Map<string, ParsedBookFootnote>();
   let sequence = 0;
   const nextId = () => `${chapterId}-block-${++sequence}`;
 
+  const readText = (element: Element) =>
+    extractTextAndFootnoteRefs(element, chapterPath, notesByTarget);
+
   const visit = (element: Element): void => {
+    if (options.footnoteContainers?.has(element)) return;
     const tag = element.localName.toLowerCase();
     if (["script", "style", "nav"].includes(tag)) return;
 
     if (/^h[1-6]$/.test(tag)) {
-      const text = cleanBlockText(element.textContent ?? "");
+      const { text, footnoteRefs } = readText(element);
       if (text) {
-        blocks.push({ id: nextId(), type: "heading", level: Number(tag.slice(1)), text });
+        blocks.push({
+          id: nextId(),
+          type: "heading",
+          level: Number(tag.slice(1)),
+          text,
+          ...(footnoteRefs.length ? { footnoteRefs } : {})
+        });
       }
       return;
     }
@@ -41,7 +62,7 @@ export function extractEpubBlocks(
     }
 
     if (["p", "blockquote", "li", "pre"].includes(tag)) {
-      const text = cleanBlockText(element.textContent ?? "");
+      const { text, footnoteRefs } = readText(element);
       if (text) {
         const type =
           tag === "blockquote"
@@ -51,7 +72,12 @@ export function extractEpubBlocks(
               : tag === "pre"
                 ? "preformatted"
                 : "paragraph";
-        blocks.push({ id: nextId(), type, text });
+        blocks.push({
+          id: nextId(),
+          type,
+          text,
+          ...(footnoteRefs.length ? { footnoteRefs } : {})
+        });
       }
       for (const image of Array.from(element.querySelectorAll("img"))) visit(image);
       return;
@@ -59,8 +85,15 @@ export function extractEpubBlocks(
 
     const children = Array.from(element.children);
     if (children.length === 0) {
-      const text = cleanBlockText(element.textContent ?? "");
-      if (text) blocks.push({ id: nextId(), type: "paragraph", text });
+      const { text, footnoteRefs } = readText(element);
+      if (text) {
+        blocks.push({
+          id: nextId(),
+          type: "paragraph",
+          text,
+          ...(footnoteRefs.length ? { footnoteRefs } : {})
+        });
+      }
       return;
     }
     for (const child of children) visit(child);
