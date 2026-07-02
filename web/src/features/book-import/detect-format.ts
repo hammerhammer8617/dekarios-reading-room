@@ -32,3 +32,13 @@ export function detectImportBookFormat(
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
   return FORMAT_BY_EXTENSION[extension] ?? FORMAT_BY_MIME_TYPE[file.type] ?? "unsupported";
 }
+
+export function isPlainTextBookFormat(
+  format: ImportBookFormat
+): format is "txt" | "markdown" {
+  return format === "txt" || format === "markdown";
+}
+
+export function stripBookFileExtension(fileName: string): string {
+  return fileName.replace(/\.(txt|md|markdown|epub|pdf|mobi|azw3)$/i, "");
+}
