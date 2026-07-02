@@ -5,6 +5,7 @@ import {
   readEpubText,
   resolveEpubPath
 } from "./epub-path.js";
+import { readEpubCreators } from "./epub-metadata.js";
 
 const XHTML_MEDIA_TYPES = new Set(["application/xhtml+xml", "text/html"]);
 
@@ -52,9 +53,7 @@ export async function parseEpubFile(file: File): Promise<ParsedBook> {
     format: "epub",
     fileName: file.name,
     title: firstEpubText(packageDocument, "title") || file.name.replace(/\.[^.]+$/, ""),
-    authors: epubElements(packageDocument, "creator")
-      .map((item) => cleanEpubText(item.textContent ?? ""))
-      .filter(Boolean),
+    authors: readEpubCreators(packageDocument),
     language: firstEpubText(packageDocument, "language") || undefined,
     sourceText,
     chapters
