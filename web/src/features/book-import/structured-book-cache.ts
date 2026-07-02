@@ -27,13 +27,19 @@ export async function cacheStructuredBook(book: ParsedBook): Promise<string> {
 export async function restoreStructuredBook(sourceText: string): Promise<ParsedBook | null> {
   if (!sourceText.trim()) return null;
   const key = structuredBookCacheKey(sourceText);
+  const book = await restoreStructuredBookByKey(key);
+  return book?.sourceText === sourceText ? book : null;
+}
+
+export async function restoreStructuredBookByKey(key: string): Promise<ParsedBook | null> {
+  if (!key.trim()) return null;
   const database = await openStructuredBookDatabase();
   return new Promise<ParsedBook | null>((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, "readonly");
     const request = transaction.objectStore(STORE_NAME).get(key);
     request.onsuccess = () => {
       const record = request.result as { book?: ParsedBook } | undefined;
-      resolve(record?.book?.sourceText === sourceText ? record.book : null);
+      resolve(record?.book ?? null);
     };
     request.onerror = () => reject(request.error ?? new Error("结构化书籍缓存读取失败"));
     transaction.oncomplete = () => database.close();
