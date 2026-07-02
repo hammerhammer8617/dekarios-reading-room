@@ -2,17 +2,34 @@ import type { ImportBookFormat } from "./detect-format.js";
 
 export type ParsedBookFormat = Exclude<ImportBookFormat, "unsupported">;
 
+export interface ParsedBookFootnoteReference {
+  id: string;
+  noteId: string;
+  label: string;
+  offset: number;
+}
+
+export interface ParsedBookFootnote {
+  id: string;
+  label: string;
+  text: string;
+  targetHref: string;
+  backHref?: string;
+}
+
 export type ParsedBookBlock =
   | {
       id: string;
       type: "heading";
       level: number;
       text: string;
+      footnoteRefs?: ParsedBookFootnoteReference[];
     }
   | {
       id: string;
       type: "paragraph" | "blockquote" | "list_item" | "preformatted";
       text: string;
+      footnoteRefs?: ParsedBookFootnoteReference[];
     }
   | {
       id: string;
@@ -32,6 +49,7 @@ export interface ParsedBookChapter {
   title: string;
   text: string;
   blocks?: ParsedBookBlock[];
+  footnotes?: ParsedBookFootnote[];
 }
 
 export interface ParsedBookResource {
