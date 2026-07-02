@@ -4,6 +4,10 @@ import type {
   ParsedBookChapter,
   ParsedBookResource
 } from "../features/book-import/types.js";
+import {
+  activeImportedBookMatchesChunks,
+  getActiveImportedBook
+} from "../features/book-import/active-imported-book.js";
 import { FootnotedChapter } from "../features/book-reader/FootnotedChapter.js";
 import { useHorizontalPaging } from "../hooks/useHorizontalPaging.js";
 import type { CompanionLayout } from "../hooks/useReadingHostLayout.js";
@@ -45,14 +49,20 @@ export function NovelReader(props: {
   initialScrollTop: number;
   onScrollPosition: (scrollTop: number) => void;
 }) {
+  const importedBook = activeImportedBookMatchesChunks(props.chunks)
+    ? getActiveImportedBook()
+    : null;
+  const total = importedBook?.chapters.length ?? props.chunks.length;
   const index = Math.max(
     0,
-    Math.min(props.chunks.length - 1, props.session.userCurrentPosition.index - 1)
+    Math.min(Math.max(0, total - 1), props.session.userCurrentPosition.index - 1)
   );
-  const current = props.structuredChapter?.text ?? props.chunks[index] ?? "";
+  const structuredChapter = props.structuredChapter ?? importedBook?.chapters[index];
+  const structuredResources = props.structuredResources ?? importedBook?.resources;
+  const current = structuredChapter?.text ?? props.chunks[index] ?? "";
   const [selected, setSelected] = useState("");
   const previous = () => props.onPosition(Math.max(1, index));
-  const next = () => props.onPosition(Math.min(props.chunks.length, index + 2));
+  const next = () => props.onPosition(Math.min(total, index + 2));
   const swipe = useHorizontalPaging(previous, next);
   const scrollRef = useRef<HTMLElement>(null);
 
@@ -69,9 +79,9 @@ export function NovelReader(props: {
       <ReaderHeader
         title={props.session.title}
         progress={
-          props.structuredChapter
-            ? props.structuredChapter.title
-            : `第 ${index + 1} 段 / 共 ${props.chunks.length} 段`
+          structuredChapter
+            ? structuredChapter.title
+            : `第 ${index + 1} 段 / 共 ${total} 段`
         }
         fullscreenLabel={props.fullscreenLabel}
         onBack={props.onBack}
@@ -92,10 +102,10 @@ export function NovelReader(props: {
             setSelected(window.getSelection()?.toString().trim() ?? "");
           }}
         >
-          {props.structuredChapter ? (
+          {structuredChapter ? (
             <FootnotedChapter
-              chapter={props.structuredChapter}
-              resources={props.structuredResources}
+              chapter={structuredChapter}
+              resources={structuredResources}
               className="novel-paper"
             />
           ) : (
@@ -107,8 +117,8 @@ export function NovelReader(props: {
           )}
           <div className="page-buttons">
             <button onClick={previous} disabled={index === 0}>上一段</button>
-            <span>{index + 1} / {props.chunks.length}</span>
-            <button onClick={next} disabled={index >= props.chunks.length - 1}>下一段</button>
+            <span>{index + 1} / {total}</span>
+            <button onClick={next} disabled={index >= total - 1}>下一段</button>
           </div>
         </section>
         <CompanionDock
