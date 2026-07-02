@@ -14,6 +14,7 @@ import {
 import { readEpubCreators } from "./epub-metadata.js";
 import { readEpub2TocTitles } from "./epub-toc.js";
 import { cleanBlockText, epubBlocksToText, extractEpubBlocks } from "./epub-blocks.js";
+import { extractEpubFootnotes } from "./epub-footnotes.js";
 
 const XHTML_MEDIA_TYPES = new Set(["application/xhtml+xml", "text/html"]);
 
@@ -161,7 +162,11 @@ export function parseEpubChapter(
   }
 
   const body = firstEpubElement(document, "body") ?? document.documentElement;
-  const blocks = extractEpubBlocks(body, id, href);
+  const footnotes = extractEpubFootnotes(body, id, href);
+  const blocks = extractEpubBlocks(body, id, href, {
+    notesByTarget: footnotes.notesByTarget,
+    footnoteContainers: footnotes.containers
+  });
   if (blocks.length === 0) {
     const fallbackText = cleanBlockText(body.textContent ?? "");
     if (fallbackText) {
@@ -178,6 +183,7 @@ export function parseEpubChapter(
       (firstHeading?.type === "heading" ? firstHeading.text : "") ||
       `第 ${ordinal} 章`,
     text: epubBlocksToText(blocks),
-    blocks
+    blocks,
+    ...(footnotes.notes.length ? { footnotes: footnotes.notes } : {})
   };
 }
