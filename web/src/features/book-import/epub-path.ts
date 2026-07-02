@@ -20,16 +20,25 @@ export async function openEpubArchive(file: File): Promise<EpubArchive> {
   return archive;
 }
 
-export function readEpubText(
+export function readEpubBytes(
   archive: EpubArchive,
   requestedPath: string,
   required = true
-): string {
+): Uint8Array | null {
   const normalized = normalizeEpubPath(requestedPath);
   const entry = archive[normalized] ?? archive[safeDecodeEpubPath(normalized)];
   if (!entry && required) {
     throw new BookImportError("EPUB 内部文件缺失。", "invalid_epub", "epub");
   }
+  return entry ?? null;
+}
+
+export function readEpubText(
+  archive: EpubArchive,
+  requestedPath: string,
+  required = true
+): string {
+  const entry = readEpubBytes(archive, requestedPath, required);
   return entry ? strFromU8(entry) : "";
 }
 
