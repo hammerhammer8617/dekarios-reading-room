@@ -34,6 +34,12 @@ export interface ParsedBookChapter {
   blocks?: ParsedBookBlock[];
 }
 
+export interface ParsedBookResource {
+  path: string;
+  mediaType: string;
+  blob: Blob;
+}
+
 export interface ParsedBook {
   format: ParsedBookFormat;
   fileName: string;
@@ -42,6 +48,7 @@ export interface ParsedBook {
   language?: string;
   sourceText: string;
   chapters: ParsedBookChapter[];
+  resources?: ParsedBookResource[];
 }
 
 export class BookImportError extends Error {
