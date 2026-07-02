@@ -22,7 +22,7 @@ describe("repeated footnote references", () => {
       />
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: "[1]" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "[1]" }).at(1)!);
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
   });
 });

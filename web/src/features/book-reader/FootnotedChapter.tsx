@@ -55,6 +55,8 @@ export function FootnotedChapter({
           return <hr key={block.id} className="book-separator" />;
         }
 
+        if (block.type !== "image") return null;
+
         const src = resourceUrls.get(block.resourcePath);
         return (
           <figure key={block.id} className="book-figure">

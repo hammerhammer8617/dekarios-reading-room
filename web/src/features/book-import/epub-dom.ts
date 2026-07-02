@@ -94,7 +94,13 @@ function collectReferencedResources(
     const bytes = readEpubBytes(archive, path, false);
     if (!bytes) continue;
     const mediaType = mediaTypeByPath.get(path) ?? inferImageMediaType(path);
-    resources.push({ path, mediaType, blob: new Blob([bytes], { type: mediaType }) });
+    resources.push({
+      path,
+      mediaType,
+      blob: new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], {
+        type: mediaType
+      })
+    });
   }
   return resources;
 }
