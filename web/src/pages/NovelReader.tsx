@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CompanionComment, ReadingSession } from "@ss/shared";
 import type {
+  ParsedBook,
   ParsedBookChapter,
   ParsedBookResource
 } from "../features/book-import/types.js";
@@ -8,6 +9,7 @@ import {
   activeImportedBookMatchesChunks,
   getActiveImportedBook
 } from "../features/book-import/active-imported-book.js";
+import { restoreStructuredBook } from "../features/book-import/structured-book-cache.js";
 import { FootnotedChapter } from "../features/book-reader/FootnotedChapter.js";
 import { useHorizontalPaging } from "../hooks/useHorizontalPaging.js";
 import type { CompanionLayout } from "../hooks/useReadingHostLayout.js";
@@ -49,9 +51,33 @@ export function NovelReader(props: {
   initialScrollTop: number;
   onScrollPosition: (scrollTop: number) => void;
 }) {
-  const importedBook = activeImportedBookMatchesChunks(props.chunks)
+  const sourceTextForRestore = useMemo(() => props.chunks.join("\n\n"), [props.chunks]);
+  const [restoredBook, setRestoredBook] = useState<ParsedBook | null>(null);
+  const activeBook = activeImportedBookMatchesChunks(props.chunks)
     ? getActiveImportedBook()
     : null;
+
+  useEffect(() => {
+    if (activeBook || !sourceTextForRestore) {
+      setRestoredBook(null);
+      return;
+    }
+    let cancelled = false;
+    void restoreStructuredBook(sourceTextForRestore)
+      .then((book) => {
+        if (!cancelled) setRestoredBook(book);
+      })
+      .catch(() => {
+        if (!cancelled) setRestoredBook(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBook, sourceTextForRestore]);
+
+  const importedBook =
+    activeBook ??
+    (restoredBook?.sourceText === sourceTextForRestore ? restoredBook : null);
   const total = importedBook?.chapters.length ?? props.chunks.length;
   const index = Math.max(
     0,
