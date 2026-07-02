@@ -26,8 +26,8 @@ export function EpubImportBridge() {
     try {
       const parsed = await parseBookFile(file);
       if (parsed.format !== "epub") throw new Error("请选择 EPUB 文件");
+
       setActiveImportedBook(parsed);
-      await cacheStructuredBook(parsed);
       setControlledValue(
         document.querySelector<HTMLInputElement>('input[aria-label="作品名"]'),
         parsed.title,
@@ -37,7 +37,13 @@ export function EpubImportBridge() {
         document.querySelector<HTMLTextAreaElement>("#novel-source-text"),
         parsed.sourceText
       );
-      setStatus(`EPUB 已读取并缓存：${parsed.chapters.length} 个章节`);
+
+      try {
+        await cacheStructuredBook(parsed);
+        setStatus(`EPUB 已读取并缓存：${parsed.chapters.length} 个章节`);
+      } catch {
+        setStatus(`EPUB 已读取：${parsed.chapters.length} 个章节；本机缓存暂不可用`);
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "EPUB 读取失败");
     } finally {
