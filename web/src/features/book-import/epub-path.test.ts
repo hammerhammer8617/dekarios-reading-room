@@ -30,9 +30,13 @@ describe("EPUB path helpers", () => {
 describe("EPUB ZIP parsing", () => {
   it("reads a valid stored ZIP entry", async () => {
     const archive = await openEpubArchive(
-      new File([createStoredZip("mimetype", encoder.encode("application/epub+zip"))], "book.epub", {
-        type: "application/epub+zip"
-      })
+      new File(
+        [
+          bytesToArrayBuffer(createStoredZip("mimetype", encoder.encode("application/epub+zip")))
+        ],
+        "book.epub",
+        { type: "application/epub+zip" }
+      )
     );
 
     expect(readEpubText(archive, "mimetype")).toBe("application/epub+zip");
@@ -42,7 +46,9 @@ describe("EPUB ZIP parsing", () => {
     const zip = createStoredZip("huge.bin", new Uint8Array(), 161 * 1024 * 1024);
 
     await expect(
-      openEpubArchive(new File([zip], "huge.epub", { type: "application/epub+zip" }))
+      openEpubArchive(
+        new File([bytesToArrayBuffer(zip)], "huge.epub", { type: "application/epub+zip" })
+      )
     ).rejects.toMatchObject({ code: "file_too_large" });
   });
 });
@@ -85,6 +91,10 @@ function createStoredZip(
   writeUint32(end, 16, local.byteLength);
 
   return concatenate(local, central, end);
+}
+
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 function concatenate(...parts: Uint8Array[]): Uint8Array {
