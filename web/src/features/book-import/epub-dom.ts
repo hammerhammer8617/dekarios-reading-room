@@ -6,6 +6,7 @@ import {
   resolveEpubPath
 } from "./epub-path.js";
 import { readEpubCreators } from "./epub-metadata.js";
+import { readEpub2TocTitles } from "./epub-toc.js";
 
 const XHTML_MEDIA_TYPES = new Set(["application/xhtml+xml", "text/html"]);
 
@@ -29,6 +30,7 @@ export async function parseEpubFile(file: File): Promise<ParsedBook> {
     if (id && href && mediaType) manifest.set(id, { href, mediaType });
   }
 
+  const tocTitles = readTocTitles(archive, packageDocument, manifest, baseDirectory);
   const spine = epubElements(packageDocument, "itemref")
     .map((item) => item.getAttribute("idref")?.trim())
     .filter((value): value is string => Boolean(value));
@@ -40,7 +42,7 @@ export async function parseEpubFile(file: File): Promise<ParsedBook> {
     const path = resolveEpubPath(baseDirectory, href);
     const markup = readEpubText(archive, path, false);
     if (!markup) continue;
-    const chapter = parseEpubChapter(markup, id, path, index + 1);
+    const chapter = parseEpubChapter(markup, id, path, index + 1, tocTitles.get(path));
     if (chapter.text) chapters.push(chapter);
   }
 
@@ -58,6 +60,22 @@ export async function parseEpubFile(file: File): Promise<ParsedBook> {
     sourceText,
     chapters
   };
+}
+
+function readTocTitles(
+  archive: Awaited<ReturnType<typeof openEpubArchive>>,
+  packageDocument: Document,
+  manifest: Map<string, { href: string; mediaType: string }>,
+  baseDirectory: string
+): Map<string, string> {
+  const tocId = firstEpubElement(packageDocument, "spine")?.getAttribute("toc")?.trim();
+  const tocItem = tocId ? manifest.get(tocId) : undefined;
+  if (!tocItem || tocItem.mediaType !== "application/x-dtbncx+xml") return new Map();
+
+  const tocPath = resolveEpubPath(baseDirectory, tocItem.href);
+  const tocMarkup = readEpubText(archive, tocPath, false);
+  if (!tocMarkup) return new Map();
+  return readEpub2TocTitles(parseEpubXml(tocMarkup), tocPath);
 }
 
 export function parseEpubXml(source: string): XMLDocument {
@@ -87,7 +105,8 @@ export function parseEpubChapter(
   markup: string,
   id: string,
   href: string,
-  ordinal: number
+  ordinal: number,
+  preferredTitle?: string
 ): ParsedBookChapter {
   const parser = new DOMParser();
   let document = parser.parseFromString(markup, "application/xhtml+xml");
@@ -104,7 +123,10 @@ export function parseEpubChapter(
   return {
     id,
     href,
-    title: cleanEpubText(heading?.textContent ?? "") || `第 ${ordinal} 章`,
+    title:
+      cleanEpubText(preferredTitle ?? "") ||
+      cleanEpubText(heading?.textContent ?? "") ||
+      `第 ${ordinal} 章`,
     text
   };
 }
