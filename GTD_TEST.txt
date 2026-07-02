@@ -1,1 +1,29 @@
-G.T.D. reading room work started on feat/gtd-reading-room.
+G.T.D. Reading Room Roadmap
+
+Scope
+- Keep TXT and Markdown support.
+- Hide comic features in the first iteration.
+- Add EPUB support first.
+- Add text-based PDF support second.
+- Evaluate MOBI and AZW3 after EPUB and PDF are stable.
+
+First milestone
+1. Import a book.
+2. Open it from the library.
+3. Restore reading position.
+4. Select a passage.
+5. Send only that passage and necessary context to ChatGPT.
+6. Save user notes and AI responses.
+
+Engineering rules
+- Work on feat/gtd-reading-room.
+- Keep main unchanged.
+- Use one adapter per file format.
+- Normalize all formats into one internal book model.
+
+Next inspection tasks
+- Find the upload component.
+- Find file-type validation and text parsing.
+- Find the shared book schemas.
+- Find storage upload and restore paths.
+- Find comic-specific UI and state.
