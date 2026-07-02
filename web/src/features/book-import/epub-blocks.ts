@@ -1,1 +1,91 @@
-export const EPUB_BLOCKS_VERSION = 1;
+import type { ParsedBookBlock } from "./types.js";
+import { epubDirectoryName, resolveEpubPath } from "./epub-path.js";
+
+export function extractEpubBlocks(
+  body: Element,
+  chapterId: string,
+  chapterPath: string
+): ParsedBookBlock[] {
+  const blocks: ParsedBookBlock[] = [];
+  let sequence = 0;
+  const nextId = () => `${chapterId}-block-${++sequence}`;
+
+  const visit = (element: Element): void => {
+    const tag = element.localName.toLowerCase();
+    if (["script", "style", "nav"].includes(tag)) return;
+
+    if (/^h[1-6]$/.test(tag)) {
+      const text = cleanBlockText(element.textContent ?? "");
+      if (text) {
+        blocks.push({ id: nextId(), type: "heading", level: Number(tag.slice(1)), text });
+      }
+      return;
+    }
+
+    if (tag === "img") {
+      const src = element.getAttribute("src")?.trim();
+      if (!src) return;
+      blocks.push({
+        id: nextId(),
+        type: "image",
+        resourcePath: resolveEpubPath(epubDirectoryName(chapterPath), src),
+        alt: cleanBlockText(element.getAttribute("alt") ?? "") || undefined,
+        title: cleanBlockText(element.getAttribute("title") ?? "") || undefined
+      });
+      return;
+    }
+
+    if (tag === "hr") {
+      blocks.push({ id: nextId(), type: "separator" });
+      return;
+    }
+
+    if (["p", "blockquote", "li", "pre"].includes(tag)) {
+      const text = cleanBlockText(element.textContent ?? "");
+      if (text) {
+        const type =
+          tag === "blockquote"
+            ? "blockquote"
+            : tag === "li"
+              ? "list_item"
+              : tag === "pre"
+                ? "preformatted"
+                : "paragraph";
+        blocks.push({ id: nextId(), type, text });
+      }
+      for (const image of Array.from(element.querySelectorAll("img"))) visit(image);
+      return;
+    }
+
+    const children = Array.from(element.children);
+    if (children.length === 0) {
+      const text = cleanBlockText(element.textContent ?? "");
+      if (text) blocks.push({ id: nextId(), type: "paragraph", text });
+      return;
+    }
+    for (const child of children) visit(child);
+  };
+
+  for (const child of Array.from(body.children)) visit(child);
+  return blocks;
+}
+
+export function epubBlocksToText(blocks: ParsedBookBlock[]): string {
+  return blocks
+    .filter(
+      (block): block is Exclude<ParsedBookBlock, { type: "image" | "separator" }> =>
+        block.type !== "image" && block.type !== "separator"
+    )
+    .map((block) => block.text)
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+}
+
+export function cleanBlockText(value: string): string {
+  return value
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, " ")
+    .trim();
+}
