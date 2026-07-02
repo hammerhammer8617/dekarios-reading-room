@@ -7,6 +7,7 @@ import {
 } from "./epub-path.js";
 import { readEpubCreators } from "./epub-metadata.js";
 import { readEpub2TocTitles } from "./epub-toc.js";
+import { cleanBlockText, epubBlocksToText, extractEpubBlocks } from "./epub-blocks.js";
 
 const XHTML_MEDIA_TYPES = new Set(["application/xhtml+xml", "text/html"]);
 
@@ -43,10 +44,12 @@ export async function parseEpubFile(file: File): Promise<ParsedBook> {
     const markup = readEpubText(archive, path, false);
     if (!markup) continue;
     const chapter = parseEpubChapter(markup, id, path, index + 1, tocTitles.get(path));
-    if (chapter.text) chapters.push(chapter);
+    if (chapter.text || chapter.blocks?.some((block) => block.type === "image")) {
+      chapters.push(chapter);
+    }
   }
 
-  const sourceText = chapters.map((chapter) => chapter.text).join("\n\n").trim();
+  const sourceText = chapters.map((chapter) => chapter.text).filter(Boolean).join("\n\n").trim();
   if (!sourceText) {
     throw new BookImportError("EPUB 中没有找到可阅读的正文。", "empty_book", "epub");
   }
@@ -98,7 +101,7 @@ export function firstEpubElement(document: Document, localName: string): Element
 }
 
 export function firstEpubText(document: Document, localName: string): string {
-  return cleanEpubText(firstEpubElement(document, localName)?.textContent ?? "");
+  return cleanBlockText(firstEpubElement(document, localName)?.textContent ?? "");
 }
 
 export function parseEpubChapter(
@@ -113,28 +116,25 @@ export function parseEpubChapter(
   if (document.querySelector("parsererror")) {
     document = parser.parseFromString(markup, "text/html") as unknown as XMLDocument;
   }
+
   const body = firstEpubElement(document, "body") ?? document.documentElement;
-  const nodes = Array.from(
-    body.querySelectorAll("h1,h2,h3,h4,h5,h6,p,li,blockquote,pre")
-  );
-  const blocks = nodes.map((node) => cleanEpubText(node.textContent ?? "")).filter(Boolean);
-  const text = (blocks.length ? blocks.join("\n\n") : cleanEpubText(body.textContent ?? "")).trim();
-  const heading = nodes.find((node) => /^H[1-6]$/i.test(node.tagName));
+  const blocks = extractEpubBlocks(body, id, href);
+  if (blocks.length === 0) {
+    const fallbackText = cleanBlockText(body.textContent ?? "");
+    if (fallbackText) {
+      blocks.push({ id: `${id}-block-1`, type: "paragraph", text: fallbackText });
+    }
+  }
+  const firstHeading = blocks.find((block) => block.type === "heading");
+
   return {
     id,
     href,
     title:
-      cleanEpubText(preferredTitle ?? "") ||
-      cleanEpubText(heading?.textContent ?? "") ||
+      cleanBlockText(preferredTitle ?? "") ||
+      (firstHeading?.type === "heading" ? firstHeading.text : "") ||
       `第 ${ordinal} 章`,
-    text
+    text: epubBlocksToText(blocks),
+    blocks
   };
-}
-
-export function cleanEpubText(value: string): string {
-  return value
-    .replace(/\u00a0/g, " ")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\s*\n\s*/g, " ")
-    .trim();
 }
