@@ -20,7 +20,7 @@ export function extractEpubFootnotes(
   const containers = new Set<Element>();
 
   for (const element of Array.from(body.querySelectorAll("aside,div,p,li"))) {
-    if (!isFootnoteContainer(element)) continue;
+    if (!isFootnoteContainer(element) || hasFootnoteAncestor(element, body)) continue;
     const target = findFootnoteTarget(element);
     if (!target) continue;
 
@@ -95,6 +95,15 @@ export function resolveEpubLink(chapterPath: string, href: string): string {
   return fragmentPart ? `${path}#${decodeFragment(fragmentPart)}` : path;
 }
 
+function hasFootnoteAncestor(element: Element, body: Element): boolean {
+  let parent = element.parentElement;
+  while (parent && parent !== body) {
+    if (isFootnoteContainer(parent)) return true;
+    parent = parent.parentElement;
+  }
+  return false;
+}
+
 function isFootnoteContainer(element: Element): boolean {
   const role = element.getAttribute("role") ?? "";
   const epubType =
@@ -106,7 +115,7 @@ function isFootnoteContainer(element: Element): boolean {
   if (/(^|\s)(footnote|endnote)(\s|$)/i.test(epubType)) return true;
   if (/(^|[-_\s])(fnote\d*|footnote|endnote)([-_\s]|$)/i.test(className)) return true;
   return Boolean(
-    element.querySelector('a[id^="zhu"][href*="#zw"],a[id^="note"][href*="#"]')
+    element.querySelector(':scope > a[id^="zhu"][href*="#zw"],:scope > a[id^="note"][href*="#"],:scope > p > a[id^="zhu"][href*="#zw"]')
   );
 }
 
