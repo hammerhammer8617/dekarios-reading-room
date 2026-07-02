@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { parseBookFile } from "./book-file-parser.js";
 import { setActiveImportedBook } from "./active-imported-book.js";
+import { cacheStructuredBook } from "./structured-book-cache.js";
 
 export function EpubImportBridge() {
   const [host, setHost] = useState<Element | null>(null);
@@ -26,6 +27,7 @@ export function EpubImportBridge() {
       const parsed = await parseBookFile(file);
       if (parsed.format !== "epub") throw new Error("请选择 EPUB 文件");
       setActiveImportedBook(parsed);
+      await cacheStructuredBook(parsed);
       setControlledValue(
         document.querySelector<HTMLInputElement>('input[aria-label="作品名"]'),
         parsed.title,
@@ -35,7 +37,7 @@ export function EpubImportBridge() {
         document.querySelector<HTMLTextAreaElement>("#novel-source-text"),
         parsed.sourceText
       );
-      setStatus(`EPUB 已读取：${parsed.chapters.length} 个章节`);
+      setStatus(`EPUB 已读取并缓存：${parsed.chapters.length} 个章节`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "EPUB 读取失败");
     } finally {
