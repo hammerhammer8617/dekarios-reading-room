@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Boot } from "./Boot.js";
+import { EpubImportBridge } from "./features/book-import/EpubImportBridge.js";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -10,6 +11,7 @@ if (rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
       <Boot />
+      <EpubImportBridge />
     </StrictMode>
   );
 } else {
