@@ -28,7 +28,7 @@ export async function restoreStructuredBook(sourceText: string): Promise<ParsedB
   if (!sourceText.trim()) return null;
   const key = structuredBookCacheKey(sourceText);
   const book = await restoreStructuredBookByKey(key);
-  return book?.sourceText === sourceText ? book : null;
+  return book?.format === "epub" && book.sourceText === sourceText ? book : null;
 }
 
 export async function restoreStructuredBookByKey(key: string): Promise<ParsedBook | null> {
