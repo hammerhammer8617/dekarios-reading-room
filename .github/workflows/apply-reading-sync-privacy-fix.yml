@@ -42,128 +42,115 @@ jobs:
         run: |
           from pathlib import Path
 
-          def replace_once(path: str, old: str, new: str) -> None:
-              file = Path(path)
-              text = file.read_text()
+          def replace_required(text: str, old: str, new: str, label: str) -> str:
               if old not in text:
-                  raise SystemExit(f"Expected source block not found in {path}")
-              file.write_text(text.replace(old, new, 1))
+                  raise SystemExit(f"Expected source block not found: {label}")
+              return text.replace(old, new, 1)
 
-          replace_once(
-              "web/src/features/reading-sync/build-messages.ts",
-              '''export function buildBatchChatMessage(job: ReadingSyncJob, batch: SyncBatch) {
-            return [
-              batchHeader(batch),
-              "",
-              "这是 skipped range 分批补课，不是正式点评。",
-              `用户当前已读到${job.targetPosition.label}，烁构上次确认读到${confirmedLabel(job)}。`,
-              "这是补课批次。烁构先安静追到用户当前位置，不展开评论。",
-              `只简短回复：“已读到第 ${batch.rangeEnd} 段。”`,
+          messages_path = Path("web/src/features/reading-sync/build-messages.ts")
+          messages = messages_path.read_text()
+          messages = replace_required(
+              messages,
+              '''    `只简短回复：“已读到第 ${batch.rangeEnd} 段。”`,
               "",
               batch.text
             ].join("\\n");
           }
           ''',
-              '''export function buildBatchChatMessage(job: ReadingSyncJob, batch: SyncBatch) {
-            return [
-              batchHeader(batch),
-              "",
-              "这是 skipped range 分批补课，不是正式点评。",
-              `用户当前已读到${job.targetPosition.label}，烁构上次确认读到${confirmedLabel(job)}。`,
-              "这是补课批次。烁构先安静追到用户当前位置，不展开评论。",
-              `只简短回复：“已读到第 ${batch.rangeEnd} 段。”`
+              '''    `只简短回复：“已读到第 ${batch.rangeEnd} 段。”`
             ].join("\\n");
           }
 
           export function buildBatchFallbackChatMessage(job: ReadingSyncJob, batch: SyncBatch) {
             return [buildBatchChatMessage(job, batch), "", batch.text].join("\\n");
           }
-          '''
+          ''',
+              "buildBatchChatMessage body"
           )
+          messages_path.write_text(messages)
 
-          replace_once(
-              "web/src/App.tsx",
+          app_path = Path("web/src/App.tsx")
+          app = app_path.read_text()
+          app = replace_required(
+              app,
               '''  buildBatchChatMessage,
             buildBatchUserNote,''',
               '''  buildBatchChatMessage,
             buildBatchFallbackChatMessage,
-            buildBatchUserNote,'''
+            buildBatchUserNote,''',
+              "App import"
           )
 
-          replace_once(
-              "web/src/App.tsx",
-              '''      await callTool("send_current_context", {
-                sessionId: job.sessionId,
-                previousSyncedPosition: job.confirmedThrough,
-                currentPosition: job.targetPosition,
-                contextRange: { start: batch.rangeStart, end: batch.rangeEnd },
-                includedText: batch.text,
-                userNote: buildBatchUserNote(job, batch),
-                ...(sourceContext ? { sourceContext } : {}),
-                mode: "range_sync",
-                batch: {
-                  id: batch.id,
-                  ordinal: batch.ordinal,
-                  total: batch.totalBatches,
-                  rangeStart: batch.rangeStart,
-                  rangeEnd: batch.rangeEnd,
-                  hasMore: !batch.isFinal
-                }
-              });
-              await askChatGpt(buildBatchChatMessage(job, batch), { scrollToBottom: false });''',
-              '''      const result = await callTool("send_current_context", {
-                sessionId: job.sessionId,
-                previousSyncedPosition: job.confirmedThrough,
-                currentPosition: job.targetPosition,
-                contextRange: { start: batch.rangeStart, end: batch.rangeEnd },
-                includedText: batch.text,
-                userNote: buildBatchUserNote(job, batch),
-                ...(sourceContext ? { sourceContext } : {}),
-                mode: "range_sync",
-                batch: {
-                  id: batch.id,
-                  ordinal: batch.ordinal,
-                  total: batch.totalBatches,
-                  rangeStart: batch.rangeStart,
-                  rangeEnd: batch.rangeEnd,
-                  hasMore: !batch.isFinal
-                }
-              });
-              const context = result.structuredContent?.context as Record<string, unknown> | undefined;
-              if (context) {
-                await syncCurrentContext({
-                  context,
-                  successPrompt: buildBatchChatMessage(job, batch),
-                  fallbackPrompt: buildBatchFallbackChatMessage(job, batch),
-                  updateModelContext,
-                  sendMessage: askChatGpt
-                });
-              } else {
-                await askChatGpt(buildBatchFallbackChatMessage(job, batch), {
-                  scrollToBottom: false
-                });
-              }'''
-          )
+          included_marker = "        includedText: batch.text,"
+          marker_position = app.find(included_marker)
+          if marker_position < 0:
+              raise SystemExit("Expected source marker not found: includedText batch")
 
-          replace_once(
-              "web/src/features/reading-sync/build-messages.test.ts",
+          block_start_marker = '      await callTool("send_current_context", {'
+          block_start = app.rfind(block_start_marker, 0, marker_position)
+          if block_start < 0:
+              raise SystemExit("Expected source block start not found: novel send_current_context")
+
+          block_end_marker = '      await askChatGpt(buildBatchChatMessage(job, batch), { scrollToBottom: false });'
+          block_end_start = app.find(block_end_marker, marker_position)
+          if block_end_start < 0:
+              raise SystemExit("Expected source block end not found: novel visible prompt")
+          block_end = block_end_start + len(block_end_marker)
+
+          replacement = '''      const result = await callTool("send_current_context", {
+            sessionId: job.sessionId,
+            previousSyncedPosition: job.confirmedThrough,
+            currentPosition: job.targetPosition,
+            contextRange: { start: batch.rangeStart, end: batch.rangeEnd },
+            includedText: batch.text,
+            userNote: buildBatchUserNote(job, batch),
+            ...(sourceContext ? { sourceContext } : {}),
+            mode: "range_sync",
+            batch: {
+              id: batch.id,
+              ordinal: batch.ordinal,
+              total: batch.totalBatches,
+              rangeStart: batch.rangeStart,
+              rangeEnd: batch.rangeEnd,
+              hasMore: !batch.isFinal
+            }
+          });
+          const context = result.structuredContent?.context as Record<string, unknown> | undefined;
+          if (context) {
+            await syncCurrentContext({
+              context,
+              successPrompt: buildBatchChatMessage(job, batch),
+              fallbackPrompt: buildBatchFallbackChatMessage(job, batch),
+              updateModelContext,
+              sendMessage: askChatGpt
+            });
+          } else {
+            await askChatGpt(buildBatchFallbackChatMessage(job, batch), {
+              scrollToBottom: false
+            });
+          }'''
+          app = app[:block_start] + replacement + app[block_end:]
+          app_path.write_text(app)
+
+          tests_path = Path("web/src/features/reading-sync/build-messages.test.ts")
+          tests = tests_path.read_text()
+          tests = replace_required(
+              tests,
               '''  buildBatchChatMessage,
             buildBatchUserNote,''',
               '''  buildBatchChatMessage,
             buildBatchFallbackChatMessage,
-            buildBatchUserNote,'''
+            buildBatchUserNote,''',
+              "test import"
           )
-
-          replace_once(
-              "web/src/features/reading-sync/build-messages.test.ts",
-              '''    expect(message).toContain(batch.text);
-              expect(message).not.toMatch(/剧情摘要|关键事件|人物关系/);''',
-              '''    expect(message).not.toContain(batch.text);
-              expect(message).not.toMatch(/剧情摘要|关键事件|人物关系/);'''
+          tests = replace_required(
+              tests,
+              "    expect(message).toContain(batch.text);",
+              "    expect(message).not.toContain(batch.text);",
+              "success prompt privacy assertion"
           )
-
-          replace_once(
-              "web/src/features/reading-sync/build-messages.test.ts",
+          tests = replace_required(
+              tests,
               '''  it("puts only factual synchronization metadata in userNote", () => {''',
               '''  it("includes source text only in the compatibility fallback message", () => {
             const message = buildBatchFallbackChatMessage(job, batch);
@@ -173,8 +160,10 @@ jobs:
             expect(message).toContain(batch.text);
           });
 
-          it("puts only factual synchronization metadata in userNote", () => {'''
+          it("puts only factual synchronization metadata in userNote", () => {''',
+              "fallback test insertion"
           )
+          tests_path.write_text(tests)
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
