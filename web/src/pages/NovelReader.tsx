@@ -303,7 +303,13 @@ export function NovelReader(props: {
         </p>
       ) : null}
       <ReaderActions
-        primaryLabel={selected ? "给盖尔看这句" : "陪我看看这一阅读单元"}
+        primaryLabel={
+          selected
+            ? "给盖尔看这句"
+            : structuredChapter
+              ? "陪我看看这一阅读单元"
+              : "陪我看看这里"
+        }
         secondaryLabel={structuredChapter ? "划线并收藏" : "保存这句"}
         onPrimary={() => {
           props.onLook(current, selected);
