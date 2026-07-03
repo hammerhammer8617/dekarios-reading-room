@@ -1,1 +1,62 @@
-.structured-chapter {}
+.structured-chapter {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.structured-chapter .book-heading,
+.structured-chapter .book-paragraph,
+.structured-chapter .book-blockquote,
+.structured-chapter .book-list,
+.structured-chapter .book-preformatted {
+  max-width: 100%;
+}
+
+.structured-chapter .book-preformatted {
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.structured-chapter .book-figure {
+  width: 100%;
+  max-width: 100%;
+  margin: 1.5rem auto;
+  overflow: hidden;
+  text-align: center;
+}
+
+.structured-chapter .book-image,
+.structured-chapter svg,
+.structured-chapter canvas,
+.structured-chapter video {
+  display: block;
+  width: auto !important;
+  max-width: 100% !important;
+  height: auto !important;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
+.structured-chapter figcaption {
+  margin-top: 0.65rem;
+  font-size: 0.85em;
+  opacity: 0.72;
+}
+
+.structured-chapter .book-highlight {
+  border-radius: 0.18em;
+  background: rgba(232, 191, 91, 0.42);
+  color: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.reader-selection-status {
+  margin: 0.6rem auto 0;
+  padding: 0.55rem 0.8rem;
+  max-width: min(42rem, calc(100% - 2rem));
+  border-radius: 0.75rem;
+  background: rgba(92, 70, 111, 0.09);
+  font-size: 0.88rem;
+  text-align: center;
+}
