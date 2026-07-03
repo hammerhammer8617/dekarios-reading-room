@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBatchChatMessage,
+  buildBatchFallbackChatMessage,
   buildBatchUserNote,
   buildFormalReadingPrompt,
   buildCurrentOnlyPrompt,
@@ -40,12 +41,20 @@ describe("reading-sync messages", () => {
     expect(message).toContain("【补课第 1/4 批：第 3–8 段】");
     expect(message).toContain("烁构先安静追到用户当前位置");
     expect(message).toContain("只简短回复：“已读到第 8 段。”");
-    expect(message).toContain(batch.text);
+    expect(message).not.toContain(batch.text);
     expect(message).not.toMatch(/剧情摘要|关键事件|人物关系/);
     expect(message).not.toContain("publish_companion_comment");
   });
 
-  it("puts only factual synchronization metadata in userNote", () => {
+  it("includes source text only in the compatibility fallback message", () => {
+  const message = buildBatchFallbackChatMessage(job, batch);
+
+  expect(message).toContain("【补课第 1/4 批：第 3–8 段】");
+  expect(message).toContain("只简短回复：“已读到第 8 段。”");
+  expect(message).toContain(batch.text);
+});
+
+it("puts only factual synchronization metadata in userNote", () => {
     const note = buildBatchUserNote(job, batch);
 
     expect(note).toContain("sessionId=session-1");

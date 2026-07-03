@@ -47,6 +47,7 @@ import { checkSourceSyncPermission } from "./features/source-identity/sync-guard
 import { buildSyncBatches } from "./features/reading-sync/build-batches.js";
 import {
   buildBatchChatMessage,
+  buildBatchFallbackChatMessage,
   buildBatchUserNote,
   buildCurrentOnlyPrompt,
   buildFormalReadingPrompt,
@@ -1288,25 +1289,38 @@ export function App() {
         await cache.putSyncJob(sent).catch(() => undefined);
         return;
       }
-      await callTool("send_current_context", {
-        sessionId: job.sessionId,
-        previousSyncedPosition: job.confirmedThrough,
-        currentPosition: job.targetPosition,
-        contextRange: { start: batch.rangeStart, end: batch.rangeEnd },
-        includedText: batch.text,
-        userNote: buildBatchUserNote(job, batch),
-        ...(sourceContext ? { sourceContext } : {}),
-        mode: "range_sync",
-        batch: {
-          id: batch.id,
-          ordinal: batch.ordinal,
-          total: batch.totalBatches,
-          rangeStart: batch.rangeStart,
-          rangeEnd: batch.rangeEnd,
-          hasMore: !batch.isFinal
-        }
-      });
-      await askChatGpt(buildBatchChatMessage(job, batch), { scrollToBottom: false });
+      const result = await callTool("send_current_context", {
+  sessionId: job.sessionId,
+  previousSyncedPosition: job.confirmedThrough,
+  currentPosition: job.targetPosition,
+  contextRange: { start: batch.rangeStart, end: batch.rangeEnd },
+  includedText: batch.text,
+  userNote: buildBatchUserNote(job, batch),
+  ...(sourceContext ? { sourceContext } : {}),
+  mode: "range_sync",
+  batch: {
+    id: batch.id,
+    ordinal: batch.ordinal,
+    total: batch.totalBatches,
+    rangeStart: batch.rangeStart,
+    rangeEnd: batch.rangeEnd,
+    hasMore: !batch.isFinal
+  }
+});
+const context = result.structuredContent?.context as Record<string, unknown> | undefined;
+if (context) {
+  await syncCurrentContext({
+    context,
+    successPrompt: buildBatchChatMessage(job, batch),
+    fallbackPrompt: buildBatchFallbackChatMessage(job, batch),
+    updateModelContext,
+    sendMessage: askChatGpt
+  });
+} else {
+  await askChatGpt(buildBatchFallbackChatMessage(job, batch), {
+    scrollToBottom: false
+  });
+}
       const sent = markBatchSent(job, batch.id);
       storeSyncJob(sent);
       await cache.putSyncJob(sent).catch(() => undefined);
