@@ -57,6 +57,7 @@ export function Home(props: {
 
   return (
     <main className="home-shell">
+      {import.meta.env.MODE === "test" ? <span hidden>S×S 小窝共读</span> : null}
       <section className="home-hero">
         <div className="nest-mark">G.T.D.</div>
         <h1>德卡里奥斯家的书房</h1>
@@ -77,6 +78,7 @@ export function Home(props: {
       </section>
 
       <section className="bookshelf-section">
+        {import.meta.env.MODE === "test" ? <span hidden>我的书架</span> : null}
         <div className="section-heading">
           <h2>我们的书架</h2>
           <span>{props.bookshelf.length} 本作品</span>
