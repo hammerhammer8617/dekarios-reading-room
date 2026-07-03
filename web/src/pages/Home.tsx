@@ -58,9 +58,9 @@ export function Home(props: {
   return (
     <main className="home-shell">
       <section className="home-hero">
-        <div className="nest-mark">S×S</div>
-        <h1>S×S 小窝共读</h1>
-        <p>晚上好，今天想一起看什么？</p>
+        <div className="nest-mark">G.T.D.</div>
+        <h1>德卡里奥斯家的书房</h1>
+        <p>晚上好，今天想和盖尔一起看什么？</p>
       </section>
 
       <section className="mode-grid" aria-label="共读模式">
@@ -78,7 +78,7 @@ export function Home(props: {
 
       <section className="bookshelf-section">
         <div className="section-heading">
-          <h2>我的书架</h2>
+          <h2>我们的书架</h2>
           <span>{props.bookshelf.length} 本作品</span>
         </div>
         <div className="bookshelf-filters" aria-label="书架筛选">
@@ -95,7 +95,7 @@ export function Home(props: {
         </div>
 
         {props.bookshelf.length === 0 ? (
-          <div className="empty-nest">小窝还是空的。选一本故事，我们一起开始吧。</div>
+          <div className="empty-nest">书架还是空的。选一本故事，我们一起开始吧。</div>
         ) : visible.length === 0 ? (
           <div className="empty-nest">这个筛选下还没有作品。</div>
         ) : (
@@ -143,8 +143,8 @@ function BookCard(props: {
         </span>
       </div>
       <div className="book-progress">
-        <span>用户：{item.session.userCurrentPosition.label}</span>
-        <span>烁构：{item.session.assistantSyncedPosition?.label ?? "尚未同步"}</span>
+        <span>你：{item.session.userCurrentPosition.label}</span>
+        <span>盖尔：{item.session.assistantSyncedPosition?.label ?? "尚未同步"}</span>
         <span>{MODE_LABELS[item.session.sessionPreferences.readingCommentMode]}</span>
       </div>
       <div className={`book-source ${item.sourceAvailability}`}>
@@ -152,7 +152,7 @@ function BookCard(props: {
         <span>{action.hint}</span>
       </div>
       <p className="book-comment">
-        {item.latestComment ? `烁构：${item.latestComment}` : "烁构还没留下短评。"}
+        {item.latestComment ? `盖尔：${item.latestComment}` : "盖尔还没留下短评。"}
       </p>
       <button
         type="button"
