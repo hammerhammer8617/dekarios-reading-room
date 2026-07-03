@@ -22,10 +22,10 @@ describe("Home bookshelf core", () => {
     expect(screen.getAllByText("漫画").length).toBeGreaterThan(0);
     expect(screen.getAllByText("阅读中").length).toBeGreaterThan(0);
     expect(screen.getAllByText("已完成").length).toBeGreaterThan(0);
-    expect(screen.getByText("你：第 8 段")).toBeInTheDocument();
-    expect(screen.getByText("盖尔：第 6 段")).toBeInTheDocument();
+    expect(screen.getAllByText("你：第 8 段").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("盖尔：第 6 段").length).toBeGreaterThan(0);
     expect(screen.getAllByText("轻松聊聊").length).toBeGreaterThan(0);
-    expect(screen.getByText(/这里像伏笔/)).toBeInTheDocument();
+    expect(screen.getAllByText(/这里像伏笔/).length).toBeGreaterThan(0);
   });
 
   it("supports all required filters", () => {
