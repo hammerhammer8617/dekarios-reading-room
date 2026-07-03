@@ -40,9 +40,9 @@ export function EpubImportBridge() {
 
       try {
         await cacheStructuredBook(parsed);
-        setStatus(`EPUB 已读取并缓存：${parsed.chapters.length} 个章节`);
+        setStatus(`EPUB 已读取并缓存：${parsed.chapters.length} 个阅读单元`);
       } catch {
-        setStatus(`EPUB 已读取：${parsed.chapters.length} 个章节；本机缓存暂不可用`);
+        setStatus(`EPUB 已读取：${parsed.chapters.length} 个阅读单元；本机缓存暂不可用`);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "EPUB 读取失败");
