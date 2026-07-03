@@ -54,7 +54,9 @@ export function EpubSmokeLab() {
       localStorage.setItem(LAST_CHAPTER_KEY, "0");
       setBook(parsed);
       setChapterIndex(0);
-      setStatus(`读取成功：${parsed.chapters.length} 个章节，${parsed.resources?.length ?? 0} 个图片资源。`);
+      setStatus(
+        `读取成功：${parsed.chapters.length} 个阅读单元，${parsed.resources?.length ?? 0} 个图片资源。`
+      );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "EPUB 读取失败。");
     } finally {
@@ -97,13 +99,16 @@ export function EpubSmokeLab() {
             {book.title} · {book.authors.join("、") || "作者信息未提供"}
           </span>
         ) : null}
+        <span style={styles.hint}>
+          阅读单元来自 EPUB 内部结构，不等同于阅读器根据屏幕与字号生成的页码。
+        </span>
       </section>
 
       {book && chapter ? (
         <>
-          <nav style={styles.navigation} aria-label="章节导航">
+          <nav style={styles.navigation} aria-label="阅读单元导航">
             <button type="button" onClick={previous} disabled={chapterIndex === 0} style={styles.navButton}>
-              上一章
+              上一阅读单元
             </button>
             <span style={styles.chapterCounter}>
               {chapterIndex + 1} / {book.chapters.length} · {chapter.title}
@@ -114,7 +119,7 @@ export function EpubSmokeLab() {
               disabled={chapterIndex >= book.chapters.length - 1}
               style={styles.navButton}
             >
-              下一章
+              下一阅读单元
             </button>
           </nav>
 
@@ -122,9 +127,9 @@ export function EpubSmokeLab() {
             <FootnotedChapter chapter={chapter} resources={book.resources} />
           </section>
 
-          <nav style={styles.navigation} aria-label="页尾章节导航">
+          <nav style={styles.navigation} aria-label="页尾阅读单元导航">
             <button type="button" onClick={previous} disabled={chapterIndex === 0} style={styles.navButton}>
-              上一章
+              上一阅读单元
             </button>
             <span style={styles.chapterCounter}>{chapter.title}</span>
             <button
@@ -133,14 +138,15 @@ export function EpubSmokeLab() {
               disabled={chapterIndex >= book.chapters.length - 1}
               style={styles.navButton}
             >
-              下一章
+              下一阅读单元
             </button>
           </nav>
         </>
       ) : (
         <section style={styles.emptyState}>
           <strong>书房侧门已经打开。</strong>
-          <p>上传 EPUB 后，请检查章节标题、正文顺序、图片和脚注气泡。</p>
+          <p>上传 EPUB 后，请检查阅读单元标题、正文顺序、图片和脚注气泡。</p>
+          <p>共读、划线和收藏请回到正式书房使用。</p>
         </section>
       )}
     </main>
@@ -193,9 +199,10 @@ const styles = {
     background: "rgba(255,255,255,.72)"
   },
   metadata: { fontSize: "0.9rem", opacity: 0.72 },
+  hint: { fontSize: "0.82rem", opacity: 0.62 },
   navigation: {
     display: "grid",
-    gridTemplateColumns: "minmax(5rem, auto) 1fr minmax(5rem, auto)",
+    gridTemplateColumns: "minmax(7rem, auto) 1fr minmax(7rem, auto)",
     alignItems: "center",
     gap: "0.75rem",
     margin: "1rem 0"
@@ -209,8 +216,11 @@ const styles = {
   },
   chapterCounter: { textAlign: "center" as const, fontSize: "0.9rem" },
   paper: {
+    minWidth: 0,
+    maxWidth: "100%",
     minHeight: "45vh",
     padding: "clamp(1rem, 4vw, 3rem)",
+    overflow: "hidden",
     borderRadius: "1.25rem",
     background: "#fffdf9",
     boxShadow: "0 18px 50px rgba(54,42,63,.12)",
