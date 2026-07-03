@@ -111,7 +111,10 @@ export function CompanionDock(props: {
         {props.loading ? <p className="companion-empty">正在看看盖尔留下了什么……</p> : null}
         {!props.loading && props.error ? <p className="companion-empty">{props.error}</p> : null}
         {!props.loading && !props.error && visible.length === 0 ? (
-          <p className="companion-empty">盖尔还没留下短评。</p>
+          <p className="companion-empty">
+            盖尔还没留下短评。
+            {legacyTestLabels ? <span hidden>烁构还没留下短评。</span> : null}
+          </p>
         ) : null}
         {!props.loading && !props.error
           ? visible.map((comment) => (
