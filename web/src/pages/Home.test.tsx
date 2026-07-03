@@ -15,15 +15,15 @@ describe("Home bookshelf core", () => {
   it("renders all session metadata and the latest comment preview", () => {
     render(<Home bookshelf={items} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} />);
 
-    expect(screen.getByRole("heading", { name: "我的书架" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "我们的书架" })).toBeInTheDocument();
     expect(screen.getByText("可继续的小说")).toBeInTheDocument();
     expect(screen.getByText("等待校验")).toBeInTheDocument();
     expect(screen.getAllByText("小说").length).toBeGreaterThan(0);
     expect(screen.getAllByText("漫画").length).toBeGreaterThan(0);
     expect(screen.getAllByText("阅读中").length).toBeGreaterThan(0);
     expect(screen.getAllByText("已完成").length).toBeGreaterThan(0);
-    expect(screen.getByText("用户：第 8 段")).toBeInTheDocument();
-    expect(screen.getByText("烁构：第 6 段")).toBeInTheDocument();
+    expect(screen.getByText("你：第 8 段")).toBeInTheDocument();
+    expect(screen.getByText("盖尔：第 6 段")).toBeInTheDocument();
     expect(screen.getAllByText("轻松聊聊").length).toBeGreaterThan(0);
     expect(screen.getByText(/这里像伏笔/)).toBeInTheDocument();
   });
