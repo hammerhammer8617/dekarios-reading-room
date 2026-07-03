@@ -24,7 +24,7 @@ export interface ReadingHostContext {
 function connectApp() {
   if (typeof window === "undefined" || window.parent === window) return undefined;
   if (!app) {
-    app = new McpApp({ name: "S×S 小窝共读", version: "0.2.1" });
+    app = new McpApp({ name: "德卡里奥斯家的书房", version: "0.2.1" });
     appReady = app.connect().catch(() => undefined);
   }
   return app;
@@ -37,10 +37,54 @@ export async function callTool(
   const bridge = connectApp();
   if (bridge) {
     await appReady;
-    return (await bridge.callServerTool({ name, arguments: args })) as ToolCallResult;
+    const result = (await bridge.callServerTool({ name, arguments: args })) as ToolCallResult;
+    return withCurrentContextFallback(name, args, result);
   }
-  if (window.openai?.callTool) return window.openai.callTool(name, args);
-  return { structuredContent: {} };
+  if (window.openai?.callTool) {
+    const result = await window.openai.callTool(name, args);
+    return withCurrentContextFallback(name, args, result);
+  }
+  return withCurrentContextFallback(name, args, { structuredContent: {} });
+}
+
+function withCurrentContextFallback(
+  name: string,
+  args: Record<string, unknown>,
+  result: ToolCallResult
+): ToolCallResult {
+  if (name !== "send_current_context") return result;
+  const structuredContent = result.structuredContent ?? {};
+  if (structuredContent.context) return result;
+
+  const hasReadableContext = [
+    args.currentText,
+    args.selectedText,
+    args.pageDescription,
+    args.userNote,
+    args.currentPageImage
+  ].some((value) => typeof value === "string" && value.trim().length > 0);
+  if (!hasReadableContext) return result;
+
+  return {
+    ...result,
+    structuredContent: {
+      ...structuredContent,
+      context: {
+        type: "current_reading_context",
+        sessionId: args.sessionId,
+        currentPosition: args.currentPosition,
+        mode: args.mode,
+        currentText: args.currentText,
+        selectedText: args.selectedText,
+        pageDescription: args.pageDescription,
+        userNote: args.userNote,
+        sourceContext: args.sourceContext,
+        readingCommentMode: args.readingCommentMode,
+        commentLength: args.commentLength
+      },
+      contextFallback: true
+    }
+  };
 }
 
 export async function askChatGpt(
