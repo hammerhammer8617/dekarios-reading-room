@@ -2,6 +2,11 @@ name: Deploy reading room Worker
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/gtd-reading-room
+    paths:
+      - .github/deploy-reading-room-worker.trigger
 
 permissions:
   contents: read
