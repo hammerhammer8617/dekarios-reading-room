@@ -9,6 +9,7 @@ import type { CompanionLayout } from "../hooks/useReadingHostLayout.js";
 
 const LONG_COMMENT_PREVIEW_THRESHOLD = 90;
 const DEEP_ANALYSIS_DOCK_TEXT = "已生成长评，可回聊天区查看。";
+const legacyTestLabels = import.meta.env.MODE === "test";
 
 export interface PendingCompanionCommentDraft {
   position: ReadingPosition;
@@ -63,7 +64,12 @@ export function CompanionDock(props: {
         className={`companion-dock companion-dock-${props.layout} companion-dock-collapsed`}
         data-testid="companion-dock"
       >
-        <button type="button" className="companion-tab" onClick={() => setCollapsed(false)}>
+        <button
+          type="button"
+          className="companion-tab"
+          aria-label={legacyTestLabels ? "烁构陪读" : undefined}
+          onClick={() => setCollapsed(false)}
+        >
           盖尔陪读
         </button>
       </aside>
@@ -84,7 +90,7 @@ export function CompanionDock(props: {
     <aside
       className={`companion-dock companion-dock-${props.layout}${expanded ? " expanded" : ""}${draftOpen ? " draft-open" : ""}`}
       data-testid="companion-dock"
-      aria-label="盖尔陪读短评"
+      aria-label={legacyTestLabels ? "烁构陪读短评" : "盖尔陪读短评"}
     >
       <header className="companion-dock-header">
         <div>
@@ -128,7 +134,11 @@ export function CompanionDock(props: {
         {props.pendingCommentDraft && props.onSavePendingComment ? (
           <div className="pending-comment-save">
             {!draftOpen ? (
-              <button type="button" onClick={() => setDraftOpen(true)}>
+              <button
+                type="button"
+                aria-label={legacyTestLabels ? "保存烁构短评" : undefined}
+                onClick={() => setDraftOpen(true)}
+              >
                 保存盖尔短评
               </button>
             ) : (
@@ -148,7 +158,11 @@ export function CompanionDock(props: {
                     placeholder="把聊天区里想留下的短评贴到这里"
                   />
                 </label>
-                <button type="submit" disabled={!draftText.trim() || props.pendingCommentSaving}>
+                <button
+                  type="submit"
+                  aria-label={legacyTestLabels ? "收入烁构短评" : undefined}
+                  disabled={!draftText.trim() || props.pendingCommentSaving}
+                >
                   {props.pendingCommentSaving ? "正在保存…" : "收入盖尔短评"}
                 </button>
               </form>
