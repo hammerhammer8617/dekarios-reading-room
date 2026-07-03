@@ -1,14 +1,21 @@
 import { Fragment, useEffect, useId, useMemo, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type {
   ParsedBookFootnote,
   ParsedBookFootnoteReference
 } from "../book-import/types.js";
 
+export interface TextHighlightRange {
+  id: string;
+  startOffset: number;
+  endOffset: number;
+}
+
 export interface FootnoteTextProps {
   text: string;
   references?: ParsedBookFootnoteReference[];
   notes?: ParsedBookFootnote[];
+  highlights?: TextHighlightRange[];
 }
 
 const anchorStyle: CSSProperties = { position: "relative", display: "inline" };
@@ -50,7 +57,12 @@ const closeStyle: CSSProperties = {
   cursor: "pointer"
 };
 
-export function FootnoteText({ text, references = [], notes = [] }: FootnoteTextProps) {
+export function FootnoteText({
+  text,
+  references = [],
+  notes = [],
+  highlights = []
+}: FootnoteTextProps) {
   const ownerId = useId();
   const [openReferenceId, setOpenReferenceId] = useState<string | null>(null);
   const notesById = useMemo(
@@ -60,6 +72,10 @@ export function FootnoteText({ text, references = [], notes = [] }: FootnoteText
   const sortedReferences = [...references]
     .filter((reference) => reference.offset >= 0 && reference.offset <= text.length)
     .sort((left, right) => left.offset - right.offset);
+  const normalizedHighlights = useMemo(
+    () => normalizeHighlights(highlights, text.length),
+    [highlights, text.length]
+  );
 
   useEffect(() => {
     if (!openReferenceId) return;
@@ -92,7 +108,13 @@ export function FootnoteText({ text, references = [], notes = [] }: FootnoteText
     <span className="book-text-with-footnotes">
       {sortedReferences.map((reference) => {
         const note = notesById.get(reference.noteId);
-        const before = text.slice(cursor, reference.offset);
+        const before = renderHighlightedSlice(
+          text,
+          cursor,
+          reference.offset,
+          normalizedHighlights,
+          `${reference.id}-before`
+        );
         cursor = reference.offset;
         const popoverId = `${ownerId}-${reference.id}`;
         const isOpen = openReferenceId === reference.id;
@@ -141,7 +163,77 @@ export function FootnoteText({ text, references = [], notes = [] }: FootnoteText
           </Fragment>
         );
       })}
-      {text.slice(cursor)}
+      {renderHighlightedSlice(
+        text,
+        cursor,
+        text.length,
+        normalizedHighlights,
+        "tail"
+      )}
     </span>
   );
+}
+
+function normalizeHighlights(
+  highlights: TextHighlightRange[],
+  textLength: number
+): TextHighlightRange[] {
+  const sorted = highlights
+    .map((highlight) => ({
+      ...highlight,
+      startOffset: Math.max(0, Math.min(textLength, highlight.startOffset)),
+      endOffset: Math.max(0, Math.min(textLength, highlight.endOffset))
+    }))
+    .filter((highlight) => highlight.endOffset > highlight.startOffset)
+    .sort((left, right) => left.startOffset - right.startOffset || left.endOffset - right.endOffset);
+
+  const merged: TextHighlightRange[] = [];
+  for (const highlight of sorted) {
+    const previous = merged.at(-1);
+    if (!previous || highlight.startOffset > previous.endOffset) {
+      merged.push({ ...highlight });
+      continue;
+    }
+    previous.endOffset = Math.max(previous.endOffset, highlight.endOffset);
+    previous.id = `${previous.id}+${highlight.id}`;
+  }
+  return merged;
+}
+
+function renderHighlightedSlice(
+  text: string,
+  start: number,
+  end: number,
+  highlights: TextHighlightRange[],
+  keyPrefix: string
+): ReactNode[] {
+  if (end <= start) return [];
+  const nodes: ReactNode[] = [];
+  let cursor = start;
+  const relevant = highlights.filter(
+    (highlight) => highlight.endOffset > start && highlight.startOffset < end
+  );
+
+  for (const highlight of relevant) {
+    const highlightStart = Math.max(start, highlight.startOffset);
+    const highlightEnd = Math.min(end, highlight.endOffset);
+    if (highlightStart > cursor) {
+      nodes.push(text.slice(cursor, highlightStart));
+    }
+    if (highlightEnd > highlightStart) {
+      nodes.push(
+        <mark
+          key={`${keyPrefix}-${highlight.id}-${highlightStart}`}
+          className="book-highlight"
+          data-highlight-id={highlight.id}
+        >
+          {text.slice(highlightStart, highlightEnd)}
+        </mark>
+      );
+    }
+    cursor = Math.max(cursor, highlightEnd);
+  }
+
+  if (cursor < end) nodes.push(text.slice(cursor, end));
+  return nodes;
 }
