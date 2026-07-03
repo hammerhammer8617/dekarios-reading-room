@@ -49,8 +49,10 @@ import {
   buildBatchChatMessage,
   buildBatchFallbackChatMessage,
   buildBatchUserNote,
+  buildCurrentOnlyFallbackPrompt,
   buildCurrentOnlyPrompt,
   buildFormalReadingPrompt,
+  buildRecentOnlyFallbackPrompt,
   buildRecentOnlyPrompt
 } from "./features/reading-sync/build-messages.js";
 import {
@@ -1074,7 +1076,6 @@ export function App() {
         sessionId: sessionBundle.session.id,
         title: sessionBundle.session.title,
         position: sessionBundle.session.userCurrentPosition.index,
-        text: currentText,
         hasUnconfirmedGap:
           sessionBundle.session.userCurrentPosition.index >
           (sessionBundle.session.assistantSyncedPosition?.index ?? 0),
@@ -1100,10 +1101,21 @@ export function App() {
         setToast("当前段落同步失败，请再试一次。");
         return;
       }
-      const fallbackPrompt = [
-        policyPrompt,
-        selectedText ? `我选中的句子：${selectedText}` : ""
-      ].filter(Boolean).join("\n");
+      const fallbackPrompt = buildCurrentOnlyFallbackPrompt({
+        sessionId: sessionBundle.session.id,
+        title: sessionBundle.session.title,
+        position: sessionBundle.session.userCurrentPosition.index,
+        text: currentText,
+        selectedText,
+        hasUnconfirmedGap:
+          sessionBundle.session.userCurrentPosition.index >
+          (sessionBundle.session.assistantSyncedPosition?.index ?? 0),
+        mode: activePreferences.readingCommentMode,
+        length: activePreferences.commentLength,
+        operationId,
+        autoSaveCompanionComments:
+          sessionBundle.session.sessionPreferences.autoSaveCompanionComments
+      });
       const mode = await syncCurrentContext({
         context,
         successPrompt: policyPrompt,
@@ -1422,21 +1434,45 @@ if (context) {
       .map((chunk, offset) => `【第 ${start + offset} 段】\n${chunk}`)
       .join("\n\n");
     setSyncChoiceOpen(false);
-    await askChatGpt(
-      buildRecentOnlyPrompt({
-        sessionId: sessionBundle.session.id,
-        title: sessionBundle.session.title,
-        rangeStart: start,
-        rangeEnd: end,
-        text,
-        mode: sessionBundle.session.sessionPreferences.readingCommentMode,
-        length: sessionBundle.session.sessionPreferences.commentLength,
-        operationId: crypto.randomUUID(),
-        autoSaveCompanionComments:
-          sessionBundle.session.sessionPreferences.autoSaveCompanionComments
-      }),
-      { scrollToBottom: false }
-    );
+    const operationId = crypto.randomUUID();
+    const promptInput = {
+      sessionId: sessionBundle.session.id,
+      title: sessionBundle.session.title,
+      rangeStart: start,
+      rangeEnd: end,
+      mode: sessionBundle.session.sessionPreferences.readingCommentMode,
+      length: sessionBundle.session.sessionPreferences.commentLength,
+      operationId,
+      autoSaveCompanionComments:
+        sessionBundle.session.sessionPreferences.autoSaveCompanionComments
+    };
+    const result = await callTool("send_current_context", {
+      sessionId: sessionBundle.session.id,
+      previousSyncedPosition: sessionBundle.session.assistantSyncedPosition,
+      currentPosition: sessionBundle.session.userCurrentPosition,
+      contextRange: { start, end },
+      includedText: text,
+      mode: "recent_only",
+      readingCommentMode: sessionBundle.session.sessionPreferences.readingCommentMode,
+      commentLength: sessionBundle.session.sessionPreferences.commentLength,
+      ...(getSourceContext(sessionBundle.session.sourceManifest)
+        ? { sourceContext: getSourceContext(sessionBundle.session.sourceManifest) }
+        : {})
+    });
+    const context = result.structuredContent?.context as Record<string, unknown> | undefined;
+    const successPrompt = buildRecentOnlyPrompt(promptInput);
+    const fallbackPrompt = buildRecentOnlyFallbackPrompt({ ...promptInput, text });
+    if (context) {
+      await syncCurrentContext({
+        context,
+        successPrompt,
+        fallbackPrompt,
+        updateModelContext,
+        sendMessage: askChatGpt
+      });
+    } else {
+      await askChatGpt(fallbackPrompt, { scrollToBottom: false });
+    }
   }
 
   async function cancelCurrentSync() {

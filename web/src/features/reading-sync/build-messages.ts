@@ -57,7 +57,6 @@ export function buildCurrentOnlyPrompt(input: {
   sessionId: string;
   title: string;
   position: number;
-  text: string;
   hasUnconfirmedGap: boolean;
   mode: ReadingCommentMode;
   length: CommentLength;
@@ -70,8 +69,6 @@ export function buildCurrentOnlyPrompt(input: {
     input.hasUnconfirmedGap
       ? "中间存在未同步剧情，请不要假装知道未提供的内容。"
       : "请只分析当前段。",
-    input.text,
-    "",
     buildReadingCommentPrompt({
       sessionId: input.sessionId,
       mode: input.mode,
@@ -89,12 +86,31 @@ export function buildCurrentOnlyPrompt(input: {
   ].join("\n");
 }
 
+export function buildCurrentOnlyFallbackPrompt(input: {
+  sessionId: string;
+  title: string;
+  position: number;
+  text: string;
+  selectedText?: string;
+  hasUnconfirmedGap: boolean;
+  mode: ReadingCommentMode;
+  length: CommentLength;
+  operationId: string;
+  autoSaveCompanionComments: boolean;
+}) {
+  return [
+    buildCurrentOnlyPrompt(input),
+    "",
+    `当前段原文：\n${input.text}`,
+    input.selectedText ? `我选中的句子：${input.selectedText}` : ""
+  ].filter(Boolean).join("\n");
+}
+
 export function buildRecentOnlyPrompt(input: {
   sessionId: string;
   title: string;
   rangeStart: number;
   rangeEnd: number;
-  text: string;
   mode: ReadingCommentMode;
   length: CommentLength;
   operationId: string;
@@ -104,8 +120,6 @@ export function buildRecentOnlyPrompt(input: {
     `【补最近几段：第 ${input.rangeStart}–${input.rangeEnd} 段】`,
     `《${input.title}》`,
     "这是局部陪读，不代表中间未提供的剧情已经同步。",
-    input.text,
-    "",
     buildReadingCommentPrompt({
       sessionId: input.sessionId,
       mode: input.mode,
@@ -122,6 +136,20 @@ export function buildRecentOnlyPrompt(input: {
       autoSaveCompanionComments: input.autoSaveCompanionComments
     })
   ].join("\n");
+}
+
+export function buildRecentOnlyFallbackPrompt(input: {
+  sessionId: string;
+  title: string;
+  rangeStart: number;
+  rangeEnd: number;
+  text: string;
+  mode: ReadingCommentMode;
+  length: CommentLength;
+  operationId: string;
+  autoSaveCompanionComments: boolean;
+}) {
+  return [buildRecentOnlyPrompt(input), "", `最近段落原文：\n${input.text}`].join("\n");
 }
 
 function batchHeader(batch: SyncBatch) {

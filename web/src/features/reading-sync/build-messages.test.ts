@@ -4,7 +4,9 @@ import {
   buildBatchFallbackChatMessage,
   buildBatchUserNote,
   buildFormalReadingPrompt,
+  buildCurrentOnlyFallbackPrompt,
   buildCurrentOnlyPrompt,
+  buildRecentOnlyFallbackPrompt,
   buildRecentOnlyPrompt
 } from "./build-messages.js";
 import type { ReadingSyncJob, SyncBatch } from "./types.js";
@@ -84,7 +86,6 @@ it("puts only factual synchronization metadata in userNote", () => {
       sessionId: "session-1",
       title: "测试小说",
       position: 8,
-      text: "当前原文",
       hasUnconfirmedGap: true,
       mode: "reaction_only",
       length: "short",
@@ -96,6 +97,42 @@ it("puts only factual synchronization metadata in userNote", () => {
       title: "测试小说",
       rangeStart: 4,
       rangeEnd: 8,
+      mode: "plot_guess",
+      length: "normal",
+      operationId: "recent-op-1",
+      autoSaveCompanionComments: true
+    });
+
+    expect(current).not.toContain("当前原文");
+    expect(current).toContain("中间存在未同步剧情");
+    expect(current).toContain("1-5 句");
+    expect(recent).not.toContain("最近原文");
+    expect(recent).toContain("后续走向");
+    expect(current).toContain("operationId=current-op-1");
+    expect(recent).toContain("operationId=recent-op-1");
+    expect(current).toContain("source=current_context");
+    expect(recent).toContain("source=quick_action");
+  });
+
+
+  it("includes current and recent source text only in fallback prompts", () => {
+    const current = buildCurrentOnlyFallbackPrompt({
+      sessionId: "session-1",
+      title: "测试小说",
+      position: 8,
+      text: "当前原文",
+      selectedText: "划线句子",
+      hasUnconfirmedGap: true,
+      mode: "reaction_only",
+      length: "short",
+      operationId: "current-op-1",
+      autoSaveCompanionComments: true
+    });
+    const recent = buildRecentOnlyFallbackPrompt({
+      sessionId: "session-1",
+      title: "测试小说",
+      rangeStart: 4,
+      rangeEnd: 8,
       text: "最近原文",
       mode: "plot_guess",
       length: "normal",
@@ -103,15 +140,11 @@ it("puts only factual synchronization metadata in userNote", () => {
       autoSaveCompanionComments: true
     });
 
+    expect(current).toContain("【只看当前段：第 8 段】");
     expect(current).toContain("当前原文");
-    expect(current).toContain("中间存在未同步剧情");
-    expect(current).toContain("1-5 句");
+    expect(current).toContain("划线句子");
+    expect(recent).toContain("【补最近几段：第 4–8 段】");
     expect(recent).toContain("最近原文");
-    expect(recent).toContain("后续走向");
-    expect(current).toContain("operationId=current-op-1");
-    expect(recent).toContain("operationId=recent-op-1");
-    expect(current).toContain("source=current_context");
-    expect(recent).toContain("source=quick_action");
   });
 
   it("does not request companion publish for any formal route when auto-save is off", () => {
@@ -125,7 +158,6 @@ it("puts only factual synchronization metadata in userNote", () => {
       sessionId: "session-1",
       title: "测试小说",
       position: 8,
-      text: "当前原文",
       hasUnconfirmedGap: false,
       mode: "reaction_only",
       length: "short",
@@ -137,7 +169,6 @@ it("puts only factual synchronization metadata in userNote", () => {
       title: "测试小说",
       rangeStart: 4,
       rangeEnd: 8,
-      text: "最近原文",
       mode: "plot_guess",
       length: "normal",
       operationId: "recent-op-1",
