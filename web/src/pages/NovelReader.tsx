@@ -146,7 +146,7 @@ export function NovelReader(props: {
     setSelected("");
     setPendingAnchor(null);
     setSelectionMessage("");
-    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.removeAllRanges?.();
   }
 
   function captureSelection() {
@@ -219,7 +219,7 @@ export function NovelReader(props: {
     }
 
     props.onSaveQuote(selected);
-    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.removeAllRanges?.();
   }
 
   const selectionStatus = selectionMessage ||
