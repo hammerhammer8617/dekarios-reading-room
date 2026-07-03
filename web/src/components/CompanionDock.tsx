@@ -8,7 +8,6 @@ import type {
 import type { CompanionLayout } from "../hooks/useReadingHostLayout.js";
 
 const LONG_COMMENT_PREVIEW_THRESHOLD = 90;
-
 const DEEP_ANALYSIS_DOCK_TEXT = "已生成长评，可回聊天区查看。";
 
 export interface PendingCompanionCommentDraft {
@@ -65,7 +64,7 @@ export function CompanionDock(props: {
         data-testid="companion-dock"
       >
         <button type="button" className="companion-tab" onClick={() => setCollapsed(false)}>
-          烁构陪读
+          盖尔陪读
         </button>
       </aside>
     );
@@ -79,19 +78,17 @@ export function CompanionDock(props: {
   const canExpand = comments.length > collapsedVisibleCount || hasLongComment;
   const visibleCount = expanded ? 20 : collapsedVisibleCount;
   const visible = comments.slice(0, visibleCount);
-  const latestLiveCommentId = comments.find(
-    (comment) => comment.source === "live_reading"
-  )?.id;
+  const latestLiveCommentId = comments.find((comment) => comment.source === "live_reading")?.id;
 
   return (
     <aside
       className={`companion-dock companion-dock-${props.layout}${expanded ? " expanded" : ""}${draftOpen ? " draft-open" : ""}`}
       data-testid="companion-dock"
-      aria-label="烁构陪读短评"
+      aria-label="盖尔陪读短评"
     >
       <header className="companion-dock-header">
         <div>
-          <strong>烁构陪读</strong>
+          <strong>盖尔陪读</strong>
           <span>最近短评</span>
         </div>
         <div className="companion-dock-controls">
@@ -105,26 +102,22 @@ export function CompanionDock(props: {
       </header>
 
       <div className="companion-comment-list">
-        {props.loading ? <p className="companion-empty">正在看看烁构留下了什么……</p> : null}
+        {props.loading ? <p className="companion-empty">正在看看盖尔留下了什么……</p> : null}
         {!props.loading && props.error ? <p className="companion-empty">{props.error}</p> : null}
         {!props.loading && !props.error && visible.length === 0 ? (
-          <p className="companion-empty">烁构还没留下短评。</p>
+          <p className="companion-empty">盖尔还没留下短评。</p>
         ) : null}
         {!props.loading && !props.error
           ? visible.map((comment) => (
               <button
                 type="button"
                 key={comment.id}
-                className={`companion-comment${
-                  comment.id === latestLiveCommentId ? " live-comment" : ""
-                }`}
+                className={`companion-comment${comment.id === latestLiveCommentId ? " live-comment" : ""}`}
                 onClick={() => props.onJump(comment.position.index)}
               >
                 <span>{comment.position.label}</span>
                 <p className={expanded ? "full-text" : undefined}>
-                  {comment.mode === "deep_analysis"
-                    ? DEEP_ANALYSIS_DOCK_TEXT
-                    : comment.text}
+                  {comment.mode === "deep_analysis" ? DEEP_ANALYSIS_DOCK_TEXT : comment.text}
                 </p>
               </button>
             ))
@@ -136,7 +129,7 @@ export function CompanionDock(props: {
           <div className="pending-comment-save">
             {!draftOpen ? (
               <button type="button" onClick={() => setDraftOpen(true)}>
-                保存烁构短评
+                保存盖尔短评
               </button>
             ) : (
               <form
@@ -156,7 +149,7 @@ export function CompanionDock(props: {
                   />
                 </label>
                 <button type="submit" disabled={!draftText.trim() || props.pendingCommentSaving}>
-                  {props.pendingCommentSaving ? "正在保存…" : "收入烁构短评"}
+                  {props.pendingCommentSaving ? "正在保存…" : "收入盖尔短评"}
                 </button>
               </form>
             )}
