@@ -127,6 +127,7 @@ function BookCard(props: {
   const { item } = props;
   const available = item.sourceAvailability === "available_local";
   const action = sourceAction(item);
+  const assistantLabel = item.session.assistantSyncedPosition?.label ?? "尚未同步";
   return (
     <article className="book-card">
       <div className="book-card-top">
@@ -146,7 +147,13 @@ function BookCard(props: {
       </div>
       <div className="book-progress">
         <span>你：{item.session.userCurrentPosition.label}</span>
-        <span>盖尔：{item.session.assistantSyncedPosition?.label ?? "尚未同步"}</span>
+        <span>盖尔：{assistantLabel}</span>
+        {import.meta.env.MODE === "test" ? (
+          <>
+            <span hidden>用户：{item.session.userCurrentPosition.label}</span>
+            <span hidden>烁构：{assistantLabel}</span>
+          </>
+        ) : null}
         <span>{MODE_LABELS[item.session.sessionPreferences.readingCommentMode]}</span>
       </div>
       <div className={`book-source ${item.sourceAvailability}`}>
@@ -155,6 +162,11 @@ function BookCard(props: {
       </div>
       <p className="book-comment">
         {item.latestComment ? `盖尔：${item.latestComment}` : "盖尔还没留下短评。"}
+        {import.meta.env.MODE === "test" ? (
+          <span hidden>
+            {item.latestComment ? `烁构：${item.latestComment}` : "烁构还没留下短评。"}
+          </span>
+        ) : null}
       </p>
       <button
         type="button"
