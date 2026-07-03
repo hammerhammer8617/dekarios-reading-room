@@ -48,12 +48,15 @@ jobs:
             --header 'Content-Type: application/json' \
             --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             --data "{\"subdomain\":\"$WORKERS_DEV_SUBDOMAIN\"}")"
-          echo "$response" | jq -e '.success == true' >/dev/null || {
+                   if echo "$response" | jq -e '.success == true' >/dev/null; then
+            echo "workers.dev account subdomain configured."
+          elif echo "$response" | jq -e 'any(.errors[]?; .code == 10036)' >/dev/null; then
+            echo "workers.dev account subdomain already exists; continuing."
+          else
             echo "Cloudflare rejected the workers.dev subdomain request."
             echo "$response" | jq '{errors, messages}'
             exit 1
-          }
-          echo "workers.dev account subdomain configured."
+          fi
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
