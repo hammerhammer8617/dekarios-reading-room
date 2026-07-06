@@ -9,8 +9,11 @@ export async function syncCurrentContext(input: {
   ) => Promise<void>;
 }) {
   const updated = await input.updateModelContext(input.context);
-  await input.sendMessage(updated ? input.successPrompt : input.fallbackPrompt, {
-    scrollToBottom: false
-  });
+  const shouldInlineNovelCurrentText =
+    input.context.type === "novel" && input.context.mode === "current_only";
+  await input.sendMessage(
+    updated && !shouldInlineNovelCurrentText ? input.successPrompt : input.fallbackPrompt,
+    { scrollToBottom: false }
+  );
   return updated ? ("context" as const) : ("message-fallback" as const);
 }
