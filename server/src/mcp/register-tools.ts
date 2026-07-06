@@ -25,7 +25,7 @@ import {
   updateSessionPreferencesInputSchema,
   updateReadingPositionInputSchema
 } from "@ss/shared";
-import type { ReadingSession, SendCurrentContextInput, SourceManifest } from "@ss/shared";
+import type { SendCurrentContextInput } from "@ss/shared";
 import { ReadingService } from "../services/reading-service.js";
 import type { CloudSourceService } from "../services/cloud-source-service.js";
 import { toolResult } from "./tool-result.js";
@@ -343,10 +343,11 @@ export function registerReadingTools(
           })
         : await cloudSourceService.uploadNovelSource({
             sessionId: input.sessionId,
+            sourceKind: input.sourceKind,
             sourceText: input.sourceText,
             ...(input.title ? { title: input.title } : {})
           });
-    return toolResult(result, result.uploaded ? "私人云端正文已上传。" : "私人云端正文上传失败。");
+    return toolResult(result, "私人云端正文已上传。");
   });
 
   server.registerTool(
@@ -425,14 +426,10 @@ export function registerReadingTools(
   server.registerTool(
     "delete_reading_session",
     TOOL_CONFIGS.delete_reading_session,
-    async ({ sessionId, deleteCloudSource }) => {
-      let cloudSourceDeleted: boolean | undefined;
-      if (deleteCloudSource && cloudSourceService) {
-        cloudSourceDeleted = (await cloudSourceService.deleteCloudSource(sessionId)).deleted;
-      }
-      const result = await service.deleteSession(sessionId);
+    async ({ sessionId, operationId, deleteCloudSource }) => {
+      const result = await service.deleteSession(sessionId, operationId, { deleteCloudSource });
       return toolResult(
-        { ...result, cloudSourceDeleted },
+        result,
         result.deleted ? "这本书的阅读数据已删除。" : "没有找到这本书的阅读数据。"
       );
     }
@@ -474,8 +471,8 @@ export function registerReadingTools(
   server.registerTool(
     "save_quote",
     TOOL_CONFIGS.save_quote,
-    async ({ sessionId, content, position, source }) => {
-      const quote = await service.saveQuote({ sessionId, content, position, source });
+    async ({ sessionId, content, position, note, operationId }) => {
+      const quote = await service.saveQuote({ sessionId, content, position, note, operationId });
       return toolResult({ quote }, "这句已经收进小窝。");
     }
   );
@@ -483,8 +480,8 @@ export function registerReadingTools(
   server.registerTool(
     "save_reaction",
     TOOL_CONFIGS.save_reaction,
-    async ({ sessionId, content, position }) => {
-      const reaction = await service.saveReaction({ sessionId, content, position });
+    async ({ sessionId, content, position, speaker, operationId }) => {
+      const reaction = await service.saveReaction({ sessionId, content, position, speaker, operationId });
       return toolResult({ reaction }, "这句吐槽已经记下。");
     }
   );
@@ -492,8 +489,8 @@ export function registerReadingTools(
   server.registerTool(
     "save_bookmark",
     TOOL_CONFIGS.save_bookmark,
-    async ({ sessionId, position, note }) => {
-      const bookmark = await service.saveBookmark({ sessionId, position, note });
+    async ({ sessionId, position, label, operationId }) => {
+      const bookmark = await service.saveBookmark({ sessionId, position, label, operationId });
       return toolResult({ bookmark }, "书签已经夹好。");
     }
   );
@@ -501,11 +498,11 @@ export function registerReadingTools(
   server.registerTool(
     "finish_today_reading",
     TOOL_CONFIGS.finish_today_reading,
-    async ({ sessionId, position }) => {
-      const session = await service.updateUserPosition(sessionId, position);
+    async (input) => {
+      const result = await service.finishToday(input);
       return toolResult(
-        { sessionId, position: session.userCurrentPosition, updatedAt: session.updatedAt },
-        `今天先读到${position.label}。`
+        result,
+        `今天先读到${input.position.label}。`
       );
     }
   );
@@ -513,8 +510,8 @@ export function registerReadingTools(
   server.registerTool(
     "complete_reading_session",
     TOOL_CONFIGS.complete_reading_session,
-    async ({ sessionId }) => {
-      const session = await service.setSessionStatus(sessionId, "completed");
+    async ({ sessionId, finalPosition }) => {
+      const session = await service.completeSession(sessionId, finalPosition);
       return toolResult({ sessionId, status: session.status, updatedAt: session.updatedAt }, "这部作品已读完，收进读完书架。");
     }
   );
@@ -523,7 +520,7 @@ export function registerReadingTools(
     "generate_diary_context",
     TOOL_CONFIGS.generate_diary_context,
     async ({ sessionId }) => {
-      const context = await service.generateDiaryContext(sessionId);
+      const context = await service.diaryContext(sessionId);
       return toolResult({ context }, "已整理今天的小窝日记素材。");
     }
   );
