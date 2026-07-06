@@ -399,8 +399,8 @@ export function registerReadingTools(
   server.registerTool(
     "clear_companion_comments",
     TOOL_CONFIGS.clear_companion_comments,
-    async (input) => {
-      const result = await service.clearCompanionComments(input);
+    async ({ sessionId, scope }) => {
+      const result = await service.clearCompanionComments(sessionId, scope);
       return toolResult(result, "陪读短评已清理。");
     }
   );
