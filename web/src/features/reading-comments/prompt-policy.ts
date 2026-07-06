@@ -76,7 +76,7 @@ export function buildLiveReadingPrompt(input: {
   const publication = input.autoSaveCompanionComments
     ? [
         "本次小窝已开启自动保存短评到 Dock。",
-        "你必须先调用应用工具 publish_companion_comment 保存最终短评；不要只在聊天区回复。",
+        "你必须先调用 publish_companion_comment 应用工具保存最终短评；不要只在聊天区回复。",
         "publish_companion_comment 的 text 必须与随后聊天区回复的短评完全相同。",
         publishParameters({
           sessionId: input.sessionId,
