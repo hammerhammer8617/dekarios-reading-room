@@ -9,11 +9,19 @@ export async function syncCurrentContext(input: {
   ) => Promise<void>;
 }) {
   const updated = await input.updateModelContext(input.context);
-  const shouldInlineNovelCurrentText =
-    input.context.type === "novel" && input.context.mode === "current_only";
+  const novelCurrentOnlyMissingText =
+    input.context.type === "novel" &&
+    input.context.mode === "current_only" &&
+    !hasString(input.context.currentText) &&
+    !hasString(input.context.selectedText) &&
+    !hasString(input.context.includedText);
   await input.sendMessage(
-    updated && !shouldInlineNovelCurrentText ? input.successPrompt : input.fallbackPrompt,
+    updated && !novelCurrentOnlyMissingText ? input.successPrompt : input.fallbackPrompt,
     { scrollToBottom: false }
   );
   return updated ? ("context" as const) : ("message-fallback" as const);
+}
+
+function hasString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0;
 }
