@@ -347,7 +347,10 @@ export function registerReadingTools(
             sourceText: input.sourceText,
             ...(input.title ? { title: input.title } : {})
           });
-    return toolResult(result, "私人云端正文已上传。");
+    return toolResult(
+      { ...result, uploaded: true, sessionId: input.sessionId },
+      "私人云端正文已上传。"
+    );
   });
 
   server.registerTool(
