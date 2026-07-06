@@ -98,11 +98,15 @@ export function buildCurrentOnlyFallbackPrompt(input: {
   operationId: string;
   autoSaveCompanionComments: boolean;
 }) {
+  const currentText = input.text.trim();
+  const selectedText = input.selectedText?.trim();
   return [
     buildCurrentOnlyPrompt(input),
     "",
-    `当前段原文：\n${input.text}`,
-    input.selectedText ? `我选中的句子：${input.selectedText}` : ""
+    "【当前段正文】",
+    currentText || "（错误：当前段正文未传递）",
+    "【当前段正文结束】",
+    selectedText ? `我选中的句子：${selectedText}` : ""
   ].filter(Boolean).join("\n");
 }
 
@@ -149,7 +153,14 @@ export function buildRecentOnlyFallbackPrompt(input: {
   operationId: string;
   autoSaveCompanionComments: boolean;
 }) {
-  return [buildRecentOnlyPrompt(input), "", `最近段落原文：\n${input.text}`].join("\n");
+  const text = input.text.trim();
+  return [
+    buildRecentOnlyPrompt(input),
+    "",
+    "【最近段落正文】",
+    text || "（错误：最近段落正文未传递）",
+    "【最近段落正文结束】"
+  ].join("\n");
 }
 
 function batchHeader(batch: SyncBatch) {
