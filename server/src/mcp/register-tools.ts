@@ -25,7 +25,7 @@ import {
   updateSessionPreferencesInputSchema,
   updateReadingPositionInputSchema
 } from "@ss/shared";
-import type { SendCurrentContextInput } from "@ss/shared";
+import type { ReadingSession, SendCurrentContextInput, SourceManifest } from "@ss/shared";
 import { ReadingService } from "../services/reading-service.js";
 import type { CloudSourceService } from "../services/cloud-source-service.js";
 import { toolResult } from "./tool-result.js";
@@ -344,13 +344,21 @@ export function registerReadingTools(
         : await cloudSourceService.uploadNovelSource({
             sessionId: input.sessionId,
             sourceKind: input.sourceKind,
-            sourceText: input.sourceText,
-            ...(input.title ? { title: input.title } : {})
+            ...(input.title ? { title: input.title } : {}),
+            sourceText: input.sourceText
           });
-    return toolResult(
-      { ...result, uploaded: true, sessionId: input.sessionId },
+    const response = toolResult(
+      {
+        uploaded: true,
+        sessionId: input.sessionId,
+        ...summarizeCloudSourceManifest(result.sourceManifest)
+      },
       "私人云端正文已上传。"
     );
+    return {
+      ...response,
+      _meta: { sourceManifest: result.sourceManifest }
+    };
   });
 
   server.registerTool(
@@ -361,7 +369,7 @@ export function registerReadingTools(
         return toolResult({ deleted: false }, "私人云端正文服务尚未启用。");
       }
       const result = await cloudSourceService.deleteCloudSource(sessionId);
-      return toolResult(result, result.deleted ? "私人云端正文副本已删除。" : "没有找到可删除的私人云端正文副本。");
+      return toolResult(result, result.deleted ? "私人云端正文副本已删除。" : "没有可删除的私人云端正文副本。");
     }
   );
 
@@ -376,7 +384,7 @@ export function registerReadingTools(
           sessionPreferences: session.sessionPreferences,
           updatedAt: session.updatedAt
         },
-        "陪读偏好已更新。"
+        "本书的陪读偏好已更新。"
       );
     }
   );
@@ -386,7 +394,10 @@ export function registerReadingTools(
     TOOL_CONFIGS.publish_companion_comment,
     async (input) => {
       const comment = await service.publishCompanionComment(input);
-      return toolResult({ comment }, "短评已同步到 Dock。");
+      return toolResult(
+        { saved: true, comment },
+        "陪读短评已同步到这本书的小窝。请在聊天区回复相同短评。"
+      );
     }
   );
 
@@ -395,7 +406,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.list_companion_comments,
     async (input) => {
       const result = await service.listCompanionComments(input);
-      return toolResult(result, "已读取陪读短评。");
+      return toolResult(result, "已读取这本书的烁构陪读短评。");
     }
   );
 
@@ -404,7 +415,10 @@ export function registerReadingTools(
     TOOL_CONFIGS.clear_companion_comments,
     async ({ sessionId, scope }) => {
       const result = await service.clearCompanionComments(sessionId, scope);
-      return toolResult(result, "陪读短评已清理。");
+      return toolResult(
+        { sessionId, scope, ...result },
+        "已按用户选择清除这本书的陪读短评。"
+      );
     }
   );
 
@@ -413,7 +427,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.rename_reading_session,
     async ({ sessionId, title }) => {
       const session = await service.renameSession(sessionId, title);
-      return toolResult({ sessionId, title: session.title, updatedAt: session.updatedAt }, "书名已更新。");
+      return toolResult({ session }, `已将作品重命名为《${session.title}》。`);
     }
   );
 
@@ -422,7 +436,10 @@ export function registerReadingTools(
     TOOL_CONFIGS.set_reading_session_status,
     async ({ sessionId, status }) => {
       const session = await service.setSessionStatus(sessionId, status);
-      return toolResult({ sessionId, status: session.status, updatedAt: session.updatedAt }, status === "completed" ? "这部作品已标记为读完。" : "这部作品已恢复为在读。");
+      return toolResult(
+        { session },
+        status === "completed" ? "已标记为完成。" : "已恢复为阅读中。"
+      );
     }
   );
 
@@ -433,7 +450,7 @@ export function registerReadingTools(
       const result = await service.deleteSession(sessionId, operationId, { deleteCloudSource });
       return toolResult(
         result,
-        result.deleted ? "这本书的阅读数据已删除。" : "没有找到这本书的阅读数据。"
+        result.deleted ? "这本书的云端阅读数据已删除。" : "这本书已不在书架中。"
       );
     }
   );
@@ -441,62 +458,31 @@ export function registerReadingTools(
   server.registerTool(
     "send_current_context",
     TOOL_CONFIGS.send_current_context,
-    async (input: SendCurrentContextInput) => {
-      const currentPosition = input.currentPosition ?? input.position;
-      const currentText = "currentText" in input ? input.currentText : undefined;
-      const includedText = "includedText" in input ? input.includedText : undefined;
-      const selectedText = "selectedText" in input ? input.selectedText : undefined;
-      const pageDescription = "pageDescription" in input ? input.pageDescription : undefined;
+    async (input) => {
+      const { session } = await service.getSessionBundle(input.sessionId);
+      const currentPosition = input.currentPosition ?? input.position!;
+      const context = buildCurrentReadingContext(session, input);
       return toolResult(
-        {
-          context: {
-            type: input.mode,
-            sessionId: input.sessionId,
-            currentPosition,
-            previousSyncedPosition: input.previousSyncedPosition ?? null,
-            contextRange: input.contextRange,
-            currentText,
-            includedText,
-            selectedText,
-            pageDescription,
-            userNote: input.userNote,
-            sourceContext: input.sourceContext,
-            readingCommentMode: input.readingCommentMode,
-            commentLength: input.commentLength,
-            batch: input.batch
-          }
-        },
-        "已同步当前阅读内容。"
+        { context },
+        `用户正在共读《${session.title}》，位置是${currentPosition.label}。请根据本次主动同步的内容回应。`
       );
     }
   );
 
-  server.registerTool(
-    "save_quote",
-    TOOL_CONFIGS.save_quote,
-    async ({ sessionId, content, position, note, operationId }) => {
-      const quote = await service.saveQuote({ sessionId, content, position, note, operationId });
-      return toolResult({ quote }, "这句已经收进小窝。");
-    }
-  );
+  server.registerTool("save_quote", TOOL_CONFIGS.save_quote, async (input) => {
+    const quote = await service.saveQuote(input);
+    return toolResult({ saved: true, quote }, "摘录已经放进小窝。");
+  });
 
-  server.registerTool(
-    "save_reaction",
-    TOOL_CONFIGS.save_reaction,
-    async ({ sessionId, content, position, speaker, operationId }) => {
-      const reaction = await service.saveReaction({ sessionId, content, position, speaker, operationId });
-      return toolResult({ reaction }, "这句吐槽已经记下。");
-    }
-  );
+  server.registerTool("save_reaction", TOOL_CONFIGS.save_reaction, async (input) => {
+    const reaction = await service.saveReaction(input);
+    return toolResult({ saved: true, reaction }, "吐槽已经记下。");
+  });
 
-  server.registerTool(
-    "save_bookmark",
-    TOOL_CONFIGS.save_bookmark,
-    async ({ sessionId, position, label, operationId }) => {
-      const bookmark = await service.saveBookmark({ sessionId, position, label, operationId });
-      return toolResult({ bookmark }, "书签已经夹好。");
-    }
-  );
+  server.registerTool("save_bookmark", TOOL_CONFIGS.save_bookmark, async (input) => {
+    const bookmark = await service.saveBookmark(input);
+    return toolResult({ saved: true, bookmark }, "书签已经夹好。");
+  });
 
   server.registerTool(
     "finish_today_reading",
@@ -504,8 +490,8 @@ export function registerReadingTools(
     async (input) => {
       const result = await service.finishToday(input);
       return toolResult(
-        result,
-        `今天先读到${input.position.label}。`
+        { ...result, message: `今天看到${input.position.label}，下次继续。` },
+        `今天看到${input.position.label}，下次继续。`
       );
     }
   );
@@ -515,7 +501,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.complete_reading_session,
     async ({ sessionId, finalPosition }) => {
       const session = await service.completeSession(sessionId, finalPosition);
-      return toolResult({ sessionId, status: session.status, updatedAt: session.updatedAt }, "这部作品已读完，收进读完书架。");
+      return toolResult({ session, message: `《${session.title}》已经标记为完成。` }, "作品已完成。");
     }
   );
 
@@ -523,12 +509,76 @@ export function registerReadingTools(
     "generate_diary_context",
     TOOL_CONFIGS.generate_diary_context,
     async ({ sessionId }) => {
-      const context = await service.diaryContext(sessionId);
-      return toolResult({ context }, "已整理今天的小窝日记素材。");
+      const diaryContext = await service.diaryContext(sessionId);
+      return toolResult(
+        { diaryContext },
+        "日记素材已经整理好。请在聊天里把这些素材写成一篇可复制的小窝日记。"
+      );
     }
   );
 }
 
+function summarizeCloudSourceManifest(sourceManifest: SourceManifest) {
+  return {
+    sourceId: sourceManifest.sourceId,
+    contentHash: sourceManifest.contentHash,
+    ...(sourceManifest.paragraphCount !== undefined
+      ? { paragraphCount: sourceManifest.paragraphCount }
+      : {}),
+    ...(sourceManifest.pageCount !== undefined
+      ? { pageCount: sourceManifest.pageCount }
+      : {}),
+    cloudSync: {
+      enabled: sourceManifest.cloudSync.enabled,
+      provider: sourceManifest.cloudSync.provider,
+      ...(sourceManifest.cloudSync.sizeBytes !== undefined
+        ? { sizeBytes: sourceManifest.cloudSync.sizeBytes }
+        : {}),
+      ...(sourceManifest.cloudSync.mimeType
+        ? { mimeType: sourceManifest.cloudSync.mimeType }
+        : {})
+    }
+  };
+}
+
 function base64ToBytes(value: string): Uint8Array {
   return Uint8Array.from(Buffer.from(value, "base64"));
+}
+
+export function buildCurrentReadingContext(
+  session: ReadingSession,
+  input: SendCurrentContextInput
+) {
+  const currentPosition = input.currentPosition ?? input.position!;
+  const syncMode = input.currentPageImage
+    ? "image"
+    : input.currentText || input.selectedText
+      ? "text"
+      : "description";
+  const liveReading = input.mode === "live_reading";
+  return {
+    sessionId: session.id,
+    title: session.title,
+    type: session.type,
+    previousSyncedPosition:
+      input.previousSyncedPosition ?? session.assistantSyncedPosition,
+    currentPosition,
+    ...(input.contextRange ? { contextRange: input.contextRange } : {}),
+    ...(input.includedText ? { includedText: input.includedText } : {}),
+    ...(input.currentText ? { currentText: input.currentText } : {}),
+    ...(input.selectedText ? { selectedText: input.selectedText } : {}),
+    ...(input.pageDescription ? { pageDescription: input.pageDescription } : {}),
+    ...(input.userNote ? { userNote: input.userNote } : {}),
+    ...(input.currentPageImage ? { currentPageImage: input.currentPageImage } : {}),
+    ...(input.sourceContext ? { sourceContext: input.sourceContext } : {}),
+    mode: input.mode,
+    readingCommentMode: liveReading
+      ? "reaction_only"
+      : input.readingCommentMode ?? session.sessionPreferences.readingCommentMode,
+    commentLength: liveReading
+      ? "short"
+      : input.commentLength ?? session.sessionPreferences.commentLength,
+    ...(input.batch ? { batch: input.batch } : {}),
+    syncMode
+  };
 }
