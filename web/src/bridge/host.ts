@@ -173,12 +173,13 @@ function rememberModelContext(context: Record<string, unknown>) {
     return;
   }
 
+  const previousRangeTextContext = lastRangeTextContext;
   const batchOrdinal = readNumber((context.batch as Record<string, unknown> | undefined)?.ordinal);
   const shouldReset =
-    !lastRangeTextContext ||
-    lastRangeTextContext.sessionId !== rangeText.sessionId ||
+    !previousRangeTextContext ||
+    previousRangeTextContext.sessionId !== rangeText.sessionId ||
     batchOrdinal === 1;
-  const chunks = shouldReset ? [] : [...lastRangeTextContext.chunks];
+  const chunks = shouldReset ? [] : [...previousRangeTextContext.chunks];
   const nextChunks = [
     ...chunks.filter(
       (chunk) => !(chunk.start === rangeText.start && chunk.end === rangeText.end)
