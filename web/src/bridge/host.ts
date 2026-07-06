@@ -3,6 +3,14 @@ import type { ToolCallResult } from "../types/openai.js";
 
 let app: McpApp | undefined;
 let appReady: Promise<void> | undefined;
+let lastModelContext: Record<string, unknown> | undefined;
+let lastRangeTextContext:
+  | {
+      sessionId: string;
+      base: Record<string, unknown>;
+      chunks: Array<{ start: number; end: number; text: string }>;
+    }
+  | undefined;
 
 export interface ReadingHostContext {
   displayMode?: "inline" | "pip" | "fullscreen";
@@ -57,6 +65,7 @@ function withCurrentContextFallback(
   if (structuredContent.context) return result;
 
   const hasReadableContext = [
+    args.includedText,
     args.currentText,
     args.selectedText,
     args.pageDescription,
@@ -72,15 +81,19 @@ function withCurrentContextFallback(
       context: {
         type: "current_reading_context",
         sessionId: args.sessionId,
+        previousSyncedPosition: args.previousSyncedPosition,
         currentPosition: args.currentPosition,
+        contextRange: args.contextRange,
         mode: args.mode,
+        includedText: args.includedText,
         currentText: args.currentText,
         selectedText: args.selectedText,
         pageDescription: args.pageDescription,
         userNote: args.userNote,
         sourceContext: args.sourceContext,
         readingCommentMode: args.readingCommentMode,
-        commentLength: args.commentLength
+        commentLength: args.commentLength,
+        batch: args.batch
       },
       contextFallback: true
     }
@@ -95,6 +108,7 @@ export async function askChatGpt(
   const bridge = connectApp();
   if (bridge) {
     await appReady;
+    await primeModelContextForPrompt(bridge, prompt);
     await bridge.sendMessage({ role: "user", content: [{ type: "text", text: prompt }] });
     return;
   }
@@ -102,6 +116,21 @@ export async function askChatGpt(
     prompt,
     scrollToBottom: options.scrollToBottom ?? false
   });
+}
+
+async function primeModelContextForPrompt(bridge: McpApp, prompt: string) {
+  if (!lastModelContext || !shouldPrimeModelContext(prompt)) return;
+  try {
+    await bridge.updateModelContext({
+      content: [{ type: "text", text: JSON.stringify(lastModelContext) }]
+    });
+  } catch {
+    // If hidden context refresh fails, the visible prompt/fallback path still proceeds.
+  }
+}
+
+function shouldPrimeModelContext(prompt: string) {
+  return prompt.includes("补课已确认完成");
 }
 
 export async function requestReaderPip(): Promise<boolean> {
@@ -130,10 +159,73 @@ export async function updateModelContext(context: Record<string, unknown>): Prom
     await bridge.updateModelContext({
       content: [{ type: "text", text: JSON.stringify(context) }]
     });
+    rememberModelContext(context);
     return true;
   } catch {
     return false;
   }
+}
+
+function rememberModelContext(context: Record<string, unknown>) {
+  const rangeText = parseRangeTextContext(context);
+  if (!rangeText) {
+    lastModelContext = context;
+    return;
+  }
+
+  const batchOrdinal = readNumber((context.batch as Record<string, unknown> | undefined)?.ordinal);
+  const shouldReset =
+    !lastRangeTextContext ||
+    lastRangeTextContext.sessionId !== rangeText.sessionId ||
+    batchOrdinal === 1;
+  const chunks = shouldReset ? [] : [...lastRangeTextContext.chunks];
+  const nextChunks = [
+    ...chunks.filter(
+      (chunk) => !(chunk.start === rangeText.start && chunk.end === rangeText.end)
+    ),
+    {
+      start: rangeText.start,
+      end: rangeText.end,
+      text: rangeText.text
+    }
+  ].sort((left, right) => left.start - right.start);
+
+  lastRangeTextContext = {
+    sessionId: rangeText.sessionId,
+    base: context,
+    chunks: nextChunks
+  };
+
+  const start = Math.min(...nextChunks.map((chunk) => chunk.start));
+  const end = Math.max(...nextChunks.map((chunk) => chunk.end));
+  lastModelContext = {
+    ...context,
+    contextRange: { start, end },
+    includedText: nextChunks.map((chunk) => chunk.text).join("\n\n"),
+    batch: {
+      ...((context.batch as Record<string, unknown> | undefined) ?? {}),
+      rangeStart: start,
+      rangeEnd: end
+    }
+  };
+}
+
+function parseRangeTextContext(context: Record<string, unknown>) {
+  const includedText = typeof context.includedText === "string" ? context.includedText.trim() : "";
+  const sessionId = typeof context.sessionId === "string" ? context.sessionId : "";
+  if (!includedText || !sessionId) return null;
+
+  const range = context.contextRange as Record<string, unknown> | undefined;
+  const batch = context.batch as Record<string, unknown> | undefined;
+  const start = readNumber(range?.start) ?? readNumber(batch?.rangeStart);
+  const end = readNumber(range?.end) ?? readNumber(batch?.rangeEnd);
+  if (!start || !end) return null;
+
+  return { sessionId, start, end, text: includedText };
+}
+
+function readNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 export async function requestReaderFullscreen(): Promise<boolean> {
