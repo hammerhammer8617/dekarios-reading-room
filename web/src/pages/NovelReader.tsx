@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import type { CompanionComment, ReadingSession } from "@ss/shared";
 import type {
   ParsedBook,
@@ -112,6 +113,7 @@ export function NovelReader(props: {
   const [pendingAnchor, setPendingAnchor] = useState<TextSelectionAnchor | null>(null);
   const [storedHighlights, setStoredHighlights] = useState<StoredHighlight[]>([]);
   const [selectionMessage, setSelectionMessage] = useState("");
+  const [jumpValue, setJumpValue] = useState(String(index + 1));
   const scrollRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -122,6 +124,10 @@ export function NovelReader(props: {
     );
     clearSelectionState();
   }, [props.session.id, structuredChapter?.id]);
+
+  useEffect(() => {
+    setJumpValue(String(index + 1));
+  }, [index]);
 
   const chapterHighlights = useMemo(
     () => toBlockHighlights(storedHighlights, selectionBlocks),
@@ -147,6 +153,24 @@ export function NovelReader(props: {
     setPendingAnchor(null);
     setSelectionMessage("");
     window.getSelection()?.removeAllRanges?.();
+  }
+
+  function jumpToPosition(value: number) {
+    if (!Number.isFinite(value)) return;
+    const target = Math.max(1, Math.min(total, Math.trunc(value)));
+    clearSelectionState();
+    setJumpValue(String(target));
+    props.onPosition(target);
+  }
+
+  function submitJump(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = Number.parseInt(jumpValue, 10);
+    if (!Number.isFinite(value)) {
+      setJumpValue(String(index + 1));
+      return;
+    }
+    jumpToPosition(value);
   }
 
   function captureSelection() {
@@ -224,6 +248,7 @@ export function NovelReader(props: {
 
   const selectionStatus = selectionMessage ||
     (selected ? `已选中：${truncateSelection(selected)}` : "");
+  const unitLabel = structuredChapter ? "阅读单元" : "段";
 
   return (
     <main
@@ -275,7 +300,34 @@ export function NovelReader(props: {
             <button onClick={previous} disabled={index === 0}>
               {structuredChapter ? "上一阅读单元" : "上一段"}
             </button>
-            <span>{index + 1} / {total}</span>
+            <form
+              onSubmit={submitJump}
+              aria-label={`跳转${unitLabel}`}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "auto 72px auto",
+                gap: 6,
+                alignItems: "center"
+              }}
+            >
+              <span>{index + 1} / {total}</span>
+              <input
+                aria-label={`跳到第几${unitLabel}`}
+                type="number"
+                min={1}
+                max={total}
+                inputMode="numeric"
+                value={jumpValue}
+                onChange={(event) => setJumpValue(event.currentTarget.value)}
+                onBlur={() => {
+                  if (!jumpValue.trim()) setJumpValue(String(index + 1));
+                }}
+                style={{ minHeight: 36, padding: "7px 8px", textAlign: "center" }}
+              />
+              <button type="submit" style={{ minHeight: 36, padding: "7px 9px" }}>
+                跳转
+              </button>
+            </form>
             <button onClick={next} disabled={index >= total - 1}>
               {structuredChapter ? "下一阅读单元" : "下一段"}
             </button>
