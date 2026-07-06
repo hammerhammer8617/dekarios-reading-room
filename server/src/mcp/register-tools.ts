@@ -327,7 +327,7 @@ export function registerReadingTools(
 
   registerAppTool(server, "upload_cloud_source", TOOL_CONFIGS.upload_cloud_source, async (input) => {
     if (!cloudSourceService) {
-      return toolResult({ uploaded: false }, "ç§äººäº‘ç«¯æ­£æ–‡æœåŠ¡å°šæœªå¯ç”¨ã€‚");
+      return toolResult({ uploaded: false }, "私人云端正文服务尚未启用。");
     }
     const result =
       input.sourceKind === "manga_import"
@@ -346,7 +346,7 @@ export function registerReadingTools(
             sourceText: input.sourceText,
             ...(input.title ? { title: input.title } : {})
           });
-    return toolResult(result, result.uploaded ? "ç§äººäº‘ç«¯æ­£æ–‡å·²ä¸Šä¼ ã€‚" : "ç§äººäº‘ç«¯æ­£æ–‡ä¸Šä¼ å¤±è´¥ã€‚");
+    return toolResult(result, result.uploaded ? "私人云端正文已上传。" : "私人云端正文上传失败。");
   });
 
   server.registerTool(
@@ -476,8 +476,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.save_quote,
     async ({ sessionId, content, position, source }) => {
       const quote = await service.saveQuote({ sessionId, content, position, source });
-      return toolResult({ quote }, "这句已经收进小窝。"
-    );
+      return toolResult({ quote }, "这句已经收进小窝。");
     }
   );
 
@@ -486,8 +485,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.save_reaction,
     async ({ sessionId, content, position }) => {
       const reaction = await service.saveReaction({ sessionId, content, position });
-      return toolResult({ reaction }, "这句吐槽已经记下。"
-    );
+      return toolResult({ reaction }, "这句吐槽已经记下。");
     }
   );
 
@@ -496,8 +494,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.save_bookmark,
     async ({ sessionId, position, note }) => {
       const bookmark = await service.saveBookmark({ sessionId, position, note });
-      return toolResult({ bookmark }, "书签已经夹好。"
-    );
+      return toolResult({ bookmark }, "书签已经夹好。");
     }
   );
 
@@ -518,8 +515,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.complete_reading_session,
     async ({ sessionId }) => {
       const session = await service.setSessionStatus(sessionId, "completed");
-      return toolResult({ sessionId, status: session.status, updatedAt: session.updatedAt }, "这部作品已读完，收进读完书架。"
-    );
+      return toolResult({ sessionId, status: session.status, updatedAt: session.updatedAt }, "这部作品已读完，收进读完书架。");
     }
   );
 
@@ -528,8 +524,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.generate_diary_context,
     async ({ sessionId }) => {
       const context = await service.generateDiaryContext(sessionId);
-      return toolResult({ context }, "已整理今天的小窝日记素材。"
-    );
+      return toolResult({ context }, "已整理今天的小窝日记素材。");
     }
   );
 }
