@@ -249,6 +249,36 @@ export function NovelReader(props: {
   const selectionStatus = selectionMessage ||
     (selected ? `已选中：${truncateSelection(selected)}` : "");
   const unitLabel = structuredChapter ? "阅读单元" : "段";
+  const jumpControl = (
+    <form
+      onSubmit={submitJump}
+      aria-label={`跳转${unitLabel}`}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "auto 72px auto",
+        gap: 6,
+        alignItems: "center"
+      }}
+    >
+      <span>{index + 1} / {total}</span>
+      <input
+        aria-label={`跳到第几${unitLabel}`}
+        type="number"
+        min={1}
+        max={total}
+        inputMode="numeric"
+        value={jumpValue}
+        onChange={(event) => setJumpValue(event.currentTarget.value)}
+        onBlur={() => {
+          if (!jumpValue.trim()) setJumpValue(String(index + 1));
+        }}
+        style={{ minHeight: 36, padding: "7px 8px", textAlign: "center" }}
+      />
+      <button type="submit" style={{ minHeight: 36, padding: "7px 9px" }}>
+        跳转
+      </button>
+    </form>
+  );
 
   return (
     <main
@@ -300,34 +330,7 @@ export function NovelReader(props: {
             <button onClick={previous} disabled={index === 0}>
               {structuredChapter ? "上一阅读单元" : "上一段"}
             </button>
-            <form
-              onSubmit={submitJump}
-              aria-label={`跳转${unitLabel}`}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "auto 72px auto",
-                gap: 6,
-                alignItems: "center"
-              }}
-            >
-              <span>{index + 1} / {total}</span>
-              <input
-                aria-label={`跳到第几${unitLabel}`}
-                type="number"
-                min={1}
-                max={total}
-                inputMode="numeric"
-                value={jumpValue}
-                onChange={(event) => setJumpValue(event.currentTarget.value)}
-                onBlur={() => {
-                  if (!jumpValue.trim()) setJumpValue(String(index + 1));
-                }}
-                style={{ minHeight: 36, padding: "7px 8px", textAlign: "center" }}
-              />
-              <button type="submit" style={{ minHeight: 36, padding: "7px 9px" }}>
-                跳转
-              </button>
-            </form>
+            {jumpControl}
             <button onClick={next} disabled={index >= total - 1}>
               {structuredChapter ? "下一阅读单元" : "下一段"}
             </button>
@@ -348,6 +351,34 @@ export function NovelReader(props: {
           onJump={props.onPosition}
           onClear={props.onClearCompanionComments}
         />
+      </div>
+      <div
+        aria-label="悬浮阅读跳转"
+        style={{
+          position: "fixed",
+          left: "50%",
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 72px)",
+          transform: "translateX(-50%)",
+          zIndex: 40,
+          display: "grid",
+          gridTemplateColumns: "auto minmax(180px, 1fr) auto",
+          gap: 8,
+          alignItems: "center",
+          width: "min(520px, calc(100vw - 24px))",
+          padding: "8px 10px",
+          borderRadius: 999,
+          background: "rgba(20, 20, 22, 0.88)",
+          boxShadow: "0 14px 40px rgba(0, 0, 0, 0.28)",
+          backdropFilter: "blur(14px)"
+        }}
+      >
+        <button onClick={previous} disabled={index === 0} style={{ minHeight: 34, padding: "6px 9px" }}>
+          上一{structuredChapter ? "单元" : "段"}
+        </button>
+        {jumpControl}
+        <button onClick={next} disabled={index >= total - 1} style={{ minHeight: 34, padding: "6px 9px" }}>
+          下一{structuredChapter ? "单元" : "段"}
+        </button>
       </div>
       {selectionStatus ? (
         <p className="reader-selection-status" role="status">
