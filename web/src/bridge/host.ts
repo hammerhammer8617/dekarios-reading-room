@@ -62,7 +62,10 @@ function withCurrentContextFallback(
 ): ToolCallResult {
   if (name !== "send_current_context") return result;
   const structuredContent = result.structuredContent ?? {};
-  if (structuredContent.context) return result;
+  if (isRecord(structuredContent.context)) {
+    rememberModelContext(structuredContent.context);
+    return result;
+  }
 
   const hasReadableContext = [
     args.includedText,
@@ -74,27 +77,30 @@ function withCurrentContextFallback(
   ].some((value) => typeof value === "string" && value.trim().length > 0);
   if (!hasReadableContext) return result;
 
+  const context = {
+    type: "current_reading_context",
+    sessionId: args.sessionId,
+    previousSyncedPosition: args.previousSyncedPosition,
+    currentPosition: args.currentPosition,
+    contextRange: args.contextRange,
+    mode: args.mode,
+    includedText: args.includedText,
+    currentText: args.currentText,
+    selectedText: args.selectedText,
+    pageDescription: args.pageDescription,
+    userNote: args.userNote,
+    sourceContext: args.sourceContext,
+    readingCommentMode: args.readingCommentMode,
+    commentLength: args.commentLength,
+    batch: args.batch
+  };
+  rememberModelContext(context);
+
   return {
     ...result,
     structuredContent: {
       ...structuredContent,
-      context: {
-        type: "current_reading_context",
-        sessionId: args.sessionId,
-        previousSyncedPosition: args.previousSyncedPosition,
-        currentPosition: args.currentPosition,
-        contextRange: args.contextRange,
-        mode: args.mode,
-        includedText: args.includedText,
-        currentText: args.currentText,
-        selectedText: args.selectedText,
-        pageDescription: args.pageDescription,
-        userNote: args.userNote,
-        sourceContext: args.sourceContext,
-        readingCommentMode: args.readingCommentMode,
-        commentLength: args.commentLength,
-        batch: args.batch
-      },
+      context,
       contextFallback: true
     }
   };
@@ -130,7 +136,7 @@ async function primeModelContextForPrompt(bridge: McpApp, prompt: string) {
 }
 
 function shouldPrimeModelContext(prompt: string) {
-  return prompt.includes("补课已确认完成");
+  return prompt.includes("补课已确认完成") || prompt.includes("【实时陪读");
 }
 
 export async function requestReaderPip(): Promise<boolean> {
@@ -227,6 +233,10 @@ function parseRangeTextContext(context: Record<string, unknown>) {
 
 function readNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export async function requestReaderFullscreen(): Promise<boolean> {
