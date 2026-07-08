@@ -209,17 +209,23 @@ export function BookManagementSheet(props: {
   );
 }
 
-function recordItems<T extends { id: string; position: { label: string } }>(
+function recordItems<T extends { id: string; position: { label: string }; createdAt?: string }>(
   items: T[],
   content: (item: T) => string
 ) {
   if (items.length === 0) return <p className="record-empty">这里还没有记录。</p>;
-  return items.map((item) => (
-    <article key={item.id} className="record-item">
-      <span>{item.position.label}</span>
-      <p>{content(item)}</p>
-    </article>
-  ));
+  return [...items]
+    .sort((left, right) => {
+      const createdOrder = (right.createdAt ?? "").localeCompare(left.createdAt ?? "");
+      if (createdOrder !== 0) return createdOrder;
+      return right.position.label.localeCompare(left.position.label);
+    })
+    .map((item) => (
+      <article key={item.id} className="record-item">
+        <span>{item.position.label}</span>
+        <p>{content(item)}</p>
+      </article>
+    ));
 }
 
 function formatQuotesForExport(title: string, quotes: QuoteRecord[]) {
