@@ -319,22 +319,21 @@ export function registerReadingTools(
   server.registerTool(
     "upload_cloud_source",
     TOOL_CONFIGS.upload_cloud_source,
-    async ({ sessionId, sourceKind, title, sourceTextBase64, pages }) => {
+    async (input) => {
       if (!cloudSourceService) {
         return toolResult({ uploaded: false, status: "unavailable" }, "私人云端正文服务未配置。");
       }
-      if (sourceKind === "pasted_text") {
-        const sourceText = Buffer.from(sourceTextBase64 ?? "", "base64").toString("utf-8");
+      if (input.sourceKind === "pasted_text" || input.sourceKind === "file_import") {
         const result = await cloudSourceService.uploadNovelSource({
-          sessionId,
-          sourceKind,
-          sourceText,
-          ...(title ? { title } : {})
+          sessionId: input.sessionId,
+          sourceKind: input.sourceKind,
+          sourceText: input.sourceText,
+          ...(input.title ? { title: input.title } : {})
         });
         const response = toolResult(
           {
             uploaded: true,
-            sessionId,
+            sessionId: input.sessionId,
             ...summarizeCloudSourceManifest(result.sourceManifest)
           },
           "私人云端正文已上传。"
@@ -345,7 +344,7 @@ export function registerReadingTools(
         };
       }
       const uploadPages = await Promise.all(
-        (pages ?? []).map(async (page) => ({
+        input.pages.map(async (page) => ({
           index: page.index,
           fileName: page.fileName,
           mimeType: page.mimeType,
@@ -353,15 +352,14 @@ export function registerReadingTools(
         }))
       );
       const result = await cloudSourceService.uploadMangaSource({
-        sessionId,
-        sourceKind,
+        sessionId: input.sessionId,
         pages: uploadPages,
-        ...(title ? { title } : {})
+        ...(input.title ? { title: input.title } : {})
       });
       const response = toolResult(
         {
           uploaded: true,
-          sessionId,
+          sessionId: input.sessionId,
           ...summarizeCloudSourceManifest(result.sourceManifest)
         },
         "私人云端漫画已上传。"
