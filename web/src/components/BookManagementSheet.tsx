@@ -6,6 +6,7 @@ import type {
 } from "@ss/shared";
 
 type RecordTab = "bookmarks" | "quotes" | "reactions" | "comments";
+type QuoteRecord = SessionBundle["quotes"][number];
 
 export function BookManagementSheet(props: {
   bundle: SessionBundle;
@@ -24,6 +25,24 @@ export function BookManagementSheet(props: {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleteCloudSource, setDeleteCloudSource] = useState(false);
   const [deleteLocalCache, setDeleteLocalCache] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const quoteExportText = formatQuotesForExport(
+    props.bundle.session.title,
+    props.bundle.quotes
+  );
+
+  async function copyQuoteExport() {
+    if (props.bundle.quotes.length === 0) return;
+    try {
+      if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+        throw new Error("Clipboard API unavailable");
+      }
+      await navigator.clipboard.writeText(quoteExportText);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+  }
 
   return (
     <div className="sheet-backdrop" role="presentation" onClick={props.onClose}>
@@ -91,6 +110,26 @@ export function BookManagementSheet(props: {
                 )
               : null}
           </div>
+          {tab === "quotes" ? (
+            <div className="quote-export-panel">
+              <h4>摘录汇总</h4>
+              <p>这些划线可以复制到读书笔记、手帐或 Notion。</p>
+              <textarea
+                aria-label="摘录汇总文本"
+                readOnly
+                value={quoteExportText}
+              />
+              <button
+                className="sheet-action"
+                disabled={props.bundle.quotes.length === 0}
+                onClick={() => void copyQuoteExport()}
+              >
+                复制全部摘录
+              </button>
+              {copyStatus === "copied" ? <p className="export-status">已复制全部摘录。</p> : null}
+              {copyStatus === "failed" ? <p className="export-status">自动复制失败，可以手动全选上面的文本。</p> : null}
+            </div>
+          ) : null}
           {tab === "comments" && props.historyHasMore ? (
             <button
               className="sheet-action"
@@ -180,4 +219,30 @@ function recordItems<T extends { id: string; position: { label: string } }>(
       <p>{content(item)}</p>
     </article>
   ));
+}
+
+function formatQuotesForExport(title: string, quotes: QuoteRecord[]) {
+  if (quotes.length === 0) {
+    return `# 《${title}》划线摘录\n\n（这里还没有摘录。）`;
+  }
+  const sortedQuotes = [...quotes].sort((left, right) => {
+    const leftIndex = left.position?.index ?? Number.MAX_SAFE_INTEGER;
+    const rightIndex = right.position?.index ?? Number.MAX_SAFE_INTEGER;
+    return leftIndex - rightIndex;
+  });
+  return [
+    `# 《${title}》划线摘录`,
+    ...sortedQuotes.map((quote) => [
+      `## ${quote.position.label}`,
+      blockquote(quote.content)
+    ].join("\n"))
+  ].join("\n\n---\n\n");
+}
+
+function blockquote(content: string) {
+  return content
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => `> ${line}`)
+    .join("\n");
 }
