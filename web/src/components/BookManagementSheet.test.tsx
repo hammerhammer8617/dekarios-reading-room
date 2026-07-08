@@ -52,7 +52,7 @@ describe("BookManagementSheet", () => {
     expect(screen.getByText("摘录内容")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "复制全部摘录" })).toBeInTheDocument();
     expect(screen.getByLabelText("摘录汇总文本")).toHaveValue(
-      "# 《管理测试书》划线摘录\n\n---\n\n## 第 2 段\n> 摘录内容"
+      "# 《管理测试书》划线摘录\n\n## 第 2 段\n> 摘录内容"
     );
     fireEvent.click(screen.getByRole("button", { name: "用户反应" }));
     expect(screen.getAllByText("用户反应")).toHaveLength(2);
