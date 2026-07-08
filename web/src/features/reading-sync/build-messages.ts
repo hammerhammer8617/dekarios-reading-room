@@ -40,17 +40,25 @@ export function buildFormalReadingPrompt(
   }
 ) {
   const start = job.batches[0]?.rangeStart ?? job.targetPosition.index;
-  return buildReadingCommentPrompt({
-    sessionId: job.sessionId,
-    mode: preferences.mode,
-    length: preferences.length,
-    title: job.title,
-    position: job.targetPosition,
-    syncedRange: { start, end: job.targetPosition.index },
-    source: "catch_up_complete",
-    operationId: preferences.operationId,
-    autoSaveCompanionComments: preferences.autoSaveCompanionComments
-  });
+  return [
+    buildReadingCommentPrompt({
+      sessionId: job.sessionId,
+      mode: preferences.mode,
+      length: preferences.length,
+      title: job.title,
+      position: job.targetPosition,
+      syncedRange: { start, end: job.targetPosition.index },
+      source: "catch_up_complete",
+      operationId: preferences.operationId,
+      autoSaveCompanionComments: preferences.autoSaveCompanionComments
+    }),
+    "",
+    "【盖尔也划一句】",
+    "请在本次正式回复最后追加一个很短的小节，标题固定为“盖尔想给塔芙看的句子”。",
+    "从刚才已同步的范围里挑一句你最想递给塔芙看的原文，再用 1-2 句说明为什么挑它。",
+    "这不是剧情总结，也不是长评的一部分；它是并排共读时盖尔回赠给塔芙的一条划线。",
+    "如果本次上下文里没有足够原文可供选择，不要编造原句；请写“这次同步没有足够原文可回赠划线”。"
+  ].join("\n");
 }
 
 export function buildCurrentOnlyPrompt(input: {
