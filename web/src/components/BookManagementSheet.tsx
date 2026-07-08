@@ -92,24 +92,6 @@ export function BookManagementSheet(props: {
             <button aria-pressed={tab === "reactions"} onClick={() => setTab("reactions")}>用户反应</button>
             <button aria-pressed={tab === "comments"} onClick={() => setTab("comments")}>烁构评论</button>
           </div>
-          <div className="record-list">
-            {tab === "bookmarks"
-              ? recordItems(props.bundle.bookmarks, (item) => item.label || item.position.label)
-              : null}
-            {tab === "quotes"
-              ? recordItems(props.bundle.quotes, (item) => item.content)
-              : null}
-            {tab === "reactions"
-              ? recordItems(props.bundle.reactions, (item) => item.content)
-              : null}
-            {tab === "comments"
-              ? recordItems(props.comments, (item) =>
-                  item.mode === "deep_analysis"
-                    ? "已生成长评，可回聊天区查看。"
-                    : item.text
-                )
-              : null}
-          </div>
           {tab === "quotes" ? (
             <div className="quote-export-panel">
               <h4>摘录汇总</h4>
@@ -131,6 +113,24 @@ export function BookManagementSheet(props: {
               {copyStatus === "failed" ? <p className="export-status">自动复制失败，可以手动全选上面的文本。</p> : null}
             </div>
           ) : null}
+          <div className="record-list">
+            {tab === "bookmarks"
+              ? recordItems(props.bundle.bookmarks, (item) => item.label || item.position.label)
+              : null}
+            {tab === "quotes"
+              ? recordItems(props.bundle.quotes, (item) => item.content)
+              : null}
+            {tab === "reactions"
+              ? recordItems(props.bundle.reactions, (item) => item.content)
+              : null}
+            {tab === "comments"
+              ? recordItems(props.comments, (item) =>
+                  item.mode === "deep_analysis"
+                    ? "已生成长评，可回聊天区查看。"
+                    : item.text
+                )
+              : null}
+          </div>
           {tab === "comments" && props.historyHasMore ? (
             <button
               className="sheet-action"
