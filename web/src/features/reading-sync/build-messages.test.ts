@@ -78,6 +78,8 @@ it("puts only factual synchronization metadata in userNote", () => {
     expect(prompt).not.toContain(batch.text);
     expect(prompt).toContain("先调用 publish_companion_comment");
     expect(prompt).toContain("source=catch_up_completion");
+    expect(prompt).toContain("盖尔想给塔芙看的句子");
+    expect(prompt).toContain("回赠给塔芙的一条划线");
     expect(prompt).not.toMatch(/剧情变化.*人物变化.*伏笔猜测.*当前感受/s);
   });
 
