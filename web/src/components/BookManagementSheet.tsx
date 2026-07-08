@@ -230,13 +230,11 @@ function formatQuotesForExport(title: string, quotes: QuoteRecord[]) {
     const rightIndex = right.position?.index ?? Number.MAX_SAFE_INTEGER;
     return leftIndex - rightIndex;
   });
-  return [
-    `# 《${title}》划线摘录`,
-    ...sortedQuotes.map((quote) => [
-      `## ${quote.position.label}`,
-      blockquote(quote.content)
-    ].join("\n"))
-  ].join("\n\n---\n\n");
+  const quoteBlocks = sortedQuotes.map((quote) => [
+    `## ${quote.position.label}`,
+    blockquote(quote.content)
+  ].join("\n"));
+  return [`# 《${title}》划线摘录`, quoteBlocks.join("\n\n---\n\n")].join("\n\n");
 }
 
 function blockquote(content: string) {
