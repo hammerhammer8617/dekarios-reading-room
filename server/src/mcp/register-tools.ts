@@ -323,11 +323,18 @@ export function registerReadingTools(
       if (!cloudSourceService) {
         return toolResult({ uploaded: false, status: "unavailable" }, "私人云端正文服务未配置。");
       }
-      if (input.sourceKind === "pasted_text" || input.sourceKind === "file_import") {
-        const result = await cloudSourceService.uploadNovelSource({
+      if (input.sourceKind === "manga_import") {
+        const uploadPages = await Promise.all(
+          input.pages.map(async (page) => ({
+            index: page.index,
+            fileName: page.fileName,
+            mimeType: page.mimeType,
+            bytes: base64ToBytes(page.bytesBase64)
+          }))
+        );
+        const result = await cloudSourceService.uploadMangaSource({
           sessionId: input.sessionId,
-          sourceKind: input.sourceKind,
-          sourceText: input.sourceText,
+          pages: uploadPages,
           ...(input.title ? { title: input.title } : {})
         });
         const response = toolResult(
@@ -336,24 +343,17 @@ export function registerReadingTools(
             sessionId: input.sessionId,
             ...summarizeCloudSourceManifest(result.sourceManifest)
           },
-          "私人云端正文已上传。"
+          "私人云端漫画已上传。"
         );
         return {
           ...response,
           _meta: { sourceManifest: result.sourceManifest }
         };
       }
-      const uploadPages = await Promise.all(
-        input.pages.map(async (page) => ({
-          index: page.index,
-          fileName: page.fileName,
-          mimeType: page.mimeType,
-          bytes: base64ToBytes(page.bytesBase64)
-        }))
-      );
-      const result = await cloudSourceService.uploadMangaSource({
+      const result = await cloudSourceService.uploadNovelSource({
         sessionId: input.sessionId,
-        pages: uploadPages,
+        sourceKind: input.sourceKind,
+        sourceText: input.sourceText,
         ...(input.title ? { title: input.title } : {})
       });
       const response = toolResult(
@@ -362,7 +362,7 @@ export function registerReadingTools(
           sessionId: input.sessionId,
           ...summarizeCloudSourceManifest(result.sourceManifest)
         },
-        "私人云端漫画已上传。"
+        "私人云端正文已上传。"
       );
       return {
         ...response,
