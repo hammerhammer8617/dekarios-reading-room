@@ -117,6 +117,7 @@ export function BookManagementSheet(props: {
               <textarea
                 aria-label="摘录汇总文本"
                 readOnly
+                rows={8}
                 value={quoteExportText}
               />
               <button
