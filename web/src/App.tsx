@@ -803,7 +803,7 @@ export function App() {
         stage: "creating_session",
         paragraphCount: setupType === "novel" ? novelChunks.length : current.paragraphCount,
         screen,
-        message: "正在创建阅读小窝"
+        message: "正在创建书房"
       }));
       await nextFrame();
       const result = await callTool("start_reading_session", { title: title.trim(), type: setupType });
@@ -817,7 +817,7 @@ export function App() {
       ...current,
       sessionId: session?.id,
       screen,
-      message: "阅读小窝已创建"
+      message: "书房已创建"
     }));
     await nextFrame();
     let sourceManifest =
@@ -1030,7 +1030,7 @@ export function App() {
     try {
       await startReading();
     } catch {
-      setToast("创建阅读小窝失败，请重试；正文仍保留在当前页面。");
+      setToast("创建书房失败，请重试；正文仍保留在当前页面。");
     } finally {
       setStartReadingInFlight(false);
     }
@@ -1902,7 +1902,7 @@ if (context) {
       setPendingCommentDraft(null);
       setManualSaveRevision((value) => value + 1);
       void loadCompanionComments(sessionBundle.session.id, true);
-      setToast("短评已经收入小窝。");
+      setToast("短评已经收入书房。");
     } catch (error) {
       console.warn("Companion comment save failed", error);
       setToast("短评保存失败，可重试。");
@@ -1950,7 +1950,7 @@ if (context) {
     });
     const quote = result.structuredContent?.quote as any;
     if (quote) appendSessionRecord(sessionBundle.session.id, { quotes: [quote] });
-    setToast("这句已经收进小窝。");
+    setToast("这句已经收进书房。");
   }
 
   async function saveReaction() {
@@ -2086,7 +2086,7 @@ if (context) {
       ) : null}
       {screen === "setup" ? (
         <main className="setup-shell">
-          <button className="back-link" onClick={() => setScreen("home")}>‹ 返回小窝</button>
+          <button className="back-link" onClick={() => setScreen("home")}>‹ 返回书房</button>
           <h1>{setupType === "novel" ? "小说共读" : "漫画共读"}</h1>
           <p>{existingSession ? `继续《${existingSession.title}》` : "准备好内容，我们就一起开始。"}</p>
           <label>作品名<input aria-label="作品名" value={title} onChange={(e) => setTitle(e.target.value)} /></label>
@@ -2161,7 +2161,7 @@ if (context) {
             disabled={startReadingInFlight}
             onClick={() => void submitReadingSetup()}
           >
-            {startReadingInFlight ? "正在进入…" : "进入阅读小窝"}
+            {startReadingInFlight ? "正在进入…" : "进入书房"}
           </button>
         </main>
       ) : null}
@@ -2240,7 +2240,7 @@ if (context) {
           onClose={() => setOverlay(null)}
         />
       ) : null}
-      {overlay === "diary" && diaryContext ? <DiaryPreview context={diaryContext} onWrite={() => askChatGpt("请根据刚刚整理的小窝日记素材，写一篇温暖、可复制到 Notion 的今日共读日记。")} onClose={() => setOverlay(null)} /> : null}
+      {overlay === "diary" && diaryContext ? <DiaryPreview context={diaryContext} onWrite={() => askChatGpt("请根据刚刚整理的书房日记素材，写一篇温暖、可复制到 Notion 的今日共读日记。")} onClose={() => setOverlay(null)} /> : null}
       {overlay === "management" && managedBook ? (
         <BookManagementSheet
           bundle={managedBook}

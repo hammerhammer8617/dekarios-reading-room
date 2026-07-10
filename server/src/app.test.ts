@@ -8,7 +8,7 @@ describe("server app", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       ok: true,
-      app: "S×S 小窝共读",
+      app: "德卡里奥斯家的书房",
       version: "0.2.1",
       resourceVersion: "app-v22",
       buildSha: "local"

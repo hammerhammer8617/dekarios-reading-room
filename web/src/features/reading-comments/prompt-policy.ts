@@ -51,7 +51,7 @@ export function buildReadingCommentPrompt(input: {
         position: input.position
       })
     : [
-        "本次小窝设置为不自动保存短评到 Dock。",
+        "本次共读设置为不自动保存短评到 Dock。",
         "不要调用任何应用写回工具；直接在聊天区回复短评即可。",
         "不要说 Dock 已保存，也不要显示“短评未同步到 Dock”，因为本次没有尝试写回。"
       ];
@@ -75,7 +75,7 @@ export function buildLiveReadingPrompt(input: {
 }): string {
   const publication = input.autoSaveCompanionComments
     ? [
-        "本次小窝已开启自动保存短评到 Dock。",
+        "本次共读已开启自动保存短评到 Dock。",
         "你必须先调用 publish_companion_comment 应用工具保存最终短评；不要只在聊天区回复。",
         "publish_companion_comment 的 text 必须与随后聊天区回复的短评完全相同。",
         publishParameters({
@@ -90,7 +90,7 @@ export function buildLiveReadingPrompt(input: {
         "工具成功后，再在聊天区回复完全相同的短评；失败时必须明确说明“短评未同步到 Dock”，不要声称 Dock 已保存。"
       ]
     : [
-        "本次小窝设置为不自动保存短评到 Dock。",
+        "本次共读设置为不自动保存短评到 Dock。",
         "不要调用任何应用写回工具；直接在聊天区回复短评即可。"
       ];
   return [

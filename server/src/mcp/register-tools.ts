@@ -46,15 +46,15 @@ const mutation = {
 
 export const TOOL_CONFIGS = {
   open_reading_nest: {
-    title: "打开 S×S 小窝共读",
+    title: "打开德卡里奥斯家的书房",
     description: "Use this when the user wants to open the reading nest or continue recent reading.",
     inputSchema: openReadingNestInputSchema,
     annotations: readOnly,
     _meta: {
       ui: { resourceUri: READING_NEST_URI },
       "openai/outputTemplate": READING_NEST_URI,
-      "openai/toolInvocation/invoking": "正在点亮小窝…",
-      "openai/toolInvocation/invoked": "小窝已经准备好"
+      "openai/toolInvocation/invoking": "正在点亮书房…",
+      "openai/toolInvocation/invoked": "书房已经准备好"
     }
   },
   start_reading_session: {
@@ -208,7 +208,7 @@ export const TOOL_CONFIGS = {
     annotations: { ...mutation, idempotentHint: true }
   },
   generate_diary_context: {
-    title: "生成小窝日记素材",
+    title: "生成书房日记素材",
     description: "Use this when the user wants ChatGPT to write today's copyable reading diary.",
     inputSchema: generateDiaryContextInputSchema,
     annotations: readOnly
@@ -235,7 +235,7 @@ export function registerReadingTools(
         recentSessions: bookshelfSessions.slice(0, 10),
         ...(options.sourceEndpointBase ? { sourceEndpointBase: options.sourceEndpointBase } : {})
       },
-      "已打开 S×S 小窝共读。"
+      "已打开德卡里奥斯家的书房。"
     );
   });
 
@@ -475,7 +475,7 @@ export function registerReadingTools(
 
   server.registerTool("save_quote", TOOL_CONFIGS.save_quote, async (input) => {
     const quote = await service.saveQuote(input);
-    return toolResult({ saved: true, quote }, "摘录已经放进小窝。");
+    return toolResult({ saved: true, quote }, "摘录已经放进书房。");
   });
 
   server.registerTool("save_reaction", TOOL_CONFIGS.save_reaction, async (input) => {
@@ -516,7 +516,7 @@ export function registerReadingTools(
       const diaryContext = await service.diaryContext(sessionId);
       return toolResult(
         { diaryContext },
-        "日记素材已经整理好。请在聊天里把这些素材写成一篇可复制的小窝日记。"
+        "日记素材已经整理好。请在聊天里把这些素材写成一篇可复制的书房日记。"
       );
     }
   );

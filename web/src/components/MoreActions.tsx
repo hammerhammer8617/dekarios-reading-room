@@ -42,7 +42,7 @@ export function MoreActions(props: {
           onQuickAction={props.onQuickAction}
         />
         <button className="sheet-action" onClick={props.onBookmark}>保存书签</button>
-        <button className="sheet-action" onClick={props.onDiary}>写小窝日记</button>
+        <button className="sheet-action" onClick={props.onDiary}>写书房日记</button>
         <button className="sheet-action quiet-danger" onClick={props.onComplete}>完成这部作品</button>
         <p className="reader-build-info" aria-label="书房版本信息">
           书房 {READING_NEST_BUILD_INFO.resourceVersion} · 构建 {READING_NEST_BUILD_INFO.buildSha}

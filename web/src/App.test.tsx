@@ -26,7 +26,9 @@ describe("App", () => {
 
   it("shows the two reading modes and bookshelf section", () => {
     render(<App />);
-    expect(screen.getByText("S×S 小窝共读")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "德卡里奥斯家的书房" })
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /小说共读/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /漫画共读/ })).toBeInTheDocument();
     expect(screen.getByText("我的书架")).toBeInTheDocument();
@@ -163,7 +165,7 @@ describe("App", () => {
     expect(screen.getByText(/文件：大文件导入.txt/)).toBeInTheDocument();
     expect(screen.getByText(/sourceEndpointBase：present/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
 
     expect(await screen.findByText(/用户读到：第 1 段/)).toBeInTheDocument();
     expect(screen.getByText(content.slice(0, 20), { exact: false })).toBeInTheDocument();
@@ -252,7 +254,7 @@ describe("App", () => {
       target: { value: "缓存失败时仍应进入阅读页。" }
     });
     fireEvent.click(screen.getByLabelText("在本设备记住这本书"));
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
 
     expect(await screen.findByText("缓存失败时仍应进入阅读页。")).toBeInTheDocument();
     expect(await screen.findByText(/本设备正文缓存写入失败/)).toBeInTheDocument();
@@ -358,7 +360,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: "这是 GPT 必须看到的当前段落。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
     await screen.findByText("这是 GPT 必须看到的当前段落。");
     await waitFor(() => {
       expect(callTool).toHaveBeenCalledWith(
@@ -508,7 +510,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: "不要写回 Dock。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
     await screen.findByRole("button", { name: "陪我看看这里" });
     fireEvent.mouseUp(screen.getByText("不要写回 Dock。"));
     fireEvent.change(screen.getByLabelText("批注给盖尔"), {
@@ -603,7 +605,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: "等一下。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
     const action = await screen.findByRole("button", { name: "陪我看看这里" });
 
     fireEvent.click(action);
@@ -669,7 +671,7 @@ describe("App", () => {
         value: Array.from({ length: 28 }, (_, index) => `第 ${index + 1} 章\n内容`).join("\n\n")
       }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
     await screen.findByText(/盖尔确认读到：尚未同步/);
 
     for (let index = 0; index < 27; index += 1) {
@@ -858,7 +860,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: "第一段。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
     fireEvent.click(await screen.findByRole("button", { name: "更多操作" }));
 
     expect(await screen.findByText("这次想怎么陪读")).toBeInTheDocument();
@@ -1018,7 +1020,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: "值得保存的句子" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
     await screen.findByRole("button", { name: "陪我看看这里" });
 
     fireEvent.mouseUp(screen.getByText("值得保存的句子"));
@@ -1144,7 +1146,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: "这段需要盖尔吐槽一下。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
     await screen.findByRole("button", { name: "陪我看看这里" });
     expect(await screen.findByRole("button", { name: "保存盖尔短评" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "全屏阅读" }));
@@ -1159,7 +1161,7 @@ describe("App", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "保存盖尔短评" }));
     fireEvent.change(screen.getByLabelText("短评内容"), {
-      target: { value: "这句吐槽值得贴到小窝。" }
+      target: { value: "这句吐槽值得贴到书房。" }
     });
     fireEvent.click(screen.getByRole("button", { name: "收入盖尔短评" }));
 
@@ -1168,18 +1170,18 @@ describe("App", () => {
         "publish_companion_comment",
         expect.objectContaining({
           sessionId: "session-manual-comment",
-          text: "这句吐槽值得贴到小窝。",
+          text: "这句吐槽值得贴到书房。",
           source: "manual_save",
           position: expect.objectContaining({ index: 1 })
         })
       );
     });
-    expect(await screen.findByText("这句吐槽值得贴到小窝。")).toBeInTheDocument();
+    expect(await screen.findByText("这句吐槽值得贴到书房。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "退出全屏" })).toBeInTheDocument();
     expect(screen.getByLabelText("短评内容")).toHaveValue("");
     expect(screen.getByRole("button", { name: "收入盖尔短评" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("短评内容"), {
-      target: { value: "这句吐槽值得贴到小窝。" }
+      target: { value: "这句吐槽值得贴到书房。" }
     });
     fireEvent.click(screen.getByRole("button", { name: "收入盖尔短评" }));
     await waitFor(() => {
@@ -1192,7 +1194,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "返回首页" }));
     fireEvent.click(await screen.findByRole("button", { name: "管理《短评保存测试》" }));
     fireEvent.click(await screen.findByRole("button", { name: "盖尔评论" }));
-    expect(screen.getByText("这句吐槽值得贴到小窝。")).toBeInTheDocument();
+    expect(screen.getByText("这句吐槽值得贴到书房。")).toBeInTheDocument();
   });
 
   it("does not fake a saved preference when the tool fails", async () => {
@@ -1276,7 +1278,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: "第一段。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
     fireEvent.click(await screen.findByRole("button", { name: "更多操作" }));
     fireEvent.click(await screen.findByRole("button", { name: "猜后续" }));
 
@@ -1368,7 +1370,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: `第一段。${"甲".repeat(1_800)}\n\n第二段。${"乙".repeat(1_800)}` }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
 
     expect(await screen.findByText("这句也太会了。")).toBeInTheDocument();
     expect(screen.queryByText("别的书的短评")).not.toBeInTheDocument();
@@ -1584,7 +1586,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: sourceText }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
     expect(await screen.findByText("用户读到：第 2 段")).toBeInTheDocument();
     expect(await deviceCache.get("ipad-refresh-session")).not.toBeNull();
 
@@ -1667,7 +1669,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: sourceText }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
 
     expect(await screen.findByText("用户读到：第 1 段")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
@@ -1767,7 +1769,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: sourceText }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
 
     expect(await screen.findByText(/用户读到：第 1 段/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
@@ -1850,7 +1852,7 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
       target: { value: sourceText }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
 
     await waitFor(() => {
       expect(screen.getByText("bridge only paragraph")).toBeInTheDocument();
@@ -2223,7 +2225,7 @@ describe("App", () => {
     fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, {
       target: { files: [pageFile] }
     });
-    fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
 
     expect(await screen.findByText("第 1 页 / 共 1 页")).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();

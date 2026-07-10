@@ -252,11 +252,11 @@ describe("CompanionDock", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "保存盖尔短评" }));
     fireEvent.change(screen.getByLabelText("短评内容"), {
-      target: { value: "这条短评要收入小窝。" }
+      target: { value: "这条短评要收入书房。" }
     });
     fireEvent.click(screen.getByRole("button", { name: "收入盖尔短评" }));
 
-    expect(onSavePendingComment).toHaveBeenCalledWith("这条短评要收入小窝。");
+    expect(onSavePendingComment).toHaveBeenCalledWith("这条短评要收入书房。");
   });
   it("keeps the manual save action visible in compact draft mode", () => {
     render(

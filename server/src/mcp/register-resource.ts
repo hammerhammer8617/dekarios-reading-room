@@ -23,10 +23,10 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
   for (const [index, resourceUri] of READING_NEST_RESOURCE_URIS.entries()) {
     registerAppResource(
       server,
-      index === 0 ? "S×S 小窝共读" : `S×S 小窝共读兼容资源 ${index}`,
+      index === 0 ? "德卡里奥斯家的书房" : `德卡里奥斯家的书房兼容资源 ${index}`,
       resourceUri,
       {
-        description: "移动端优先的小说与漫画共读小窝",
+        description: "移动端优先的小说与漫画共读书房",
         _meta: {
           ui: {
             csp: resourceCsp,
@@ -34,7 +34,7 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
           },
           "openai/widgetCSP": openaiWidgetCsp,
           "openai/widgetDescription":
-            "一个温暖的移动端共读小窝，用于阅读用户自己粘贴的小说文本或导入的漫画图片。"
+            "一个温暖的移动端共读书房，用于阅读用户自己粘贴的小说文本或导入的漫画图片。"
         }
       },
       async () => {
@@ -51,7 +51,7 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
                 },
                 "openai/widgetCSP": openaiWidgetCsp,
                 "openai/widgetDescription":
-                  "一个温暖的移动端共读小窝，用于阅读用户自己粘贴的小说文本或导入的漫画图片。",
+                  "一个温暖的移动端共读书房，用于阅读用户自己粘贴的小说文本或导入的漫画图片。",
                 "openai/widgetPrefersBorder": true
               }
             }

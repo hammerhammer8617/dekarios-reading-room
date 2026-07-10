@@ -9,14 +9,14 @@ describe("Boot", () => {
   it("shows a visible diagnostic while the app module is loading", () => {
     render(<Boot loadApp={() => new Promise(() => undefined)} />);
 
-    expect(screen.getByText("SxS 小窝加载诊断")).toBeInTheDocument();
+    expect(screen.getByText("德卡里奥斯家的书房加载诊断")).toBeInTheDocument();
     expect(screen.getByText("loading-app")).toBeInTheDocument();
   });
 
   it("loads the app module when boot succeeds", async () => {
-    render(<Boot loadApp={async () => ({ App: () => <main>小窝首页</main> })} />);
+    render(<Boot loadApp={async () => ({ App: () => <main>书房首页</main> })} />);
 
-    expect(await screen.findByText("小窝首页")).toBeInTheDocument();
+    expect(await screen.findByText("书房首页")).toBeInTheDocument();
   });
 
   it("shows sanitized diagnostics when the app module fails to load", async () => {

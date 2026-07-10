@@ -13,7 +13,7 @@ export function createMcpServerFromRepository(
   options: { sourceEndpointBase?: string; workerOrigin?: string } = {}
 ) {
   const server = new McpServer({
-    name: "S×S 小窝共读",
+    name: "德卡里奥斯家的书房",
     version: READING_NEST_APP_VERSION
   });
   const service = new ReadingService(repository);
