@@ -422,6 +422,10 @@ describe("App", () => {
   });
 
   it("does not ask ChatGPT to publish a Dock comment when companion auto-save is off", async () => {
+    const selection = vi.spyOn(window, "getSelection").mockReturnValue({
+      toString: () => "不要写回 Dock。",
+      removeAllRanges: vi.fn()
+    } as unknown as Selection);
     const callTool = vi.fn(async (name: string, args: Record<string, any>) => {
       if (name === "start_reading_session") {
         return {
@@ -505,14 +509,28 @@ describe("App", () => {
       target: { value: "不要写回 Dock。" }
     });
     fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
-    fireEvent.click(await screen.findByRole("button", { name: "陪我看看这里" }));
+    await screen.findByRole("button", { name: "陪我看看这里" });
+    fireEvent.mouseUp(screen.getByText("不要写回 Dock。"));
+    fireEvent.change(screen.getByLabelText("批注给盖尔"), {
+      target: { value: "这一句请只回应，不要保存短评。" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "给盖尔看这句" }));
 
     await waitFor(() => expect(sendFollowUpMessage).toHaveBeenCalled());
+    expect(callTool).toHaveBeenCalledWith(
+      "send_current_context",
+      expect.objectContaining({
+        selectedText: "不要写回 Dock。",
+        userNote: "用户对选中句子的批注：这一句请只回应，不要保存短评。"
+      })
+    );
     const prompt = String(sendFollowUpMessage.mock.calls[0]?.[0]?.prompt ?? "");
     expect(prompt).not.toContain("publish_companion_comment");
     expect(prompt).toContain("不自动保存短评到 Dock");
     expect(prompt).toContain("不要调用任何应用写回工具");
     expect(prompt).toContain("直接在聊天区回复短评");
+    expect(prompt).toContain("我对这句的批注：这一句请只回应，不要保存短评。");
+    selection.mockRestore();
   });
 
   it("disables the current-paragraph action while a sync request is in flight", async () => {
@@ -966,6 +984,7 @@ describe("App", () => {
               sessionId: args.sessionId,
               content: args.content,
               position: args.position,
+              ...(args.note ? { note: args.note } : {}),
               createdAt: "2026-06-23T00:00:00.000Z"
             }
           }
@@ -1000,7 +1019,17 @@ describe("App", () => {
     await screen.findByRole("button", { name: "陪我看看这里" });
 
     fireEvent.mouseUp(screen.getByText("值得保存的句子"));
+    fireEvent.change(screen.getByLabelText("批注给盖尔"), {
+      target: { value: "这是随摘录保存的批注。" }
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存这句" }));
+    expect(callTool).toHaveBeenCalledWith(
+      "save_quote",
+      expect.objectContaining({
+        content: "值得保存的句子",
+        note: "这是随摘录保存的批注。"
+      })
+    );
     fireEvent.click(screen.getByRole("button", { name: "更多操作" }));
     fireEvent.click(await screen.findByRole("button", { name: "保存书签" }));
     fireEvent.click(screen.getByRole("button", { name: "返回首页" }));
@@ -1009,7 +1038,9 @@ describe("App", () => {
     expect(await screen.findByRole("dialog", { name: "管理《记录测试》" })).toBeInTheDocument();
     expect(screen.getAllByText("第 1 段").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "摘录" }));
-    expect(screen.getByText("值得保存的句子")).toBeInTheDocument();
+    expect(
+      screen.getByText(/值得保存的句子\s+批注：这是随摘录保存的批注。/)
+    ).toBeInTheDocument();
   });
 
   it("manually saves a companion draft without blocking the chat flow", async () => {

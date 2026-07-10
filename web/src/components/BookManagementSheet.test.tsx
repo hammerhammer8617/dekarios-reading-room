@@ -18,7 +18,7 @@ const bundle = {
     updatedAt: "2026-06-23T00:00:00.000Z",
     lastReadAt: "2026-06-23T00:00:00.000Z"
   },
-  quotes: [{ id: "q", sessionId: "book-a", content: "摘录内容", position: { kind: "paragraph" as const, index: 2, label: "第 2 段" }, createdAt: "2026-06-23T00:00:00.000Z" }],
+  quotes: [{ id: "q", sessionId: "book-a", content: "摘录内容", note: "我的批注", position: { kind: "paragraph" as const, index: 2, label: "第 2 段" }, createdAt: "2026-06-23T00:00:00.000Z" }],
   reactions: [{ id: "r", sessionId: "book-a", content: "用户反应", position: { kind: "paragraph" as const, index: 3, label: "第 3 段" }, speaker: "user" as const, createdAt: "2026-06-23T00:00:00.000Z" }],
   bookmarks: [{ id: "b", sessionId: "book-a", position: { kind: "paragraph" as const, index: 4, label: "第 4 段" }, label: "书签标签", createdAt: "2026-06-23T00:00:00.000Z" }]
 };
@@ -49,10 +49,10 @@ describe("BookManagementSheet", () => {
     expect(onStatus).toHaveBeenCalledWith("completed");
 
     fireEvent.click(screen.getByRole("button", { name: "摘录" }));
-    expect(screen.getByText("摘录内容")).toBeInTheDocument();
+    expect(screen.getByText(/摘录内容\s+批注：我的批注/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "复制全部摘录" })).toBeInTheDocument();
     expect(screen.getByLabelText("摘录汇总文本")).toHaveValue(
-      "# 《管理测试书》划线摘录\n\n## 第 2 段\n> 摘录内容"
+      "# 《管理测试书》划线摘录\n\n## 第 2 段\n\n> 摘录内容\n\n我的批注：我的批注"
     );
     fireEvent.click(screen.getByRole("button", { name: "用户反应" }));
     expect(screen.getAllByText("用户反应")).toHaveLength(2);

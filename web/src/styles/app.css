@@ -463,6 +463,33 @@ input:focus, textarea:focus { border-color: var(--peach-strong); box-shadow: 0 0
   font-weight: 750;
 }
 .reader-actions .action-primary, .action-primary { background: var(--wood); color: var(--paper); }
+.reader-selection-status {
+  z-index: 5;
+  margin: 0;
+  padding: 7px 12px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+}
+.reader-selection-note {
+  z-index: 5;
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.reader-selection-note textarea {
+  min-height: 58px;
+  resize: vertical;
+  padding: 9px 11px;
+  font-size: 13px;
+  font-weight: 500;
+}
 .manga-scroll { padding-inline: 12px; background: color-mix(in srgb, var(--cream) 60%, var(--paper)); }
 .manga-page { display: block; width: 100%; height: auto; margin: 0 auto; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
 .page-notes { display: grid; gap: 12px; width: min(100%, 680px); margin: 20px auto 0; }
@@ -573,7 +600,7 @@ input:focus, textarea:focus { border-color: var(--peach-strong); box-shadow: 0 0
   background: var(--surface);
 }
 .record-item span { color: var(--muted); font-size: 10px; }
-.record-item p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; }
+.record-item p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
 .record-empty { margin: 0; padding: 12px; color: var(--muted); font-size: 12px; text-align: center; }
 .danger-zone { background: color-mix(in srgb, var(--peach) 35%, var(--surface)); }
 .delete-confirmation { display: grid; gap: 9px; }

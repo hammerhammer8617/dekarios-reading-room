@@ -118,7 +118,9 @@ export function BookManagementSheet(props: {
               ? recordItems(props.bundle.bookmarks, (item) => item.label || item.position.label)
               : null}
             {tab === "quotes"
-              ? recordItems(props.bundle.quotes, (item) => item.content)
+              ? recordItems(props.bundle.quotes, (item) =>
+                  item.note ? `${item.content}\n批注：${item.note}` : item.content
+                )
               : null}
             {tab === "reactions"
               ? recordItems(props.bundle.reactions, (item) => item.content)
@@ -239,8 +241,9 @@ function formatQuotesForExport(title: string, quotes: QuoteRecord[]) {
   });
   const quoteBlocks = sortedQuotes.map((quote) => [
     `## ${quote.position.label}`,
-    blockquote(quote.content)
-  ].join("\n"));
+    blockquote(quote.content),
+    quote.note ? `我的批注：${quote.note}` : ""
+  ].filter(Boolean).join("\n\n"));
   return [`# 《${title}》划线摘录`, quoteBlocks.join("\n\n---\n\n")].join("\n\n");
 }
 

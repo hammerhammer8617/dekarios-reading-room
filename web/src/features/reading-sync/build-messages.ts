@@ -103,6 +103,7 @@ export function buildCurrentOnlyFallbackPrompt(input: {
   position: number;
   text: string;
   selectedText?: string;
+  userNote?: string;
   hasUnconfirmedGap: boolean;
   mode: ReadingCommentMode;
   length: CommentLength;
@@ -111,13 +112,15 @@ export function buildCurrentOnlyFallbackPrompt(input: {
 }) {
   const currentText = input.text.trim();
   const selectedText = input.selectedText?.trim();
+  const userNote = input.userNote?.trim();
   return [
     buildCurrentOnlyPrompt(input),
     "",
     "【当前段正文】",
     currentText || "（错误：当前段正文未传递）",
     "【当前段正文结束】",
-    selectedText ? `我选中的句子：${selectedText}` : ""
+    selectedText ? `我选中的句子：${selectedText}` : "",
+    userNote ? `我对这句的批注：${userNote}` : ""
   ].filter(Boolean).join("\n");
 }
 

@@ -45,8 +45,8 @@ export function NovelReader(props: {
   structuredChapter?: ParsedBookChapter;
   structuredResources?: ParsedBookResource[];
   onPosition: (index: number) => void;
-  onLook: (currentText: string, selectedText: string) => void;
-  onSaveQuote: (content: string) => void;
+  onLook: (currentText: string, selectedText: string, note?: string) => void;
+  onSaveQuote: (content: string, note?: string) => void;
   onFinish: () => void;
   onBack: () => void;
   onFullscreen: () => void;
@@ -110,6 +110,7 @@ export function NovelReader(props: {
   );
 
   const [selected, setSelected] = useState("");
+  const [selectionNote, setSelectionNote] = useState("");
   const [pendingAnchor, setPendingAnchor] = useState<TextSelectionAnchor | null>(null);
   const [storedHighlights, setStoredHighlights] = useState<StoredHighlight[]>([]);
   const [selectionMessage, setSelectionMessage] = useState("");
@@ -150,6 +151,7 @@ export function NovelReader(props: {
 
   function clearSelectionState() {
     setSelected("");
+    setSelectionNote("");
     setPendingAnchor(null);
     setSelectionMessage("");
     window.getSelection()?.removeAllRanges?.();
@@ -177,6 +179,7 @@ export function NovelReader(props: {
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim() ?? "";
     setSelected(selectedText);
+    setSelectionNote("");
     setPendingAnchor(null);
     setSelectionMessage("");
 
@@ -242,7 +245,7 @@ export function NovelReader(props: {
       setSelectionMessage("这句已经收藏。当前文本暂时只保存摘录。");
     }
 
-    props.onSaveQuote(selected);
+    props.onSaveQuote(selected, selectionNote.trim() || undefined);
     window.getSelection()?.removeAllRanges?.();
   }
 
@@ -403,6 +406,19 @@ export function NovelReader(props: {
           {selectionStatus}
         </p>
       ) : null}
+      {selected ? (
+        <label className="reader-selection-note">
+          <span>批注给盖尔（可选）</span>
+          <textarea
+            aria-label="批注给盖尔"
+            maxLength={4_000}
+            rows={2}
+            value={selectionNote}
+            placeholder="写下你想和盖尔一起看的地方"
+            onChange={(event) => setSelectionNote(event.currentTarget.value)}
+          />
+        </label>
+      ) : null}
       <ReaderActions
         primaryLabel={
           selected
@@ -413,7 +429,7 @@ export function NovelReader(props: {
         }
         secondaryLabel={structuredChapter ? "划线并收藏" : "保存这句"}
         onPrimary={() => {
-          props.onLook(current, selected);
+          props.onLook(current, selected, selectionNote.trim() || undefined);
           setSelectionMessage(
             selected ? "已经把这句递给盖尔。" : "已经把当前阅读内容递给盖尔。"
           );

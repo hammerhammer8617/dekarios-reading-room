@@ -124,6 +124,7 @@ it("puts only factual synchronization metadata in userNote", () => {
       position: 8,
       text: "当前原文",
       selectedText: "划线句子",
+      userNote: "这句的动作很有意思",
       hasUnconfirmedGap: true,
       mode: "reaction_only",
       length: "short",
@@ -145,6 +146,7 @@ it("puts only factual synchronization metadata in userNote", () => {
     expect(current).toContain("【只看当前段：第 8 段】");
     expect(current).toContain("当前原文");
     expect(current).toContain("划线句子");
+    expect(current).toContain("我对这句的批注：这句的动作很有意思");
     expect(recent).toContain("【补最近几段：第 4–8 段】");
     expect(recent).toContain("最近原文");
   });

@@ -1057,6 +1057,7 @@ export function App() {
   async function lookAtNovel(
     currentText: string,
     selectedText: string,
+    selectionNote = "",
     preferenceOverride?: Pick<SessionPreferences, "readingCommentMode" | "commentLength">
   ) {
     if (!sessionBundle) return;
@@ -1072,6 +1073,10 @@ export function App() {
       const sourceContext = getSourceContext(sessionBundle.session.sourceManifest);
       const operationId = crypto.randomUUID();
       const activePreferences = preferenceOverride ?? sessionBundle.session.sessionPreferences;
+      const userNote = [
+        permission.userNote,
+        selectionNote.trim() ? `用户对选中句子的批注：${selectionNote.trim()}` : ""
+      ].filter(Boolean).join("\n");
       const policyPrompt = buildCurrentOnlyPrompt({
         sessionId: sessionBundle.session.id,
         title: sessionBundle.session.title,
@@ -1094,7 +1099,7 @@ export function App() {
         commentLength: activePreferences.commentLength,
         ...(selectedText ? { selectedText } : {}),
         ...(sourceContext ? { sourceContext } : {}),
-        ...(permission.userNote ? { userNote: permission.userNote } : {})
+        ...(userNote ? { userNote } : {})
       });
       const context = result.structuredContent?.context as Record<string, unknown> | undefined;
       if (!context) {
@@ -1107,6 +1112,7 @@ export function App() {
         position: sessionBundle.session.userCurrentPosition.index,
         text: currentText,
         selectedText,
+        userNote: selectionNote,
         hasUnconfirmedGap:
           sessionBundle.session.userCurrentPosition.index >
           (sessionBundle.session.assistantSyncedPosition?.index ?? 0),
@@ -1139,14 +1145,14 @@ export function App() {
     }
   }
 
-  async function requestNovelSync(currentText: string, selectedText: string) {
+  async function requestNovelSync(currentText: string, selectedText: string, note?: string) {
     if (!sessionBundle) return;
     if (syncRequestInFlight || syncJobRef.current) return;
     const userIndex = sessionBundle.session.userCurrentPosition.index;
     const assistantIndex = sessionBundle.session.assistantSyncedPosition?.index ?? 0;
     if (userIndex <= assistantIndex) {
       setToast("烁构已经看到这里啦，正在换个角度陪你看。");
-      await lookAtNovel(currentText, selectedText);
+      await lookAtNovel(currentText, selectedText, note);
       return;
     }
     if (!allowAutomaticSync("range_sync")) return;
@@ -1812,7 +1818,7 @@ if (context) {
     setOverlay(null);
     if (sessionBundle.session.type === "novel") {
       const currentText = chunks[sessionBundle.session.userCurrentPosition.index - 1] ?? "";
-      await lookAtNovel(currentText, "", updated);
+      await lookAtNovel(currentText, "", "", updated);
       return;
     }
     await lookAtManga(updated);
@@ -1933,12 +1939,13 @@ if (context) {
     );
   }
 
-  async function saveQuote(content: string) {
+  async function saveQuote(content: string, note?: string) {
     if (!sessionBundle || !content.trim()) return;
     const result = await callTool("save_quote", {
       sessionId: sessionBundle.session.id,
       content,
       position: sessionBundle.session.userCurrentPosition,
+      ...(note?.trim() ? { note: note.trim() } : {}),
       operationId: crypto.randomUUID()
     });
     const quote = result.structuredContent?.quote as any;
