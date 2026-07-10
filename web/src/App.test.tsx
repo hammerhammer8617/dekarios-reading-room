@@ -862,7 +862,9 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("button", { name: "更多操作" }));
 
     expect(await screen.findByText("这次想怎么陪读")).toBeInTheDocument();
-    expect(screen.getByLabelText("书房版本信息")).toHaveTextContent("app-v22 · 构建 local");
+    expect(screen.getByLabelText("书房版本信息")).toHaveTextContent(
+      /书房 app-v22 · 构建 (?:local|[a-f0-9]{7})/
+    );
     fireEvent.click(screen.getByRole("button", { name: "认真分析" }));
 
     await waitFor(() => {
