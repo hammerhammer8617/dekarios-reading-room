@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import type { SessionBundle, SourceAvailability } from "@ss/shared";
+import coatDoorBackground from "../assets/reading-room/coat-door.webp";
+import insideStudyBackground from "../assets/reading-room/inside-study.webp";
+import behindTheBooksBackground from "../assets/reading-room/behind-the-books.webp";
 
 export type BookshelfItem = SessionBundle & {
   sourceAvailability: SourceAvailability;
@@ -25,6 +28,12 @@ const MODE_LABELS = {
   deep_analysis: "认真分析",
   diary_summary: "读书日记"
 } as const;
+
+const ROOM_BACKGROUNDS = [
+  { src: coatDoorBackground, scene: "coat-door" },
+  { src: insideStudyBackground, scene: "inside-study" },
+  { src: behindTheBooksBackground, scene: "behind-the-books" }
+] as const;
 
 export function Home(props: {
   bookshelf: BookshelfItem[];
@@ -58,9 +67,22 @@ export function Home(props: {
   return (
     <main className="home-shell">
       <section className="home-hero">
-        <div className="nest-mark">G.T.D.</div>
-        <h1>德卡里奥斯家的书房</h1>
-        <p>晚上好，今天想和盖尔一起看什么？</p>
+        <div className="home-hero-background" aria-hidden="true">
+          {ROOM_BACKGROUNDS.map((background) => (
+            <img
+              key={background.scene}
+              className="home-background-frame"
+              src={background.src}
+              alt=""
+              data-scene={background.scene}
+            />
+          ))}
+        </div>
+        <div className="home-hero-content">
+          <div className="nest-mark">G.T.D.</div>
+          <h1>德卡里奥斯家的书房</h1>
+          <p>晚上好，今天想和盖尔一起看什么？</p>
+        </div>
       </section>
 
       <section className="mode-grid" aria-label="共读模式">

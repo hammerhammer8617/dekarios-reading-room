@@ -12,6 +12,18 @@ const items: BookshelfItem[] = [
 ];
 
 describe("Home bookshelf core", () => {
+  it("renders the three decorative reading-room scenes in story order", () => {
+    const { container } = render(
+      <Home bookshelf={[]} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} />
+    );
+
+    expect(
+      [...container.querySelectorAll(".home-background-frame")].map(
+        (frame) => frame.getAttribute("data-scene")
+      )
+    ).toEqual(["coat-door", "inside-study", "behind-the-books"]);
+  });
+
   it("renders all session metadata and the latest comment preview", () => {
     render(<Home bookshelf={items} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} />);
 
