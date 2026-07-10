@@ -3,6 +3,7 @@ import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { Request, Response } from "express";
+import { buildHealthPayload } from "./health.js";
 import { createMcpServer } from "./mcp/create-server.js";
 
 type TransportMap = Record<string, StreamableHTTPServerTransport>;
@@ -12,7 +13,7 @@ export function createApp() {
   const transports: TransportMap = {};
 
   app.get("/health", (_request, response) => {
-    response.json({ ok: true, app: "S×S 小窝共读", version: "0.2.1" });
+    response.json(buildHealthPayload());
   });
 
   app.post("/mcp", async (request: Request, response: Response) => {

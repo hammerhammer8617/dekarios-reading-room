@@ -1,5 +1,6 @@
 import { createMcpHandler } from "agents/mcp";
 import widgetHtml from "../../web/dist/index.html";
+import { buildHealthPayload } from "./health.js";
 import { createMcpServerFromRepository } from "./mcp/server-factory.js";
 import { D1ReadingRepository } from "./repositories/d1-reading-repository.js";
 import { CloudSourceService } from "./services/cloud-source-service.js";
@@ -13,7 +14,7 @@ export default {
     const route = getWorkerRoute(url, env.MCP_PATH_TOKEN);
 
     if (route === "health") {
-      return Response.json({ ok: true, app: "S×S 小窝共读", version: "0.2.1" });
+      return Response.json(buildHealthPayload(env.BUILD_SHA));
     }
     if (route === "misconfigured") {
       console.error(JSON.stringify({ message: "MCP_PATH_TOKEN is not configured" }));

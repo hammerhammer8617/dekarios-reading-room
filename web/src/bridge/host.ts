@@ -1,4 +1,5 @@
 import { App as McpApp } from "@modelcontextprotocol/ext-apps";
+import { READING_NEST_APP_VERSION } from "@ss/shared";
 import type { ToolCallResult } from "../types/openai.js";
 
 let app: McpApp | undefined;
@@ -32,7 +33,7 @@ export interface ReadingHostContext {
 function connectApp() {
   if (typeof window === "undefined" || window.parent === window) return undefined;
   if (!app) {
-    app = new McpApp({ name: "德卡里奥斯家的书房", version: "0.2.1" });
+    app = new McpApp({ name: "德卡里奥斯家的书房", version: READING_NEST_APP_VERSION });
     appReady = app.connect().catch(() => undefined);
   }
   return app;

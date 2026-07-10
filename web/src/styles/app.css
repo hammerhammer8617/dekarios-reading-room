@@ -779,6 +779,12 @@ input:focus, textarea:focus { border-color: var(--peach-strong); box-shadow: 0 0
 .danger-button { width: 100%; background: color-mix(in srgb, var(--peach) 55%, transparent); }
 .bottom-sheet .text-button { display: block; margin: 8px auto 0; }
 .diary-sheet ul { padding-left: 20px; color: var(--muted); line-height: 1.6; }
+.reader-build-info {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
 .toast {
   position: fixed;
   z-index: 30;

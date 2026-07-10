@@ -6,6 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  "vars": {
+    "BUILD_SHA": "local"
+  },
   "secrets": {
     "required": ["MCP_PATH_TOKEN"]
   },

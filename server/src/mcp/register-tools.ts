@@ -26,11 +26,12 @@ import {
   updateReadingPositionInputSchema
 } from "@ss/shared";
 import type { ReadingSession, SendCurrentContextInput, SourceManifest } from "@ss/shared";
+import { READING_NEST_RESOURCE_URI } from "@ss/shared";
 import { ReadingService } from "../services/reading-service.js";
 import type { CloudSourceService } from "../services/cloud-source-service.js";
 import { toolResult } from "./tool-result.js";
 
-export const READING_NEST_URI = "ui://ss-reading-nest/app-v22.html";
+export const READING_NEST_URI = READING_NEST_RESOURCE_URI;
 
 const readOnly = {
   readOnlyHint: true,

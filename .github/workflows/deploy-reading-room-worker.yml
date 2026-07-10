@@ -24,6 +24,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       MCP_PATH_TOKEN: ${{ secrets.MCP_PATH_TOKEN }}
       WORKERS_DEV_SUBDOMAIN: gtd-dekarios
+      VITE_BUILD_SHA: ${{ github.sha }}
 
     steps:
       - name: Check out branch
@@ -91,7 +92,13 @@ jobs:
           printf 'MCP_PATH_TOKEN=%s\n' "$MCP_PATH_TOKEN" > server/.deploy.secrets
 
       - name: Deploy Worker
-        run: pnpm --filter @ss/server exec wrangler deploy --secrets-file .deploy.secrets
+        run: pnpm --filter @ss/server exec wrangler deploy --secrets-file .deploy.secrets --var BUILD_SHA:${GITHUB_SHA}
+
+      - name: Verify deployed widget bundle
+        env:
+          WORKER_URL: https://ss-reading-nest.gtd-dekarios.workers.dev
+          EXPECTED_BUILD_SHA: ${{ github.sha }}
+        run: node server/scripts/remote-smoke/widget-deployment-smoke.mjs
 
       - name: Remove temporary secret file
         if: always()
