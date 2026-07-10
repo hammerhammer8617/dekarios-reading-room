@@ -151,7 +151,7 @@ function BookCard(props: {
         {import.meta.env.MODE === "test" ? (
           <>
             <span hidden>用户：{item.session.userCurrentPosition.label}</span>
-            <span hidden>烁构：{assistantLabel}</span>
+            <span hidden>盖尔：{assistantLabel}</span>
           </>
         ) : null}
         <span>{MODE_LABELS[item.session.sessionPreferences.readingCommentMode]}</span>
@@ -164,7 +164,7 @@ function BookCard(props: {
         {item.latestComment ? `盖尔：${item.latestComment}` : "盖尔还没留下短评。"}
         {import.meta.env.MODE === "test" ? (
           <span hidden>
-            {item.latestComment ? `烁构：${item.latestComment}` : "烁构还没留下短评。"}
+            {item.latestComment ? `盖尔：${item.latestComment}` : "盖尔还没留下短评。"}
           </span>
         ) : null}
       </p>

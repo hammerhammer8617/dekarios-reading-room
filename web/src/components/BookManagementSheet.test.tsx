@@ -58,7 +58,7 @@ describe("BookManagementSheet", () => {
     expect(screen.getAllByText("用户反应")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "书签" }));
     expect(screen.getByText("书签标签")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "烁构评论" }));
+    fireEvent.click(screen.getByRole("button", { name: "盖尔评论" }));
     expect(screen.getByText("历史短评")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "加载更多评论" })).toBeInTheDocument();
   });

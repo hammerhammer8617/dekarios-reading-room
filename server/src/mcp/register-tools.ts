@@ -70,7 +70,7 @@ export const TOOL_CONFIGS = {
     annotations: { ...mutation, idempotentHint: true }
   },
   confirm_assistant_synced_position: {
-    title: "确认烁构已读位置",
+    title: "确认盖尔已读位置",
     description:
       "Use this only after the user explicitly confirms that ChatGPT replied it has read through a batch end.",
     inputSchema: confirmAssistantSyncedPositionInputSchema,
@@ -125,21 +125,21 @@ export const TOOL_CONFIGS = {
     annotations: { ...mutation, idempotentHint: true }
   },
   publish_companion_comment: {
-    title: "发布烁构陪读短评",
+    title: "发布盖尔陪读短评",
     description:
       "Use this before replying with a lightweight reading comment so the same short text appears in the reading Dock.",
     inputSchema: publishCompanionCommentInputSchema,
     annotations: { ...mutation, idempotentHint: true }
   },
   list_companion_comments: {
-    title: "读取烁构陪读短评",
+    title: "读取盖尔陪读短评",
     description:
       "Use this when the reading widget needs recent or paged historical companion comments for one session.",
     inputSchema: listCompanionCommentsInputSchema,
     annotations: readOnly
   },
   clear_companion_comments: {
-    title: "清除烁构陪读短评",
+    title: "清除盖尔陪读短评",
     description:
       "Use this when the user explicitly clears recent, historical, or all companion comments for one session.",
     inputSchema: clearCompanionCommentsInputSchema,
@@ -276,7 +276,7 @@ export function registerReadingTools(
           assistantSyncedPosition: session.assistantSyncedPosition,
           confirmedAt: session.lastAssistantConfirmation?.confirmedAt
         },
-        `已确认烁构读到${input.confirmedPosition.label}。`
+        `已确认盖尔读到${input.confirmedPosition.label}。`
       );
     }
   );

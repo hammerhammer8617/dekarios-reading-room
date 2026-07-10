@@ -670,7 +670,7 @@ describe("App", () => {
       }
     });
     fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
-    await screen.findByText(/烁构确认读到：尚未同步/);
+    await screen.findByText(/盖尔确认读到：尚未同步/);
 
     for (let index = 0; index < 27; index += 1) {
       fireEvent.click(screen.getByRole("button", { name: "下一段" }));
@@ -686,7 +686,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /完整补课后再陪读/ }));
     const confirmButton = await screen.findByRole("button", {
-      name: /我看到烁构回复“已读到第 28 段”，开始正式陪读/
+      name: /我看到盖尔回复“已读到第 28 段”，开始正式陪读/
     });
     expect(callTool).not.toHaveBeenCalledWith(
       "confirm_assistant_synced_position",
@@ -792,8 +792,8 @@ describe("App", () => {
     await waitFor(() => expect(sendFollowUpMessage).toHaveBeenCalledTimes(2));
     expect(String(sendFollowUpMessage.mock.calls[1]?.[0]?.prompt)).toContain("补课已确认完成");
     expect(String(sendFollowUpMessage.mock.calls[1]?.[0]?.prompt)).not.toContain("只简短回复");
-    expect(screen.queryByText("烁构补课中")).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "保存烁构短评" })).toBeInTheDocument();
+    expect(screen.queryByText("盖尔补课中")).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "保存盖尔短评" })).toBeInTheDocument();
 
     await deviceCache.remove("sequence-session");
   });
@@ -882,13 +882,13 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "长评" })).toBeEnabled();
     });
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "自动保存烁构陪读短评" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "自动保存盖尔陪读短评" }));
     await waitFor(() => {
       expect(callTool).toHaveBeenCalledWith("update_session_preferences", {
         sessionId: "session-preferences",
         preferences: { autoSaveCompanionComments: false }
       });
-      expect(screen.getByRole("checkbox", { name: "自动保存烁构陪读短评" })).not.toBeChecked();
+      expect(screen.getByRole("checkbox", { name: "自动保存盖尔陪读短评" })).not.toBeChecked();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "立即吐槽" }));
@@ -1142,11 +1142,11 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /小说共读/ }));
     fireEvent.change(screen.getByLabelText("作品名"), { target: { value: "短评保存测试" } });
     fireEvent.change(screen.getByPlaceholderText("粘贴 TXT 或 Markdown 文本"), {
-      target: { value: "这段需要烁构吐槽一下。" }
+      target: { value: "这段需要盖尔吐槽一下。" }
     });
     fireEvent.click(screen.getByRole("button", { name: "进入阅读小窝" }));
     await screen.findByRole("button", { name: "陪我看看这里" });
-    expect(await screen.findByRole("button", { name: "保存烁构短评" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "保存盖尔短评" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "全屏阅读" }));
     expect(await screen.findByRole("button", { name: "退出全屏" })).toBeInTheDocument();
 
@@ -1157,11 +1157,11 @@ describe("App", () => {
       expect.anything()
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "保存烁构短评" }));
+    fireEvent.click(await screen.findByRole("button", { name: "保存盖尔短评" }));
     fireEvent.change(screen.getByLabelText("短评内容"), {
       target: { value: "这句吐槽值得贴到小窝。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "收入烁构短评" }));
+    fireEvent.click(screen.getByRole("button", { name: "收入盖尔短评" }));
 
     await waitFor(() => {
       expect(callTool).toHaveBeenCalledWith(
@@ -1177,11 +1177,11 @@ describe("App", () => {
     expect(await screen.findByText("这句吐槽值得贴到小窝。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "退出全屏" })).toBeInTheDocument();
     expect(screen.getByLabelText("短评内容")).toHaveValue("");
-    expect(screen.getByRole("button", { name: "收入烁构短评" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "收入盖尔短评" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("短评内容"), {
       target: { value: "这句吐槽值得贴到小窝。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "收入烁构短评" }));
+    fireEvent.click(screen.getByRole("button", { name: "收入盖尔短评" }));
     await waitFor(() => {
       expect(
         callTool.mock.calls.filter(([name]) => name === "publish_companion_comment")
@@ -1191,7 +1191,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "返回首页" }));
     fireEvent.click(await screen.findByRole("button", { name: "管理《短评保存测试》" }));
-    fireEvent.click(await screen.findByRole("button", { name: "烁构评论" }));
+    fireEvent.click(await screen.findByRole("button", { name: "盖尔评论" }));
     expect(screen.getByText("这句吐槽值得贴到小窝。")).toBeInTheDocument();
   });
 
@@ -1511,7 +1511,7 @@ describe("App", () => {
                 position: { kind: "paragraph", index: 8, label: "第 8 段" },
                 mode: "light_chat",
                 length: "normal",
-                text: "烁构已经追到第八段啦，这里可以接着聊。",
+                text: "盖尔已经追到第八段啦，这里可以接着聊。",
                 source: "catch_up_complete",
                 inRecent: true,
                 inHistory: true,
@@ -1538,7 +1538,7 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("button", { name: "继续阅读《Reader Comment Book》" }));
 
     expect(await screen.findByText("用户读到：第 3 段")).toBeInTheDocument();
-    expect(await screen.findByText("烁构已经追到第八段啦，这里可以接着聊。")).toBeInTheDocument();
+    expect(await screen.findByText("盖尔已经追到第八段啦，这里可以接着聊。")).toBeInTheDocument();
     expect(screen.getByText("第 8 段")).toBeInTheDocument();
     await deviceCache.remove("reader-comment-session");
   });

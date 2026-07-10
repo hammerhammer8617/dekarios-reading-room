@@ -1,21 +1,7 @@
 import { getActiveBatch } from "../features/reading-sync/job-state.js";
 import type { ReadingSyncJob } from "../features/reading-sync/types.js";
 
-const legacyPrefix = String.fromCharCode(
-  25105,
-  30475,
-  21040,
-  28865,
-  26500,
-  22238,
-  22797,
-  8220,
-  24050,
-  35835,
-  21040,
-  31532,
-  32
-);
+const confirmationLabelPrefix = "我看到盖尔回复“已读到第 ";
 
 export function SyncProgressSheet(props: {
   job: ReadingSyncJob;
@@ -25,9 +11,9 @@ export function SyncProgressSheet(props: {
 }) {
   const batch = getActiveBatch(props.job);
   const unit = props.job.type === "manga" ? "页" : "段";
-  const legacyTestLabel =
+  const confirmationLabel =
     import.meta.env.MODE === "test" && batch
-      ? `${legacyPrefix}${batch.rangeEnd} ${unit}”，${
+      ? `${confirmationLabelPrefix}${batch.rangeEnd} ${unit}”，${
           batch.isFinal ? "开始正式陪读" : "发送下一批"
         }`
       : undefined;
@@ -42,7 +28,7 @@ export function SyncProgressSheet(props: {
         {batch?.status === "sent-awaiting-confirmation" ? (
           <button
             className="action-primary"
-            aria-label={legacyTestLabel}
+            aria-label={confirmationLabel}
             onClick={props.onConfirm}
           >
             确认已读到第 {batch.rangeEnd} {unit}，

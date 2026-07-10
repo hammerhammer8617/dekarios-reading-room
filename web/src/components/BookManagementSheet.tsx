@@ -90,7 +90,7 @@ export function BookManagementSheet(props: {
             <button aria-pressed={tab === "bookmarks"} onClick={() => setTab("bookmarks")}>书签</button>
             <button aria-pressed={tab === "quotes"} onClick={() => setTab("quotes")}>摘录</button>
             <button aria-pressed={tab === "reactions"} onClick={() => setTab("reactions")}>用户反应</button>
-            <button aria-pressed={tab === "comments"} onClick={() => setTab("comments")}>烁构评论</button>
+            <button aria-pressed={tab === "comments"} onClick={() => setTab("comments")}>盖尔评论</button>
           </div>
           {tab === "quotes" ? (
             <div className="quote-export-panel">
