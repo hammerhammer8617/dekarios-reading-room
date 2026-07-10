@@ -17,6 +17,17 @@ describe("NovelReader display layout", () => {
     expect(scroll.scrollTop).toBe(96);
   });
 
+  it("keeps the reading jump toolbar in the page flow instead of overlaying actions", () => {
+    const { container } = render(
+      <NovelReader {...createProps()} companionLayoutRevision={0} />
+    );
+    const toolbar = screen.getByLabelText("阅读跳转工具栏");
+
+    expect(toolbar).toHaveClass("reader-jump-toolbar");
+    expect(toolbar.nextElementSibling).toHaveClass("reader-workspace");
+    expect(container.querySelector('[aria-label="悬浮阅读跳转"]')).not.toBeInTheDocument();
+  });
+
   it("sends a selected-sentence note to Gale and stores it with the quote", () => {
     const props = createProps();
     const selection = vi.spyOn(window, "getSelection").mockReturnValue({

@@ -4,6 +4,7 @@ import { READING_NEST_URI } from "./register-tools.js";
 
 export const READING_NEST_RESOURCE_URIS = [
   READING_NEST_URI,
+  "ui://ss-reading-nest/app-v21.html",
   "ui://ss-reading-nest/app-v20.html",
   "ui://ss-reading-nest/app-v19.html"
 ] as const;

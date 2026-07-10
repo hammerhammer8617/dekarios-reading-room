@@ -341,7 +341,7 @@ input:focus, textarea:focus { border-color: var(--peach-strong); box-shadow: 0 0
 
 .reader-shell {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   width: min(100%, 900px);
   height: 100vh;
   height: 100dvh;
@@ -373,6 +373,22 @@ input:focus, textarea:focus { border-color: var(--peach-strong); box-shadow: 0 0
   overflow: hidden;
 }
 .reader-workspace > .reader-scroll { min-height: 0; }
+.reader-jump-toolbar {
+  z-index: 4;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  box-shadow: 0 8px 18px rgba(90, 65, 56, .08);
+}
+.reader-jump-toolbar > button {
+  min-height: 34px;
+  padding: 6px 9px;
+}
 .sync-status {
   display: flex;
   flex-wrap: wrap;

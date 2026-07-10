@@ -249,8 +249,8 @@ export function NovelReader(props: {
     window.getSelection()?.removeAllRanges?.();
   }
 
-  function renderJumpControl(scope: "page" | "floating") {
-    const prefix = scope === "floating" ? "悬浮" : "";
+  function renderJumpControl(scope: "page" | "toolbar") {
+    const prefix = scope === "toolbar" ? "工具栏" : "";
     return (
       <form
         onSubmit={submitJump}
@@ -311,6 +311,23 @@ export function NovelReader(props: {
         onMore={props.onMore}
       />
       <ReadingSyncStatus session={props.session} />
+      <div className="reader-jump-toolbar" aria-label="阅读跳转工具栏">
+        <button
+          onClick={previous}
+          disabled={index === 0}
+          aria-label={`工具栏上一${structuredChapter ? "阅读单元" : "段"}`}
+        >
+          上一{structuredChapter ? "单元" : "段"}
+        </button>
+        {renderJumpControl("toolbar")}
+        <button
+          onClick={next}
+          disabled={index >= total - 1}
+          aria-label={`工具栏下一${structuredChapter ? "阅读单元" : "段"}`}
+        >
+          下一{structuredChapter ? "单元" : "段"}
+        </button>
+      </div>
       <div className="reader-workspace">
         <section
           ref={scrollRef}
@@ -362,44 +379,6 @@ export function NovelReader(props: {
           onJump={props.onPosition}
           onClear={props.onClearCompanionComments}
         />
-      </div>
-      <div
-        aria-label="悬浮阅读跳转"
-        style={{
-          position: "fixed",
-          left: "50%",
-          bottom: "calc(env(safe-area-inset-bottom, 0px) + 72px)",
-          transform: "translateX(-50%)",
-          zIndex: 40,
-          display: "grid",
-          gridTemplateColumns: "auto minmax(180px, 1fr) auto",
-          gap: 8,
-          alignItems: "center",
-          width: "min(520px, calc(100vw - 24px))",
-          padding: "8px 10px",
-          borderRadius: 999,
-          background: "rgba(20, 20, 22, 0.88)",
-          boxShadow: "0 14px 40px rgba(0, 0, 0, 0.28)",
-          backdropFilter: "blur(14px)"
-        }}
-      >
-        <button
-          onClick={previous}
-          disabled={index === 0}
-          aria-label={`悬浮上一${structuredChapter ? "阅读单元" : "段"}`}
-          style={{ minHeight: 34, padding: "6px 9px" }}
-        >
-          上一{structuredChapter ? "单元" : "段"}
-        </button>
-        {renderJumpControl("floating")}
-        <button
-          onClick={next}
-          disabled={index >= total - 1}
-          aria-label={`悬浮下一${structuredChapter ? "阅读单元" : "段"}`}
-          style={{ minHeight: 34, padding: "6px 9px" }}
-        >
-          下一{structuredChapter ? "单元" : "段"}
-        </button>
       </div>
       {selectionStatus ? (
         <p className="reader-selection-status" role="status">
