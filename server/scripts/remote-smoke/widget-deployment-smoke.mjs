@@ -6,17 +6,14 @@ const token = requireEnv("MCP_PATH_TOKEN");
 const expectedBuildSha = requireEnv("EXPECTED_BUILD_SHA");
 const resourceUri = "ui://ss-reading-nest/app-v22.html";
 const client = new Client({ name: "ss-widget-deployment-smoke", version: "0.2.1" });
-
-await client.connect(
-  new StreamableHTTPClientTransport(new URL(`/mcp/${token}`, workerUrl.origin))
-);
+let connected = false;
 
 try {
-  const healthResponse = await fetch(new URL("/health", workerUrl));
-  assert(healthResponse.ok, `health returned ${healthResponse.status}`);
-  const health = await healthResponse.json();
-  assert(health.resourceVersion === "app-v22", "health resourceVersion is not app-v22");
-  assert(health.buildSha === expectedBuildSha, "health buildSha does not match deployed commit");
+  const health = await waitForDeployedHealth();
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(`/mcp/${token}`, workerUrl.origin))
+  );
+  connected = true;
 
   const tools = await client.listTools();
   const openTool = tools.tools.find((tool) => tool.name === "open_reading_nest");
@@ -40,7 +37,30 @@ try {
     inFlowJumpToolbar: true
   }));
 } finally {
-  await client.close();
+  if (connected) await client.close();
+}
+
+async function waitForDeployedHealth() {
+  const deadline = Date.now() + 60_000;
+  let lastHealth;
+
+  while (Date.now() < deadline) {
+    const healthUrl = new URL("/health", workerUrl);
+    healthUrl.searchParams.set("deployment-check", String(Date.now()));
+    const response = await fetch(healthUrl, { cache: "no-store" });
+    if (response.ok) {
+      lastHealth = await response.json();
+      if (
+        lastHealth.resourceVersion === "app-v22" &&
+        lastHealth.buildSha === expectedBuildSha
+      ) {
+        return lastHealth;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+
+  throw new Error(`deployed health did not converge: ${JSON.stringify(lastHealth)}`);
 }
 
 function requireEnv(name) {
