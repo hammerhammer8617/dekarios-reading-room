@@ -2,6 +2,7 @@ import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   READING_NEST_RESOURCE_URI,
+  addCaseEntriesInputSchema,
   addCaseEntryInputSchema,
   confirmCaseSyncInputSchema,
   createCaseInputSchema,
@@ -11,6 +12,7 @@ import {
   setCaseStatusInputSchema,
   upsertCaseEntityInputSchema,
   upsertCaseHypothesisInputSchema,
+  upsertCaseObservationTaskInputSchema,
   upsertCaseRelationInputSchema
 } from "@ss/shared";
 import { CasebookService } from "../services/casebook-service.js";
@@ -73,6 +75,13 @@ export const CASEBOOK_TOOL_CONFIGS = {
     inputSchema: addCaseEntryInputSchema,
     annotations: mutation
   },
+  case_add_entries: {
+    title: "批量记录案情",
+    description:
+      "Atomically save up to 30 separately classified case entries after Tav confirms the parsed batch. Preserve every entry's wording.",
+    inputSchema: addCaseEntriesInputSchema,
+    annotations: mutation
+  },
   case_upsert_entity: {
     title: "写入案件节点",
     description:
@@ -92,6 +101,13 @@ export const CASEBOOK_TOOL_CONFIGS = {
     description:
       "Create or update a clearly attributed hypothesis without rewriting it as established fact.",
     inputSchema: upsertCaseHypothesisInputSchema,
+    annotations: mutation
+  },
+  case_upsert_observation_task: {
+    title: "写入情报委托",
+    description:
+      "Create or update one concise next-observation task. Gale may leave at most three open tasks for Tav to investigate in the source.",
+    inputSchema: upsertCaseObservationTaskInputSchema,
     annotations: mutation
   },
   case_prepare_sync: {
@@ -156,6 +172,15 @@ export function registerCasebookTools(server: McpServer, service: CasebookServic
   });
 
   server.registerTool(
+    "case_add_entries",
+    CASEBOOK_TOOL_CONFIGS.case_add_entries,
+    async (input) => {
+      const result = await service.addEntries(input);
+      return toolResult(result, `已经原样记下 ${result.entries.length} 条案情。`);
+    }
+  );
+
+  server.registerTool(
     "case_upsert_entity",
     CASEBOOK_TOOL_CONFIGS.case_upsert_entity,
     async (input) => {
@@ -181,6 +206,20 @@ export function registerCasebookTools(server: McpServer, service: CasebookServic
     async (input) => {
       const result = await service.upsertHypothesis(input);
       return toolResult(result, "这条猜想已经按署名保存。"
+      );
+    }
+  );
+
+  server.registerTool(
+    "case_upsert_observation_task",
+    CASEBOOK_TOOL_CONFIGS.case_upsert_observation_task,
+    async (input) => {
+      const result = await service.upsertObservationTask(input);
+      return toolResult(
+        result,
+        result.task.status === "open"
+          ? "情报委托已经交给侦探夫人。"
+          : "情报委托状态已经更新。"
       );
     }
   );

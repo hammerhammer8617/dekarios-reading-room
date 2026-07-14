@@ -4,7 +4,7 @@ import { CASEBOOK_TOOL_CONFIGS, registerCasebookTools } from "./register-caseboo
 
 describe("casebook tool descriptors", () => {
   it("exposes one rendered entry and data-only case tools", () => {
-    expect(Object.keys(CASEBOOK_TOOL_CONFIGS)).toHaveLength(11);
+    expect(Object.keys(CASEBOOK_TOOL_CONFIGS)).toHaveLength(13);
     expect(CASEBOOK_TOOL_CONFIGS.open_casebook._meta.ui).toEqual({
       resourceUri: READING_NEST_RESOURCE_URI
     });
@@ -25,6 +25,13 @@ describe("casebook tool descriptors", () => {
       idempotentHint: true
     });
     expect(CASEBOOK_TOOL_CONFIGS.case_confirm_sync.description).toMatch(/only after/i);
+  });
+
+  it("exposes atomic clue batches and bounded observation tasks", () => {
+    expect(CASEBOOK_TOOL_CONFIGS.case_add_entries.description).toMatch(/atomically/i);
+    expect(CASEBOOK_TOOL_CONFIGS.case_upsert_observation_task.description).toMatch(
+      /at most three/i
+    );
   });
 
   it("returns the casebook app view without exposing source text", async () => {

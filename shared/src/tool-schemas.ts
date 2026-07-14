@@ -357,6 +357,7 @@ export const caseHypothesisStatusSchema = z.enum([
   "rejected",
   "confirmed"
 ]);
+export const caseObservationTaskStatusSchema = z.enum(["open", "completed", "dismissed"]);
 export const caseIdSchema = z.string().min(1).max(200);
 
 export const openCasebookInputSchema = z.object({}).strict();
@@ -378,6 +379,24 @@ export const addCaseEntryInputSchema = z
     kind: caseEntryKindSchema.default("observation"),
     content: z.string().trim().min(1).max(8_000),
     sourcePosition: z.string().trim().min(1).max(300).optional()
+  })
+  .strict();
+export const addCaseEntriesInputSchema = z
+  .object({
+    caseId: caseIdSchema,
+    author: caseAuthorSchema.default("tav"),
+    entries: z
+      .array(
+        z
+          .object({
+            kind: caseEntryKindSchema.default("observation"),
+            content: z.string().trim().min(1).max(8_000),
+            sourcePosition: z.string().trim().min(1).max(300).optional()
+          })
+          .strict()
+      )
+      .min(1)
+      .max(30)
   })
   .strict();
 export const upsertCaseEntityInputSchema = z
@@ -414,6 +433,15 @@ export const upsertCaseHypothesisInputSchema = z
     claim: z.string().trim().min(1).max(4_000),
     status: caseHypothesisStatusSchema.optional(),
     confidence: z.number().int().min(0).max(100).optional()
+  })
+  .strict();
+export const upsertCaseObservationTaskInputSchema = z
+  .object({
+    caseId: caseIdSchema,
+    taskId: z.string().min(1).max(200).optional(),
+    instruction: z.string().trim().min(1).max(1_000),
+    createdBy: caseAuthorSchema,
+    status: caseObservationTaskStatusSchema.optional().default("open")
   })
   .strict();
 export const prepareCaseSyncInputSchema = z.object({ caseId: caseIdSchema }).strict();

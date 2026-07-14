@@ -2,6 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
+import type { CaseObservationTask } from "@ss/shared";
 import { JsonReadingRepository } from "../repositories/json-reading-repository.js";
 import { CasebookService } from "./casebook-service.js";
 
@@ -44,6 +45,29 @@ describe("CasebookService", () => {
     expect(result.entry.content).toBe("杰克说自己穿过火焰是为了保护她。");
     expect(bundle.entries).toEqual([result.entry]);
     expect(bundle.case.caseRevision).toBe(1);
+  });
+
+  it("atomically saves a confirmed clue batch in one case revision", async () => {
+    const investigationCase = await service.createCase({
+      title: "钟楼晚宴",
+      sourceType: "video_game"
+    });
+    const result = await service.addEntries({
+      caseId: investigationCase.id,
+      author: "tav",
+      entries: [
+        { kind: "observation", content: "事实：钟在十点停了。" },
+        { kind: "claim", content: "证词：管家说自己一直在厨房。" },
+        { kind: "question", content: "问盖尔：谁能碰到钟楼钥匙？" }
+      ]
+    });
+
+    expect(result.entries).toHaveLength(3);
+    expect(result.entries.map((entry) => entry.createdRevision)).toEqual([1, 1, 1]);
+    expect(result.case.caseRevision).toBe(1);
+    expect((await service.getCaseBundle(investigationCase.id)).entries).toEqual(
+      result.entries
+    );
   });
 
   it("keeps Gale-created graph material suggested until Tav confirms it", async () => {
@@ -164,6 +188,67 @@ describe("CasebookService", () => {
       y: 144
     });
     expect(bundle.case.caseRevision).toBe(1);
+  });
+
+  it("lets Gale leave at most three observation tasks without creating a false sync delta", async () => {
+    const investigationCase = await service.createCase({
+      title: "庄园外勤",
+      sourceType: "tabletop"
+    });
+    const instructions = [
+      "确认门锁从哪一侧损坏。",
+      "询问女仆最后一次见到钥匙的时间。",
+      "检查泥印是否延伸到温室外。"
+    ];
+    const tasks: CaseObservationTask[] = [];
+    for (const instruction of instructions) {
+      tasks.push(
+        (await service.upsertObservationTask({
+          caseId: investigationCase.id,
+          instruction,
+          createdBy: "gale",
+          status: "open"
+        })).task
+      );
+    }
+    const beforeCompletion = await service.getCaseBundle(investigationCase.id);
+    expect(beforeCompletion.observationTasks).toEqual(tasks);
+    expect(beforeCompletion.case.caseRevision).toBe(0);
+
+    await expect(
+      service.upsertObservationTask({
+        caseId: investigationCase.id,
+        instruction: "再查一条。",
+        createdBy: "gale",
+        status: "open"
+      })
+    ).rejects.toMatchObject({ code: "INVALID_OPERATION" });
+
+    const completed = await service.upsertObservationTask({
+      caseId: investigationCase.id,
+      taskId: tasks[0].id,
+      instruction: tasks[0].instruction,
+      createdBy: "gale",
+      status: "completed"
+    });
+    expect(completed.case.caseRevision).toBe(1);
+    expect(completed.task.status).toBe("completed");
+
+    await service.upsertObservationTask({
+      caseId: investigationCase.id,
+      instruction: "确认钟楼钥匙是否有复制品。",
+      createdBy: "gale",
+      status: "open"
+    });
+    await expect(
+      service.upsertObservationTask({
+        caseId: investigationCase.id,
+        taskId: tasks[0].id,
+        instruction: tasks[0].instruction,
+        createdBy: "gale",
+        status: "open"
+      })
+    ).rejects.toMatchObject({ code: "INVALID_OPERATION" });
   });
 
   it("runs a seven-clue micro-case through the shared reasoning loop", async () => {

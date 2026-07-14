@@ -27,7 +27,7 @@ type StateRow = {
 };
 
 const emptyDatabase = (): ReadingDatabase => ({
-  schemaVersion: 5,
+  schemaVersion: 6,
   sessions: [],
   quotes: [],
   reactions: [],
@@ -38,6 +38,7 @@ const emptyDatabase = (): ReadingDatabase => ({
   caseEntities: [],
   caseRelations: [],
   caseHypotheses: [],
+  caseObservationTasks: [],
   caseSyncOperations: []
 });
 

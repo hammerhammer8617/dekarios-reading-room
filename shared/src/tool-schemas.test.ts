@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   confirmAssistantSyncedPositionInputSchema,
+  addCaseEntriesInputSchema,
   addCaseEntryInputSchema,
   confirmCaseSyncInputSchema,
   createCaseInputSchema,
@@ -17,7 +18,8 @@ import {
   setSourceManifestInputSchema,
   setLiveReadingModeInputSchema,
   updateSessionPreferencesInputSchema,
-  updateReadingPositionInputSchema
+  updateReadingPositionInputSchema,
+  upsertCaseObservationTaskInputSchema
 } from "./tool-schemas.js";
 
 describe("casebook schemas", () => {
@@ -48,6 +50,25 @@ describe("casebook schemas", () => {
     expect(
       confirmCaseSyncInputSchema.parse({ caseId: "case-1", operationId: "sync-1" })
     ).toEqual({ caseId: "case-1", operationId: "sync-1" });
+  });
+
+  it("accepts a bounded confirmed batch and defaults an observation task to open", () => {
+    expect(
+      addCaseEntriesInputSchema.parse({
+        caseId: "case-1",
+        entries: [
+          { kind: "observation", content: "事实：钟停了。" },
+          { kind: "claim", content: "证词：管家在厨房。" }
+        ]
+      })
+    ).toMatchObject({ author: "tav", entries: [{ kind: "observation" }, { kind: "claim" }] });
+    expect(
+      upsertCaseObservationTaskInputSchema.parse({
+        caseId: "case-1",
+        instruction: "确认门锁损坏方向。",
+        createdBy: "gale"
+      })
+    ).toMatchObject({ status: "open" });
   });
 });
 

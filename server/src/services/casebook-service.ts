@@ -9,6 +9,8 @@ import type {
   CaseGraphStatus,
   CaseHypothesis,
   CaseHypothesisStatus,
+  CaseObservationTask,
+  CaseObservationTaskStatus,
   CaseRelation,
   CaseSourceType,
   InvestigationCase,
@@ -88,25 +90,53 @@ export class CasebookService {
     content: string;
     sourcePosition?: string;
   }): Promise<{ case: InvestigationCase; entry: CaseEntry }> {
+    const result = await this.addEntries({
+      caseId: input.caseId,
+      author: input.author,
+      entries: [
+        {
+          kind: input.kind,
+          content: input.content,
+          ...(input.sourcePosition ? { sourcePosition: input.sourcePosition } : {})
+        }
+      ]
+    });
+    return { case: result.case, entry: result.entries[0]! };
+  }
+
+  async addEntries(input: {
+    caseId: string;
+    author: CaseAuthor;
+    entries: Array<{
+      kind: CaseEntryKind;
+      content: string;
+      sourcePosition?: string;
+    }>;
+  }): Promise<{ case: InvestigationCase; entries: CaseEntry[] }> {
+    if (input.entries.length === 0) {
+      throw new AppError("INVALID_OPERATION", "至少需要一条案情才能整批保存。");
+    }
     return this.repository.mutate((database) => {
       const investigationCase = this.requireCase(database, input.caseId);
       const now = this.deps.now().toISOString();
       const revision = this.touch(investigationCase);
-      const entry: CaseEntry = {
+      const entries = input.entries.map<CaseEntry>((entry) => ({
         id: this.deps.id(),
         caseId: input.caseId,
         author: input.author,
-        kind: input.kind,
-        content: input.content.trim(),
-        ...(input.sourcePosition ? { sourcePosition: input.sourcePosition.trim() } : {}),
+        kind: entry.kind,
+        content: entry.content.trim(),
+        ...(entry.sourcePosition
+          ? { sourcePosition: entry.sourcePosition.trim() }
+          : {}),
         createdRevision: revision,
         createdAt: now,
         updatedAt: now
-      };
-      database.caseEntries.push(entry);
+      }));
+      database.caseEntries.push(...entries);
       return {
         case: structuredClone(investigationCase),
-        entry: structuredClone(entry)
+        entries: structuredClone(entries)
       };
     });
   }
@@ -304,6 +334,64 @@ export class CasebookService {
     });
   }
 
+  async upsertObservationTask(input: {
+    caseId: string;
+    taskId?: string;
+    instruction: string;
+    createdBy: CaseAuthor;
+    status: CaseObservationTaskStatus;
+  }): Promise<{ case: InvestigationCase; task: CaseObservationTask }> {
+    return this.repository.mutate((database) => {
+      const investigationCase = this.requireCase(database, input.caseId);
+      const existing = input.taskId
+        ? database.caseObservationTasks.find(
+            (task) => task.id === input.taskId && task.caseId === input.caseId
+          )
+        : undefined;
+      if (input.taskId && !existing) {
+        throw new AppError("NOT_FOUND", "没有找到要修改的情报委托。");
+      }
+      if (input.status === "open" && existing?.status !== "open") {
+        const openTasks = database.caseObservationTasks.filter(
+          (task) =>
+            task.caseId === input.caseId &&
+            task.id !== existing?.id &&
+            task.status === "open"
+        );
+        if (openTasks.length >= 3) {
+          throw new AppError("INVALID_OPERATION", "每个案件最多保留三条进行中的情报委托。");
+        }
+      }
+      const now = this.deps.now().toISOString();
+      const semanticChange =
+        Boolean(existing) &&
+        (existing?.instruction !== input.instruction.trim() ||
+          existing.status !== input.status ||
+          existing.createdBy !== input.createdBy);
+      if (semanticChange) this.touch(investigationCase);
+      else investigationCase.updatedAt = now;
+      const task: CaseObservationTask = existing ?? {
+        id: this.deps.id(),
+        caseId: input.caseId,
+        instruction: input.instruction.trim(),
+        createdBy: input.createdBy,
+        status: input.status,
+        createdRevision: investigationCase.caseRevision,
+        createdAt: now,
+        updatedAt: now
+      };
+      task.instruction = input.instruction.trim();
+      task.createdBy = input.createdBy;
+      task.status = input.status;
+      task.updatedAt = now;
+      if (!existing) database.caseObservationTasks.push(task);
+      return {
+        case: structuredClone(investigationCase),
+        task: structuredClone(task)
+      };
+    });
+  }
+
   async prepareSync(caseId: string) {
     return this.repository.mutate((database) => {
       const investigationCase = this.requireCase(database, caseId);
@@ -349,10 +437,12 @@ export class CasebookService {
           entities: bundle.entities,
           relations: bundle.relations,
           hypotheses: bundle.hypotheses,
+          observationTasks: bundle.observationTasks,
           rules: [
             "Only reason from this synchronized case context.",
             "Keep observations, testimony, evidence, and hypotheses distinct.",
             "Any Gale-created entity or relation must remain suggested until Tav confirms it.",
+            "Gale may leave at most three concise open observation tasks for Tav using case_upsert_observation_task.",
             "Confirm the sync operation only after this context has actually been received."
           ],
           operationId: operation.operationId
@@ -415,7 +505,11 @@ export class CasebookService {
         .map((relation) => structuredClone(relation)),
       hypotheses: database.caseHypotheses
         .filter((hypothesis) => hypothesis.caseId === caseId)
-        .map((hypothesis) => structuredClone(hypothesis))
+        .map((hypothesis) => structuredClone(hypothesis)),
+      observationTasks: database.caseObservationTasks
+        .filter((task) => task.caseId === caseId)
+        .map((task) => structuredClone(task))
+        .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
     };
   }
 

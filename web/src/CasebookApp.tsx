@@ -7,6 +7,7 @@ import type {
   CaseEntryKind,
   CaseGraphStatus,
   CaseHypothesis,
+  CaseObservationTask,
   CaseRelation,
   CaseSourceType,
   InvestigationCase
@@ -29,6 +30,10 @@ type DragState = {
   entityId: string;
   offsetX: number;
   offsetY: number;
+};
+type EntryDraft = {
+  kind: CaseEntryKind;
+  content: string;
 };
 
 const entityLabels: Record<CaseEntityType, string> = {
@@ -64,6 +69,29 @@ export function detectQuickEntryKind(content: string): CaseEntryKind | null {
   return matched?.kind ?? null;
 }
 
+export function parseQuickEntries(
+  content: string,
+  fallbackKind: CaseEntryKind = "observation"
+): EntryDraft[] {
+  const drafts: EntryDraft[] = [];
+  for (const line of content.split(/\r?\n/)) {
+    const detected = detectQuickEntryKind(line);
+    if (detected) {
+      drafts.push({ kind: detected, content: line.trim() });
+      continue;
+    }
+    if (drafts.length === 0) {
+      if (line.trim()) drafts.push({ kind: fallbackKind, content: line.trim() });
+      continue;
+    }
+    const current = drafts.at(-1);
+    if (current) current.content += `\n${line}`;
+  }
+  return drafts
+    .map((draft) => ({ ...draft, content: draft.content.trim() }))
+    .filter((draft) => draft.content.length > 0);
+}
+
 export function CasebookApp(props: {
   initialOutput?: CasebookOutput;
   onBackToReading?: () => void | Promise<void>;
@@ -83,6 +111,8 @@ export function CasebookApp(props: {
   const [sourceLabel, setSourceLabel] = useState("");
   const [entryContent, setEntryContent] = useState("");
   const [entryKind, setEntryKind] = useState<CaseEntryKind>("observation");
+  const [entryDrafts, setEntryDrafts] = useState<EntryDraft[] | null>(null);
+  const [syncEntryBatchAfterSave, setSyncEntryBatchAfterSave] = useState(false);
   const [sourcePosition, setSourcePosition] = useState("");
   const [entityName, setEntityName] = useState("");
   const [entityType, setEntityType] = useState<CaseEntityType>("person");
@@ -141,6 +171,10 @@ export function CasebookApp(props: {
     () => detectQuickEntryKind(entryContent),
     [entryContent]
   );
+  const parsedEntryDrafts = useMemo(
+    () => parseQuickEntries(entryContent, entryKind),
+    [entryContent, entryKind]
+  );
 
   async function createCase() {
     if (!title.trim() || busy) return;
@@ -166,25 +200,57 @@ export function CasebookApp(props: {
     }
   }
 
-  async function addEntry(syncAfter = false) {
-    if (!bundle || !entryContent.trim() || busy) return;
+  function prepareEntryBatch(syncAfter: boolean) {
+    if (!entryContent.trim() || parsedEntryDrafts.length === 0 || busy) return;
+    setEntryDrafts(parsedEntryDrafts);
+    setSyncEntryBatchAfterSave(syncAfter);
+  }
+
+  async function saveEntryBatch() {
+    if (!bundle || !entryDrafts?.length || busy) return;
     setBusy(true);
     try {
-      await callTool("case_add_entry", {
+      await callTool("case_add_entries", {
         caseId: bundle.case.id,
         author: "tav",
-        kind: entryKind,
-        content: entryContent.trim(),
-        ...(sourcePosition.trim() ? { sourcePosition: sourcePosition.trim() } : {})
+        entries: entryDrafts.map((entry) => ({
+          kind: entry.kind,
+          content: entry.content.trim(),
+          ...(sourcePosition.trim() ? { sourcePosition: sourcePosition.trim() } : {})
+        }))
       });
       setEntryContent("");
+      setEntryDrafts(null);
       setSourcePosition("");
       await loadBundle(bundle.case.id);
       await loadCases();
-      setToast("已经按原话记下。");
-      if (syncAfter) await syncCase(bundle.case.id);
+      setToast(`已经按原话记下 ${entryDrafts.length} 条案情。`);
+      if (syncEntryBatchAfterSave) await syncCase(bundle.case.id);
     } catch {
-      setToast("这条案情没有保存成功，请重试。");
+      setToast("这批案情没有保存成功；没有留下半批记录。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateObservationTaskStatus(
+    task: CaseObservationTask,
+    status: CaseObservationTask["status"]
+  ) {
+    if (!bundle || busy) return;
+    setBusy(true);
+    try {
+      await callTool("case_upsert_observation_task", {
+        caseId: bundle.case.id,
+        taskId: task.id,
+        instruction: task.instruction,
+        createdBy: task.createdBy,
+        status
+      });
+      await loadBundle(bundle.case.id);
+      setToast(status === "completed" ? "情报已经带回案件桌。" : "这条委托暂时收起。" );
+    } catch {
+      setToast("情报委托没有更新成功，请重试。");
     } finally {
       setBusy(false);
     }
@@ -320,7 +386,7 @@ export function CasebookApp(props: {
       if (!context || !operation?.operationId) throw new Error("Missing case context");
       await updateModelContext(context);
       await askChatGpt(
-        `【案件簿同步】我把案件从第 ${operation.fromRevision ?? 0} 版到第 ${operation.toRevision ?? 0} 版的新材料放到案件桌上了。请只依据刚刚同步的结构化案情和已有图谱参与推理；把观察、证词、物证与猜想分开。你可以提出问题，也可以用 case_upsert_entity、case_upsert_relation 或 case_upsert_hypothesis 写下自己的建议，createdBy/author 使用 gale，新增节点和关系保持 suggested。确认实际收到这批上下文后，请调用 case_confirm_sync，caseId=${caseId}，operationId=${operation.operationId}。`
+        `【案件簿同步】我把案件从第 ${operation.fromRevision ?? 0} 版到第 ${operation.toRevision ?? 0} 版的新材料放到案件桌上了。请只依据刚刚同步的结构化案情和已有图谱参与推理；把观察、证词、物证与猜想分开。你可以提出问题，也可以用 case_upsert_entity、case_upsert_relation 或 case_upsert_hypothesis 写下自己的建议，createdBy/author 使用 gale，新增节点和关系保持 suggested。请再给侦探夫人留下最多三条简短、可在原作品中验证的下一次观察任务，并用 case_upsert_observation_task 保存，createdBy 使用 gale、status 使用 open；不要重复仍在进行中的委托。确认实际收到这批上下文后，请调用 case_confirm_sync，caseId=${caseId}，operationId=${operation.operationId}。`
       );
       setToast("新增案情已经递给盖尔，回应会留在聊天里。");
     } catch {
@@ -456,32 +522,86 @@ export function CasebookApp(props: {
       {tab === "entries" ? (
         <main className="casebook-content">
           <section className="case-entry-composer">
-            <textarea
-              aria-label="记录一条案情"
-              value={entryContent}
-              onChange={(event) => {
-                const nextContent = event.target.value;
-                const detected = detectQuickEntryKind(nextContent);
-                setEntryContent(nextContent);
-                if (detected) setEntryKind(detected);
-              }}
-              placeholder={'事实：……\n证词：……\n我注意到：……\n我觉得：……\n问盖尔：……'}
-            />
-            {detectedEntryKind ? (
-              <p className="entry-kind-preview" role="status">
-                将保存为「{entryLabels[detectedEntryKind]}」；原文不会改写。
-              </p>
-            ) : null}
-            <div className="case-form-row">
-              <select aria-label="案情类型" value={entryKind} onChange={(event) => setEntryKind(event.target.value as CaseEntryKind)}>
-                {Object.entries(entryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-              <input aria-label="来源位置" value={sourcePosition} onChange={(event) => setSourcePosition(event.target.value)} placeholder="章节／场景（可选）" />
-            </div>
-            <div className="case-action-row">
-              <button disabled={busy || !entryContent.trim()} onClick={() => void addEntry(false)}>只保存</button>
-              <button className="action-primary" disabled={busy || !entryContent.trim()} onClick={() => void addEntry(true)}>保存并递给盖尔</button>
-            </div>
+            {entryDrafts ? (
+              <div className="entry-review-panel">
+                <div className="section-heading">
+                  <h2>提交前确认</h2>
+                  <span>{entryDrafts.length} 条案情</span>
+                </div>
+                <p className="entry-review-note">分类可以调整，原文也可以在这里修正；确认后会整批保存。</p>
+                <div className="entry-draft-list">
+                  {entryDrafts.map((draft, index) => (
+                    <div className="entry-draft-card" key={index}>
+                      <select
+                        aria-label={`案情 ${index + 1} 类型`}
+                        value={draft.kind}
+                        onChange={(event) => setEntryDrafts((current) =>
+                          current?.map((item, itemIndex) => itemIndex === index
+                            ? { ...item, kind: event.target.value as CaseEntryKind }
+                            : item) ?? null
+                        )}
+                      >
+                        {Object.entries(entryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                      <textarea
+                        aria-label={`案情 ${index + 1} 原文`}
+                        value={draft.content}
+                        onChange={(event) => setEntryDrafts((current) =>
+                          current?.map((item, itemIndex) => itemIndex === index
+                            ? { ...item, content: event.target.value }
+                            : item) ?? null
+                        )}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="case-action-row">
+                  <button disabled={busy} onClick={() => setEntryDrafts(null)}>返回修改</button>
+                  <button
+                    className="action-primary"
+                    disabled={busy || entryDrafts.some((draft) => !draft.content.trim())}
+                    onClick={() => void saveEntryBatch()}
+                  >
+                    {syncEntryBatchAfterSave
+                      ? `确认保存 ${entryDrafts.length} 条并递给盖尔`
+                      : `确认保存 ${entryDrafts.length} 条`}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  aria-label="记录一条案情"
+                  value={entryContent}
+                  onChange={(event) => {
+                    const nextContent = event.target.value;
+                    const detected = detectQuickEntryKind(nextContent);
+                    setEntryContent(nextContent);
+                    if (detected) setEntryKind(detected);
+                  }}
+                  placeholder={'事实：……\n证词：……\n我注意到：……\n我觉得：……\n问盖尔：……'}
+                />
+                {parsedEntryDrafts.length > 1 ? (
+                  <p className="entry-kind-preview" role="status">
+                    已识别 {parsedEntryDrafts.length} 条案情；下一步可以逐条确认。
+                  </p>
+                ) : detectedEntryKind ? (
+                  <p className="entry-kind-preview" role="status">
+                    将保存为「{entryLabels[detectedEntryKind]}」；下一步仍可修改。
+                  </p>
+                ) : null}
+                <div className="case-form-row">
+                  <select aria-label="案情类型" value={entryKind} onChange={(event) => setEntryKind(event.target.value as CaseEntryKind)}>
+                    {Object.entries(entryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                  <input aria-label="来源位置" value={sourcePosition} onChange={(event) => setSourcePosition(event.target.value)} placeholder="章节／场景（可选，应用到整批）" />
+                </div>
+                <div className="case-action-row">
+                  <button disabled={busy || !entryContent.trim()} onClick={() => prepareEntryBatch(false)}>检查后保存</button>
+                  <button className="action-primary" disabled={busy || !entryContent.trim()} onClick={() => prepareEntryBatch(true)}>检查后保存并递给盖尔</button>
+                </div>
+              </>
+            )}
           </section>
 
           <section className="case-section">
@@ -516,6 +636,12 @@ export function CasebookApp(props: {
               ))}
             </div>
           </section>
+
+          <ObservationTasks
+            tasks={bundle.observationTasks ?? []}
+            busy={busy}
+            onStatus={(task, status) => void updateObservationTaskStatus(task, status)}
+          />
         </main>
       ) : (
         <main className="casebook-content graph-content">
@@ -598,6 +724,50 @@ export function CasebookApp(props: {
   );
 }
 
+function ObservationTasks(props: {
+  tasks: CaseObservationTask[];
+  busy: boolean;
+  onStatus: (task: CaseObservationTask, status: CaseObservationTask["status"]) => void;
+}) {
+  const ordered = [...props.tasks].sort((left, right) => {
+    if (left.status === right.status) return right.createdAt.localeCompare(left.createdAt);
+    return left.status === "open" ? -1 : 1;
+  });
+  return (
+    <section className="case-section observation-task-section">
+      <div className="section-heading">
+        <div>
+          <span className="casebook-kicker">GALE'S COMMISSIONS</span>
+          <h2>盖尔的情报委托</h2>
+        </div>
+        <span>{props.tasks.filter((task) => task.status === "open").length} 条进行中</span>
+      </div>
+      {ordered.length === 0 ? (
+        <p className="observation-task-empty">
+          把新增案情递给盖尔后，安乐椅神探会留下最多三条值得带回游戏验证的观察任务。
+        </p>
+      ) : (
+        <div className="observation-task-list">
+          {ordered.map((task) => (
+            <article key={task.id} className={`observation-task-card status-${task.status}`}>
+              <div>
+                <strong>{task.instruction}</strong>
+                <span>{observationTaskStatusLabel(task.status)} · {authorLabel(task.createdBy)}</span>
+              </div>
+              {task.status === "open" ? (
+                <div className="compact-actions">
+                  <button disabled={props.busy} onClick={() => props.onStatus(task, "completed")}>带回情报</button>
+                  <button disabled={props.busy} onClick={() => props.onStatus(task, "dismissed")}>暂时放下</button>
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function CaseCreateForm(props: {
   title: string;
   sourceType: CaseSourceType;
@@ -671,4 +841,8 @@ function statusLabel(status: CaseGraphStatus) {
 
 function hypothesisStatusLabel(status: CaseHypothesis["status"]) {
   return status === "active" ? "仍在考虑" : status === "weakened" ? "被削弱" : status === "confirmed" ? "已证实" : "已推翻";
+}
+
+function observationTaskStatusLabel(status: CaseObservationTask["status"]) {
+  return status === "open" ? "等待侦查" : status === "completed" ? "已带回情报" : "暂时放下";
 }
