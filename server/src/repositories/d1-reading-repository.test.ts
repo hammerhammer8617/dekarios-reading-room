@@ -42,7 +42,7 @@ describe("D1ReadingRepository", () => {
 
     const state = await repository.read();
 
-    expect(state.schemaVersion).toBe(5);
+    expect(state.schemaVersion).toBe(6);
     expect(state.sessions).toEqual([]);
     expect(state.companionComments).toEqual([]);
     expect(db.state?.version).toBe(1);
@@ -77,7 +77,7 @@ describe("D1ReadingRepository", () => {
 
     const state = await repository.read();
 
-    expect(state.schemaVersion).toBe(5);
+    expect(state.schemaVersion).toBe(6);
     expect(state.sessions[0].userCurrentPosition.index).toBe(12);
     expect(state.sessions[0].assistantSyncedPosition).toBeNull();
     expect(state.sessions[0].sessionPreferences.autoSaveCompanionComments).toBe(false);

@@ -33,8 +33,8 @@ const disabledCloudSync = {
   provider: "r2"
 };
 
-describe("migrateReadingDatabase v5", () => {
-  it("migrates v1 directly to v5 and preserves all records", () => {
+describe("migrateReadingDatabase v6", () => {
+  it("migrates v1 directly to v6 and preserves all records", () => {
     const migrated = migrateReadingDatabase({
       schemaVersion: 1,
       sessions: [
@@ -54,7 +54,7 @@ describe("migrateReadingDatabase v5", () => {
       bookmarks: [bookmark]
     });
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.sessions[0]).toMatchObject({
       userCurrentPosition: { index: 12 },
       assistantSyncedPosition: null,
@@ -68,13 +68,14 @@ describe("migrateReadingDatabase v5", () => {
     expect(migrated.caseEntities).toEqual([]);
     expect(migrated.caseRelations).toEqual([]);
     expect(migrated.caseHypotheses).toEqual([]);
+    expect(migrated.caseObservationTasks).toEqual([]);
     expect(migrated.caseSyncOperations).toEqual([]);
     expect(migrated.quotes).toEqual([quote]);
     expect(migrated.reactions).toEqual([reaction]);
     expect(migrated.bookmarks).toEqual([bookmark]);
   });
 
-  it("migrates v2 to v5 without losing dual positions or status", () => {
+  it("migrates v2 to v6 without losing dual positions or status", () => {
     const migrated = migrateReadingDatabase({
       schemaVersion: 2,
       sessions: [
@@ -97,7 +98,7 @@ describe("migrateReadingDatabase v5", () => {
       bookmarks: [bookmark]
     });
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.sessions[0]).toMatchObject({
       status: "completed",
       userCurrentPosition: { index: 20 },
@@ -137,7 +138,7 @@ describe("migrateReadingDatabase v5", () => {
     expect(migrated.companionComments).toEqual([]);
   });
 
-  it("migrates v3 source metadata to v5 disabled cloud sync without object keys", () => {
+  it("migrates v3 source metadata to v6 disabled cloud sync without object keys", () => {
     const sourceManifest = {
       sourceId: "source-1",
       sourceKind: "pasted_text" as const,
@@ -189,7 +190,7 @@ describe("migrateReadingDatabase v5", () => {
       companionComments: [companionComment]
     });
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.sessions[0].sessionPreferences).toEqual({
       readingCommentMode: "cp_talk",
       commentLength: "normal",
@@ -278,7 +279,7 @@ describe("migrateReadingDatabase v5", () => {
       companionComments: []
     });
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.sessions[0].sourceManifest?.cloudSync).toEqual(disabledCloudSync);
     expect(migrated.quotes).toEqual([quote]);
     expect(migrated.reactions).toEqual([reaction]);
@@ -332,7 +333,7 @@ describe("migrateReadingDatabase v5", () => {
     });
   });
 
-  it("preserves v5 casebook records", () => {
+  it("migrates v5 casebook records and initializes observation tasks", () => {
     const investigationCase = {
       id: "case-1",
       title: "温室失窃案",
@@ -371,6 +372,37 @@ describe("migrateReadingDatabase v5", () => {
 
     expect(migrated.cases).toEqual([investigationCase]);
     expect(migrated.caseEntries).toEqual([entry]);
+    expect(migrated.caseObservationTasks).toEqual([]);
+  });
+
+  it("preserves v6 observation tasks", () => {
+    const task = {
+      id: "task-1",
+      caseId: "case-1",
+      instruction: "确认温室门锁的损坏方向。",
+      createdBy: "gale" as const,
+      status: "open" as const,
+      createdRevision: 2,
+      createdAt: NOW,
+      updatedAt: NOW
+    };
+    const migrated = migrateReadingDatabase({
+      schemaVersion: 6,
+      sessions: [],
+      quotes: [],
+      reactions: [],
+      bookmarks: [],
+      companionComments: [],
+      cases: [],
+      caseEntries: [],
+      caseEntities: [],
+      caseRelations: [],
+      caseHypotheses: [],
+      caseObservationTasks: [task],
+      caseSyncOperations: []
+    });
+
+    expect(migrated.caseObservationTasks).toEqual([task]);
   });
 
   it("does not introduce forbidden source or chat fields into serialized state", () => {

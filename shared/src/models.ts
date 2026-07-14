@@ -175,6 +175,7 @@ export type CaseEntityType =
   | "event";
 export type CaseGraphStatus = "confirmed" | "suggested" | "rejected";
 export type CaseHypothesisStatus = "active" | "weakened" | "rejected" | "confirmed";
+export type CaseObservationTaskStatus = "open" | "completed" | "dismissed";
 export type CaseSyncOperationState = "prepared" | "confirmed";
 
 export interface InvestigationCase {
@@ -246,6 +247,17 @@ export interface CaseHypothesis {
   updatedAt: string;
 }
 
+export interface CaseObservationTask {
+  id: string;
+  caseId: string;
+  instruction: string;
+  createdBy: CaseAuthor;
+  status: CaseObservationTaskStatus;
+  createdRevision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CaseSyncOperation {
   operationId: string;
   caseId: string;
@@ -262,10 +274,11 @@ export interface CaseBundle {
   entities: CaseEntity[];
   relations: CaseRelation[];
   hypotheses: CaseHypothesis[];
+  observationTasks: CaseObservationTask[];
 }
 
 export interface ReadingDatabase {
-  schemaVersion: 5;
+  schemaVersion: 6;
   sessions: ReadingSession[];
   quotes: Quote[];
   reactions: Reaction[];
@@ -276,6 +289,7 @@ export interface ReadingDatabase {
   caseEntities: CaseEntity[];
   caseRelations: CaseRelation[];
   caseHypotheses: CaseHypothesis[];
+  caseObservationTasks: CaseObservationTask[];
   caseSyncOperations: CaseSyncOperation[];
 }
 
