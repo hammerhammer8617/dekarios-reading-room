@@ -4,12 +4,12 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 const workerUrl = new URL(requireEnv("WORKER_URL"));
 const token = requireEnv("MCP_PATH_TOKEN");
 const expectedBuildSha = requireEnv("EXPECTED_BUILD_SHA");
-const resourceUri = "ui://ss-reading-nest/app-v22.html";
 const client = new Client({ name: "ss-widget-deployment-smoke", version: "0.2.1" });
 let connected = false;
 
 try {
   const health = await waitForDeployedHealth();
+  const resourceUri = `ui://ss-reading-nest/${health.resourceVersion}.html`;
   await client.connect(
     new StreamableHTTPClientTransport(new URL(`/mcp/${token}`, workerUrl.origin))
   );
@@ -18,15 +18,23 @@ try {
   const tools = await client.listTools();
   const openTool = tools.tools.find((tool) => tool.name === "open_reading_nest");
   assert(openTool, "open_reading_nest is missing");
-  assert(openTool._meta?.ui?.resourceUri === resourceUri, "standard resource URI is not app-v22");
-  assert(openTool._meta?.["openai/outputTemplate"] === resourceUri, "ChatGPT resource URI is not app-v22");
+  assert(
+    openTool._meta?.ui?.resourceUri === resourceUri,
+    "standard resource URI does not match deployed health"
+  );
+  assert(
+    openTool._meta?.["openai/outputTemplate"] === resourceUri,
+    "ChatGPT resource URI does not match deployed health"
+  );
 
   const resource = await client.readResource({ uri: resourceUri });
   const html = resource.contents.find((content) => content.uri === resourceUri)?.text;
-  assert(typeof html === "string", "app-v22 resource returned no HTML");
+  assert(typeof html === "string", "deployed resource returned no HTML");
   assert(html.includes("批注给盖尔（可选）"), "deployed widget is missing selected-text notes");
   assert(html.includes("reader-jump-toolbar"), "deployed widget is missing the in-flow jump toolbar");
   assert(!html.includes('aria-label="悬浮阅读跳转"'), "deployed widget still contains the overlay jump toolbar");
+  assert(html.includes("共同推理"), "deployed widget is missing the casebook entrance");
+  assert(html.includes("德卡里奥斯家的案件簿"), "deployed widget is missing the casebook view");
 
   console.log(JSON.stringify({
     ok: true,
@@ -34,7 +42,9 @@ try {
     buildSha: health.buildSha,
     resourceUri,
     selectedTextNotes: true,
-    inFlowJumpToolbar: true
+    inFlowJumpToolbar: true,
+    casebookEntrance: true,
+    casebookView: true
   }));
 } finally {
   if (connected) await client.close();
@@ -51,7 +61,7 @@ async function waitForDeployedHealth() {
     if (response.ok) {
       lastHealth = await response.json();
       if (
-        lastHealth.resourceVersion === "app-v22" &&
+        /^app-v\d+$/.test(lastHealth.resourceVersion) &&
         lastHealth.buildSha === expectedBuildSha
       ) {
         return lastHealth;
