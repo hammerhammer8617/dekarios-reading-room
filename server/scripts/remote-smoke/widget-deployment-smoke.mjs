@@ -4,51 +4,19 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 const workerUrl = new URL(requireEnv("WORKER_URL"));
 const token = requireEnv("MCP_PATH_TOKEN");
 const expectedBuildSha = requireEnv("EXPECTED_BUILD_SHA");
-const client = new Client({ name: "ss-widget-deployment-smoke", version: "0.2.1" });
-let connected = false;
+const health = await waitForDeployedHealth();
+const widget = await waitForDeployedWidget(health);
 
-try {
-  const health = await waitForDeployedHealth();
-  const resourceUri = `ui://ss-reading-nest/${health.resourceVersion}.html`;
-  await client.connect(
-    new StreamableHTTPClientTransport(new URL(`/mcp/${token}`, workerUrl.origin))
-  );
-  connected = true;
-
-  const tools = await client.listTools();
-  const openTool = tools.tools.find((tool) => tool.name === "open_reading_nest");
-  assert(openTool, "open_reading_nest is missing");
-  assert(
-    openTool._meta?.ui?.resourceUri === resourceUri,
-    "standard resource URI does not match deployed health"
-  );
-  assert(
-    openTool._meta?.["openai/outputTemplate"] === resourceUri,
-    "ChatGPT resource URI does not match deployed health"
-  );
-
-  const resource = await client.readResource({ uri: resourceUri });
-  const html = resource.contents.find((content) => content.uri === resourceUri)?.text;
-  assert(typeof html === "string", "deployed resource returned no HTML");
-  assert(html.includes("批注给盖尔（可选）"), "deployed widget is missing selected-text notes");
-  assert(html.includes("reader-jump-toolbar"), "deployed widget is missing the in-flow jump toolbar");
-  assert(!html.includes('aria-label="悬浮阅读跳转"'), "deployed widget still contains the overlay jump toolbar");
-  assert(html.includes("共同推理"), "deployed widget is missing the casebook entrance");
-  assert(html.includes("德卡里奥斯家的案件簿"), "deployed widget is missing the casebook view");
-
-  console.log(JSON.stringify({
-    ok: true,
-    resourceVersion: health.resourceVersion,
-    buildSha: health.buildSha,
-    resourceUri,
-    selectedTextNotes: true,
-    inFlowJumpToolbar: true,
-    casebookEntrance: true,
-    casebookView: true
-  }));
-} finally {
-  if (connected) await client.close();
-}
+console.log(JSON.stringify({
+  ok: true,
+  resourceVersion: health.resourceVersion,
+  buildSha: health.buildSha,
+  resourceUri: widget.resourceUri,
+  selectedTextNotes: true,
+  inFlowJumpToolbar: true,
+  casebookEntrance: true,
+  casebookView: true
+}));
 
 async function waitForDeployedHealth() {
   const deadline = Date.now() + 60_000;
@@ -71,6 +39,65 @@ async function waitForDeployedHealth() {
   }
 
   throw new Error(`deployed health did not converge: ${JSON.stringify(lastHealth)}`);
+}
+
+async function waitForDeployedWidget(health) {
+  const deadline = Date.now() + 60_000;
+  const resourceUri = `ui://ss-reading-nest/${health.resourceVersion}.html`;
+  let lastError;
+
+  while (Date.now() < deadline) {
+    const client = new Client({ name: "ss-widget-deployment-smoke", version: "0.2.1" });
+    let connected = false;
+    try {
+      await client.connect(
+        new StreamableHTTPClientTransport(new URL(`/mcp/${token}`, workerUrl.origin))
+      );
+      connected = true;
+      const tools = await client.listTools();
+      const openTool = tools.tools.find((tool) => tool.name === "open_reading_nest");
+      assert(openTool, "open_reading_nest is missing");
+      assert(
+        openTool._meta?.ui?.resourceUri === resourceUri,
+        "standard resource URI does not match deployed health"
+      );
+      assert(
+        openTool._meta?.["openai/outputTemplate"] === resourceUri,
+        "ChatGPT resource URI does not match deployed health"
+      );
+
+      const resource = await client.readResource({ uri: resourceUri });
+      const html = resource.contents.find((content) => content.uri === resourceUri)?.text;
+      assert(typeof html === "string", "deployed resource returned no HTML");
+      assert(
+        html.includes("批注给盖尔（可选）"),
+        "deployed widget is missing selected-text notes"
+      );
+      assert(
+        html.includes("reader-jump-toolbar"),
+        "deployed widget is missing the in-flow jump toolbar"
+      );
+      assert(
+        !html.includes('aria-label="悬浮阅读跳转"'),
+        "deployed widget still contains the overlay jump toolbar"
+      );
+      assert(html.includes("共同推理"), "deployed widget is missing the casebook entrance");
+      assert(
+        html.includes("德卡里奥斯家的案件簿"),
+        "deployed widget is missing the casebook view"
+      );
+      return { resourceUri };
+    } catch (error) {
+      lastError = error;
+    } finally {
+      if (connected) await client.close();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+
+  throw new Error(
+    `deployed widget did not converge: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+  );
 }
 
 function requireEnv(name) {
