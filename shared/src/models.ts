@@ -158,13 +158,125 @@ export interface CompanionComment {
   updatedAt?: string;
 }
 
+export type CaseSourceType = "novel" | "video_game" | "tabletop" | "other";
+export type CaseStatus = "active" | "archived";
+export type CaseAuthor = "tav" | "gale" | "joint";
+export type CaseEntryKind =
+  | "observation"
+  | "claim"
+  | "evidence"
+  | "question"
+  | "hypothesis";
+export type CaseEntityType =
+  | "person"
+  | "place"
+  | "object"
+  | "organization"
+  | "event";
+export type CaseGraphStatus = "confirmed" | "suggested" | "rejected";
+export type CaseHypothesisStatus = "active" | "weakened" | "rejected" | "confirmed";
+export type CaseSyncOperationState = "prepared" | "confirmed";
+
+export interface InvestigationCase {
+  id: string;
+  title: string;
+  sourceType: CaseSourceType;
+  sourceLabel?: string;
+  status: CaseStatus;
+  caseRevision: number;
+  assistantSyncedRevision: number;
+  lastAssistantConfirmation?: {
+    operationId: string;
+    fromRevision: number;
+    toRevision: number;
+    confirmedAt: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseEntry {
+  id: string;
+  caseId: string;
+  author: CaseAuthor;
+  kind: CaseEntryKind;
+  content: string;
+  sourcePosition?: string;
+  createdRevision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseEntity {
+  id: string;
+  caseId: string;
+  entityType: CaseEntityType;
+  name: string;
+  description?: string;
+  status: CaseGraphStatus;
+  createdBy: CaseAuthor;
+  x?: number;
+  y?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseRelation {
+  id: string;
+  caseId: string;
+  sourceEntityId: string;
+  targetEntityId: string;
+  relationType: string;
+  label?: string;
+  status: CaseGraphStatus;
+  createdBy: CaseAuthor;
+  supportingEntryId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseHypothesis {
+  id: string;
+  caseId: string;
+  author: CaseAuthor;
+  claim: string;
+  status: CaseHypothesisStatus;
+  confidence?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseSyncOperation {
+  operationId: string;
+  caseId: string;
+  fromRevision: number;
+  toRevision: number;
+  state: CaseSyncOperationState;
+  createdAt: string;
+  confirmedAt?: string;
+}
+
+export interface CaseBundle {
+  case: InvestigationCase;
+  entries: CaseEntry[];
+  entities: CaseEntity[];
+  relations: CaseRelation[];
+  hypotheses: CaseHypothesis[];
+}
+
 export interface ReadingDatabase {
-  schemaVersion: 4;
+  schemaVersion: 5;
   sessions: ReadingSession[];
   quotes: Quote[];
   reactions: Reaction[];
   bookmarks: Bookmark[];
   companionComments: CompanionComment[];
+  cases: InvestigationCase[];
+  caseEntries: CaseEntry[];
+  caseEntities: CaseEntity[];
+  caseRelations: CaseRelation[];
+  caseHypotheses: CaseHypothesis[];
+  caseSyncOperations: CaseSyncOperation[];
 }
 
 export type ReadingSyncMode =

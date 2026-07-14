@@ -41,6 +41,7 @@ export function Home(props: {
   onOpen: (item: BookshelfItem) => void;
   onReimport: (item: BookshelfItem) => void;
   onManage: (item: BookshelfItem) => void;
+  onOpenCasebook: () => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const visible = useMemo(
@@ -94,6 +95,11 @@ export function Home(props: {
         <button className="mode-card manga-card" onClick={() => props.onNew("manga")}>
           <span className="mode-icon">🖼️</span>
           <span><strong>漫画共读</strong><small>导入图片，一页页看</small></span>
+          <span>›</span>
+        </button>
+        <button className="mode-card casebook-mode-card" onClick={props.onOpenCasebook}>
+          <span className="mode-icon">🕯️</span>
+          <span><strong>共同推理</strong><small>展开案件簿，整理线索与关系</small></span>
           <span>›</span>
         </button>
       </section>
