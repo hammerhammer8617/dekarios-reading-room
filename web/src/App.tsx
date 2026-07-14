@@ -101,7 +101,7 @@ type ImportProgress = {
   screen?: Screen;
   message?: string;
 };
-type OpenOutput = {
+export type OpenOutput = {
   bookshelfSessions?: Array<SessionBundle & { cacheState?: string }>;
   recentSessions?: Array<SessionBundle & { cacheState?: string }>;
   sourceEndpointBase?: string;
@@ -113,8 +113,11 @@ const MAX_NOVEL_FILE_SIZE = 5 * 1024 * 1024;
 const LARGE_NOVEL_TEXTAREA_PREVIEW_BYTES = 2 * 1024 * 1024;
 const LARGE_NOVEL_TEXTAREA_PREVIEW_CHARS = 1200;
 
-export function App() {
-  const initial = initialToolOutput<OpenOutput>();
+export function App(props: {
+  initialOutput?: OpenOutput;
+  onOpenCasebook?: () => void;
+} = {}) {
+  const initial = props.initialOutput ?? initialToolOutput<OpenOutput>();
   const sourceEndpointBase = initial?.sourceEndpointBase ?? deriveSourceEndpointBase();
   const cloudSourceClient = useMemo(
     () => new CloudSourceClient(sourceEndpointBase, undefined, callTool),
@@ -2082,6 +2085,7 @@ if (context) {
           onOpen={continueReading}
           onReimport={prepareReimport}
           onManage={(item) => void openBookManagement(item)}
+          onOpenCasebook={props.onOpenCasebook ?? (() => undefined)}
         />
       ) : null}
       {screen === "setup" ? (

@@ -137,7 +137,11 @@ async function primeModelContextForPrompt(bridge: McpApp, prompt: string) {
 }
 
 function shouldPrimeModelContext(prompt: string) {
-  return prompt.includes("补课已确认完成") || prompt.includes("【实时陪读");
+  return (
+    prompt.includes("补课已确认完成") ||
+    prompt.includes("【实时陪读") ||
+    prompt.includes("【案件簿同步】")
+  );
 }
 
 export async function requestReaderPip(): Promise<boolean> {
@@ -159,6 +163,7 @@ export async function requestReaderPip(): Promise<boolean> {
 }
 
 export async function updateModelContext(context: Record<string, unknown>): Promise<boolean> {
+  rememberModelContext(context);
   const bridge = connectApp();
   if (!bridge) return false;
   try {
@@ -166,7 +171,6 @@ export async function updateModelContext(context: Record<string, unknown>): Prom
     await bridge.updateModelContext({
       content: [{ type: "text", text: JSON.stringify(context) }]
     });
-    rememberModelContext(context);
     return true;
   } catch {
     return false;

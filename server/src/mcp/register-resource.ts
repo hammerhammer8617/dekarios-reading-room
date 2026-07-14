@@ -4,6 +4,7 @@ import { READING_NEST_URI } from "./register-tools.js";
 
 export const READING_NEST_RESOURCE_URIS = [
   READING_NEST_URI,
+  "ui://ss-reading-nest/app-v22.html",
   "ui://ss-reading-nest/app-v21.html",
   "ui://ss-reading-nest/app-v20.html",
   "ui://ss-reading-nest/app-v19.html"
@@ -26,7 +27,7 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
       index === 0 ? "德卡里奥斯家的书房" : `德卡里奥斯家的书房兼容资源 ${index}`,
       resourceUri,
       {
-        description: "移动端优先的小说与漫画共读书房",
+        description: "移动端优先的共读书房与共同推理案件簿",
         _meta: {
           ui: {
             csp: resourceCsp,
@@ -34,7 +35,7 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
           },
           "openai/widgetCSP": openaiWidgetCsp,
           "openai/widgetDescription":
-            "一个温暖的移动端共读书房，用于阅读用户自己粘贴的小说文本或导入的漫画图片。"
+            "一个私密的移动端共读书房与案件簿，用于阅读用户提供的作品、记录案情并整理案件结构图。"
         }
       },
       async () => {
@@ -51,7 +52,7 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
                 },
                 "openai/widgetCSP": openaiWidgetCsp,
                 "openai/widgetDescription":
-                  "一个温暖的移动端共读书房，用于阅读用户自己粘贴的小说文本或导入的漫画图片。",
+                  "一个私密的移动端共读书房与案件簿，用于阅读用户提供的作品、记录案情并整理案件结构图。",
                 "openai/widgetPrefersBorder": true
               }
             }

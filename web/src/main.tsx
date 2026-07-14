@@ -1,6 +1,9 @@
-import { StrictMode } from "react";
+import { StrictMode, useCallback, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Boot } from "./Boot.js";
+import { CasebookApp } from "./CasebookApp.js";
+import type { OpenOutput } from "./App.js";
+import { callTool } from "./bridge/host.js";
 import { EpubImportBridge } from "./features/book-import/EpubImportBridge.js";
 import { EpubSmokeLab } from "./features/book-import/EpubSmokeLab.js";
 import { READING_NEST_BUILD_INFO } from "./build-info.js";
@@ -9,6 +12,64 @@ import "./styles/app.css";
 
 const rootElement = document.getElementById("root");
 const smokeLabEnabled = new URLSearchParams(window.location.search).has("epub-smoke");
+const casebookEnabled =
+  new URLSearchParams(window.location.search).has("casebook") ||
+  (window.openai?.toolOutput as { appView?: string } | undefined)?.appView === "casebook";
+
+function ReadingNestRoot() {
+  const [view, setView] = useState<"reading" | "casebook">(
+    casebookEnabled ? "casebook" : "reading"
+  );
+  const [readingOutput, setReadingOutput] = useState<OpenOutput | undefined>(() =>
+    casebookEnabled ? undefined : (window.openai?.toolOutput as OpenOutput | undefined)
+  );
+  const [returningToReading, setReturningToReading] = useState(false);
+  const openCasebook = useCallback(() => setView("casebook"), []);
+  const loadReadingApp = useMemo(
+    () => async () => {
+      const module = await import("./App.js");
+      return {
+        App: () => (
+          <module.App
+            initialOutput={readingOutput}
+            onOpenCasebook={openCasebook}
+          />
+        )
+      };
+    },
+    [openCasebook, readingOutput]
+  );
+
+  const returnToReading = useCallback(async () => {
+    if (returningToReading) return;
+    setReturningToReading(true);
+    try {
+      const result = await callTool("open_reading_nest", {});
+      setReadingOutput((result.structuredContent ?? {}) as OpenOutput);
+    } catch {
+      setReadingOutput({});
+    } finally {
+      setReturningToReading(false);
+      setView("reading");
+    }
+  }, [returningToReading]);
+
+  if (view === "casebook") {
+    return (
+      <CasebookApp
+        onBackToReading={returnToReading}
+        returningToReading={returningToReading}
+      />
+    );
+  }
+
+  return (
+    <>
+      <Boot loadApp={loadReadingApp} />
+      <EpubImportBridge />
+    </>
+  );
+}
 
 if (rootElement) {
   createRoot(rootElement).render(
@@ -16,10 +77,7 @@ if (rootElement) {
       {smokeLabEnabled ? (
         <EpubSmokeLab />
       ) : (
-        <>
-          <Boot />
-          <EpubImportBridge />
-        </>
+        <ReadingNestRoot />
       )}
     </StrictMode>
   );

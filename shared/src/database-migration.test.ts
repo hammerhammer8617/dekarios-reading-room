@@ -33,8 +33,8 @@ const disabledCloudSync = {
   provider: "r2"
 };
 
-describe("migrateReadingDatabase v4", () => {
-  it("migrates v1 directly to v4 and preserves all records", () => {
+describe("migrateReadingDatabase v5", () => {
+  it("migrates v1 directly to v5 and preserves all records", () => {
     const migrated = migrateReadingDatabase({
       schemaVersion: 1,
       sessions: [
@@ -54,7 +54,7 @@ describe("migrateReadingDatabase v4", () => {
       bookmarks: [bookmark]
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.sessions[0]).toMatchObject({
       userCurrentPosition: { index: 12 },
       assistantSyncedPosition: null,
@@ -63,12 +63,18 @@ describe("migrateReadingDatabase v4", () => {
       sourceManifest: null
     });
     expect(migrated.companionComments).toEqual([]);
+    expect(migrated.cases).toEqual([]);
+    expect(migrated.caseEntries).toEqual([]);
+    expect(migrated.caseEntities).toEqual([]);
+    expect(migrated.caseRelations).toEqual([]);
+    expect(migrated.caseHypotheses).toEqual([]);
+    expect(migrated.caseSyncOperations).toEqual([]);
     expect(migrated.quotes).toEqual([quote]);
     expect(migrated.reactions).toEqual([reaction]);
     expect(migrated.bookmarks).toEqual([bookmark]);
   });
 
-  it("migrates v2 to v4 without losing dual positions or status", () => {
+  it("migrates v2 to v5 without losing dual positions or status", () => {
     const migrated = migrateReadingDatabase({
       schemaVersion: 2,
       sessions: [
@@ -91,7 +97,7 @@ describe("migrateReadingDatabase v4", () => {
       bookmarks: [bookmark]
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.sessions[0]).toMatchObject({
       status: "completed",
       userCurrentPosition: { index: 20 },
@@ -131,7 +137,7 @@ describe("migrateReadingDatabase v4", () => {
     expect(migrated.companionComments).toEqual([]);
   });
 
-  it("migrates v3 source metadata to v4 disabled cloud sync without object keys", () => {
+  it("migrates v3 source metadata to v5 disabled cloud sync without object keys", () => {
     const sourceManifest = {
       sourceId: "source-1",
       sourceKind: "pasted_text" as const,
@@ -183,7 +189,7 @@ describe("migrateReadingDatabase v4", () => {
       companionComments: [companionComment]
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.sessions[0].sessionPreferences).toEqual({
       readingCommentMode: "cp_talk",
       commentLength: "normal",
@@ -272,7 +278,7 @@ describe("migrateReadingDatabase v4", () => {
       companionComments: []
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.sessions[0].sourceManifest?.cloudSync).toEqual(disabledCloudSync);
     expect(migrated.quotes).toEqual([quote]);
     expect(migrated.reactions).toEqual([reaction]);
@@ -324,6 +330,47 @@ describe("migrateReadingDatabase v4", () => {
       provider: "r2",
       objectKey: "private/sources/source-cloud/source.txt"
     });
+  });
+
+  it("preserves v5 casebook records", () => {
+    const investigationCase = {
+      id: "case-1",
+      title: "温室失窃案",
+      sourceType: "novel" as const,
+      status: "active" as const,
+      caseRevision: 1,
+      assistantSyncedRevision: 0,
+      createdAt: NOW,
+      updatedAt: NOW
+    };
+    const entry = {
+      id: "entry-1",
+      caseId: investigationCase.id,
+      author: "tav" as const,
+      kind: "evidence" as const,
+      content: "窗台上有新鲜泥土。",
+      createdRevision: 1,
+      createdAt: NOW,
+      updatedAt: NOW
+    };
+
+    const migrated = migrateReadingDatabase({
+      schemaVersion: 5,
+      sessions: [],
+      quotes: [],
+      reactions: [],
+      bookmarks: [],
+      companionComments: [],
+      cases: [investigationCase],
+      caseEntries: [entry],
+      caseEntities: [],
+      caseRelations: [],
+      caseHypotheses: [],
+      caseSyncOperations: []
+    });
+
+    expect(migrated.cases).toEqual([investigationCase]);
+    expect(migrated.caseEntries).toEqual([entry]);
   });
 
   it("does not introduce forbidden source or chat fields into serialized state", () => {

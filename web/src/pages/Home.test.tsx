@@ -14,7 +14,7 @@ const items: BookshelfItem[] = [
 describe("Home bookshelf core", () => {
   it("renders the three decorative reading-room scenes in story order", () => {
     const { container } = render(
-      <Home bookshelf={[]} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} />
+      <Home bookshelf={[]} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} onOpenCasebook={vi.fn()} />
     );
 
     expect(
@@ -25,7 +25,7 @@ describe("Home bookshelf core", () => {
   });
 
   it("renders all session metadata and the latest comment preview", () => {
-    render(<Home bookshelf={items} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} />);
+    render(<Home bookshelf={items} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} onOpenCasebook={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "我们的书架" })).toBeInTheDocument();
     expect(screen.getByText("可继续的小说")).toBeInTheDocument();
@@ -41,7 +41,7 @@ describe("Home bookshelf core", () => {
   });
 
   it("supports all required filters", () => {
-    render(<Home bookshelf={items} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} />);
+    render(<Home bookshelf={items} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} onOpenCasebook={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "已完成" }));
     expect(screen.getByText("等待校验")).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe("Home bookshelf core", () => {
   it("opens only available books and routes all unsafe states to reimport", () => {
     const onOpen = vi.fn();
     const onReimport = vi.fn();
-    render(<Home bookshelf={items} onNew={vi.fn()} onOpen={onOpen} onReimport={onReimport} onManage={vi.fn()} />);
+    render(<Home bookshelf={items} onNew={vi.fn()} onOpen={onOpen} onReimport={onReimport} onManage={vi.fn()} onOpenCasebook={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "继续阅读《可继续的小说》" }));
     expect(onOpen).toHaveBeenCalledWith(items[0]);
@@ -92,12 +92,29 @@ describe("Home bookshelf core", () => {
       makeItem("restoring", "恢复中书", "novel", "active", "restoring_from_cloud", "第 3 段", null),
       makeItem("failed", "失败书", "novel", "active", "cloud_restore_failed", "第 4 段", null)
     ];
-    render(<Home bookshelf={cloudItems} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} />);
+    render(<Home bookshelf={cloudItems} onNew={vi.fn()} onOpen={vi.fn()} onReimport={vi.fn()} onManage={vi.fn()} onOpenCasebook={vi.fn()} />);
 
     expect(screen.getByText("云端可恢复")).toBeInTheDocument();
     expect(screen.getByText("正在从私人云端恢复正文")).toBeInTheDocument();
     expect(screen.getByText("恢复失败，请重新导入")).toBeInTheDocument();
     expect(screen.queryByText(/R2|objectKey|hash/)).not.toBeInTheDocument();
+  });
+
+  it("opens the shared casebook from the reading-room home", () => {
+    const onOpenCasebook = vi.fn();
+    render(
+      <Home
+        bookshelf={[]}
+        onNew={vi.fn()}
+        onOpen={vi.fn()}
+        onReimport={vi.fn()}
+        onManage={vi.fn()}
+        onOpenCasebook={onOpenCasebook}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /共同推理/ }));
+    expect(onOpenCasebook).toHaveBeenCalledTimes(1);
   });
 });
 

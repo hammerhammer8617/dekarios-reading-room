@@ -12,12 +12,18 @@ import {
 export function normalizeReadingDatabase(input: unknown): ReadingDatabase {
   const database = migrateReadingDatabase(input);
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     sessions: database.sessions.map(copySession),
     quotes: database.quotes.map(copyQuote),
     reactions: database.reactions.map(copyReaction),
     bookmarks: database.bookmarks.map(copyBookmark),
-    companionComments: database.companionComments.map(copyCompanionComment)
+    companionComments: database.companionComments.map(copyCompanionComment),
+    cases: structuredClone(database.cases),
+    caseEntries: structuredClone(database.caseEntries),
+    caseEntities: structuredClone(database.caseEntities),
+    caseRelations: structuredClone(database.caseRelations),
+    caseHypotheses: structuredClone(database.caseHypotheses),
+    caseSyncOperations: structuredClone(database.caseSyncOperations)
   };
 }
 

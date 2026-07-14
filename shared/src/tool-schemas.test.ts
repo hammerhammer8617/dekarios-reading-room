@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   confirmAssistantSyncedPositionInputSchema,
+  addCaseEntryInputSchema,
+  confirmCaseSyncInputSchema,
+  createCaseInputSchema,
   clearCompanionCommentsInputSchema,
   deleteReadingSessionInputSchema,
   deleteCloudSourceInputSchema,
@@ -16,6 +19,37 @@ import {
   updateSessionPreferencesInputSchema,
   updateReadingPositionInputSchema
 } from "./tool-schemas.js";
+
+describe("casebook schemas", () => {
+  it("accepts the supported mystery sources and preserves a clue as one bounded entry", () => {
+    expect(
+      createCaseInputSchema.parse({
+        title: "高尔夫球场命案",
+        sourceType: "novel",
+        sourceLabel: "第七章"
+      })
+    ).toMatchObject({ title: "高尔夫球场命案", sourceType: "novel" });
+
+    expect(
+      addCaseEntryInputSchema.parse({
+        caseId: "case-1",
+        content: "杰克说自己穿过火焰是为了保护她。"
+      })
+    ).toEqual({
+      caseId: "case-1",
+      author: "tav",
+      kind: "observation",
+      content: "杰克说自己穿过火焰是为了保护她。"
+    });
+  });
+
+  it("requires the prepared operation id for sync confirmation", () => {
+    expect(() => confirmCaseSyncInputSchema.parse({ caseId: "case-1" })).toThrow();
+    expect(
+      confirmCaseSyncInputSchema.parse({ caseId: "case-1", operationId: "sync-1" })
+    ).toEqual({ caseId: "case-1", operationId: "sync-1" });
+  });
+});
 
 describe("sendCurrentContextInputSchema", () => {
   it("accepts one top-level current page file reference", () => {
