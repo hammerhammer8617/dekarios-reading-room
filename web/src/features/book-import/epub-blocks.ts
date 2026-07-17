@@ -43,8 +43,8 @@ export function extractEpubBlocks(
       return;
     }
 
-    if (tag === "img") {
-      const src = element.getAttribute("src")?.trim();
+    if (tag === "img" || tag === "image") {
+      const src = imageSource(element);
       if (!src) return;
       blocks.push({
         id: nextId(),
@@ -121,4 +121,16 @@ export function cleanBlockText(value: string): string {
     .replace(/[ \t]+/g, " ")
     .replace(/\s*\n\s*/g, " ")
     .trim();
+}
+
+function imageSource(element: Element): string | undefined {
+  const candidates = [
+    element.getAttribute("src"),
+    element.getAttribute("href"),
+    element.getAttribute("xlink:href"),
+    element.getAttributeNS("http://www.w3.org/1999/xlink", "href"),
+    element.getAttribute("data-src"),
+    element.getAttribute("data-original")
+  ];
+  return candidates.find((value) => value?.trim())?.trim();
 }

@@ -22,4 +22,24 @@ describe("extractEpubBlocks", () => {
       title: "Cover"
     });
   });
+
+  it("keeps SVG image references as image blocks", () => {
+    const document = new DOMParser().parseFromString(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="../images/plate.jpg" /></svg>',
+      "application/xml"
+    );
+    const blocks = extractEpubBlocks(
+      document.documentElement,
+      "plate",
+      "OPS/text/plate.xhtml"
+    );
+
+    expect(blocks).toContainEqual({
+      id: "plate-block-1",
+      type: "image",
+      resourcePath: "OPS/images/plate.jpg",
+      alt: undefined,
+      title: undefined
+    });
+  });
 });

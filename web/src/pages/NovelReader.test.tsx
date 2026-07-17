@@ -7,10 +7,52 @@ import type {
   ParsedBookChapter,
   ParsedBookResource
 } from "../features/book-import/types.js";
+import {
+  clearActiveImportedBook,
+  setActiveImportedBook
+} from "../features/book-import/active-imported-book.js";
 
 describe("NovelReader display layout", () => {
   beforeEach(() => {
     localStorage.clear();
+    clearActiveImportedBook();
+  });
+
+  it("renders an imported EPUB whose first reading unit is an image-only page", async () => {
+    const props = createProps();
+    props.chunks = ["【图片：封面图】", "正文"];
+    setActiveImportedBook({
+      format: "epub",
+      fileName: "illustrated.epub",
+      title: "图书",
+      authors: [],
+      sourceText: "正文",
+      chapters: [
+        {
+          id: "cover",
+          title: "封面",
+          text: "",
+          blocks: [
+            { id: "cover-image", type: "image", resourcePath: "images/cover.png", alt: "封面图" }
+          ]
+        },
+        { id: "chapter", title: "正文", text: "正文" }
+      ],
+      resources: [
+        {
+          path: "images/cover.png",
+          mediaType: "image/png",
+          blob: new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" })
+        }
+      ]
+    });
+
+    render(<NovelReader {...props} sourceText="正文" companionLayoutRevision={0} />);
+
+    await waitFor(() => expect(screen.getByRole("img", { name: "封面图" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "打开目录" }));
+    expect(screen.getByRole("dialog", { name: "目录" })).toHaveTextContent("封面");
+    expect(screen.getByRole("dialog", { name: "目录" })).toHaveTextContent("正文");
   });
 
   it("restores the reading scroll position after fullscreen or orientation changes", () => {

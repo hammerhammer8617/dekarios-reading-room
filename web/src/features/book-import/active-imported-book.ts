@@ -1,4 +1,5 @@
 import type { ParsedBook } from "./types.js";
+import { importedBookReadingUnits } from "./reading-units.js";
 
 let activeImportedBook: ParsedBook | null = null;
 
@@ -16,8 +17,10 @@ export function clearActiveImportedBook(): void {
 
 export function activeImportedBookMatchesChunks(chunks: string[]): boolean {
   const book = activeImportedBook;
-  if (!book || book.format !== "epub" || book.chapters.length !== chunks.length || chunks.length === 0) return false;
-  const first = book.chapters[0]?.text ?? "";
-  const last = book.chapters.at(-1)?.text ?? "";
-  return chunks[0] === first && chunks.at(-1) === last;
+  if (!book || book.format !== "epub" || chunks.length === 0) return false;
+  const readingUnits = importedBookReadingUnits(book);
+  return (
+    readingUnits.length === chunks.length &&
+    readingUnits.every((unit, index) => unit === chunks[index])
+  );
 }

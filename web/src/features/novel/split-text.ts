@@ -3,11 +3,12 @@ import {
   splitNovelTextForVersion
 } from "@ss/shared";
 import { getActiveImportedBook } from "../book-import/active-imported-book.js";
+import { importedBookReadingUnits } from "../book-import/reading-units.js";
 
 export function splitNovelText(sourceText: string): string[] {
   const activeBook = getActiveImportedBook();
   if (activeBook && activeBook.sourceText === sourceText) {
-    return activeBook.chapters.map((chapter) => chapter.text).filter(Boolean);
+    return importedBookReadingUnits(activeBook);
   }
   return splitPlainNovelText(sourceText);
 }

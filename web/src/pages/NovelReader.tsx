@@ -10,6 +10,7 @@ import {
   getActiveImportedBook
 } from "../features/book-import/active-imported-book.js";
 import { restoreStructuredBook } from "../features/book-import/structured-book-cache.js";
+import { chapterReadingUnitText } from "../features/book-import/reading-units.js";
 import {
   FootnotedChapter,
   type BookBlockHighlight
@@ -49,6 +50,7 @@ const HIGHLIGHT_STORAGE_PREFIX = "gtd-reading-highlights";
 export function NovelReader(props: {
   session: ReadingSession;
   chunks: string[];
+  sourceText?: string;
   structuredChapter?: ParsedBookChapter;
   structuredResources?: ParsedBookResource[];
   onPosition: (index: number) => void;
@@ -79,7 +81,10 @@ export function NovelReader(props: {
   initialScrollTop: number;
   onScrollPosition: (scrollTop: number) => void;
 }) {
-  const sourceTextForRestore = useMemo(() => props.chunks.join("\n\n"), [props.chunks]);
+  const sourceTextForRestore = useMemo(
+    () => props.sourceText ?? props.chunks.join("\n\n"),
+    [props.chunks, props.sourceText]
+  );
   const [restoredBook, setRestoredBook] = useState<ParsedBook | null>(null);
   const activeBook = activeImportedBookMatchesChunks(props.chunks)
     ? getActiveImportedBook()
@@ -113,7 +118,9 @@ export function NovelReader(props: {
   );
   const structuredChapter = props.structuredChapter ?? importedBook?.chapters[index];
   const structuredResources = props.structuredResources ?? importedBook?.resources;
-  const current = structuredChapter?.text ?? props.chunks[index] ?? "";
+  const current = structuredChapter
+    ? chapterReadingUnitText(structuredChapter)
+    : props.chunks[index] ?? "";
   const tocEntries = useMemo(
     () =>
       importedBook?.chapters.map((chapter, chapterIndex) => ({

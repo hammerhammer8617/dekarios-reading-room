@@ -2197,6 +2197,7 @@ export function App(props: {
         <NovelReader
           session={sessionBundle.session}
           chunks={chunks}
+          sourceText={sourceText}
           onPosition={changePosition}
           onComment={lookAtNovel}
           onRequestGaleHighlight={requestGaleHighlight}
