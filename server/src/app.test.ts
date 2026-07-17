@@ -10,7 +10,7 @@ describe("server app", () => {
       ok: true,
       app: "德卡里奥斯家的书房",
       version: "0.2.1",
-      resourceVersion: "app-v24",
+      resourceVersion: "app-v25",
       buildSha: "local"
     });
   });
