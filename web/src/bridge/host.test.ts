@@ -68,6 +68,33 @@ describe("host bridge", () => {
     });
   });
 
+  it("primes the hidden selected-text context before sending its natural chat prompt", async () => {
+    const { askChatGpt, updateModelContext } = await import("./host.js");
+    await updateModelContext({
+      mode: "selected_text",
+      selectedText: "爱是一次旅行",
+      userNote: "我想听完整一点。"
+    });
+    bridge.updateModelContext.mockClear();
+
+    await askChatGpt(
+      "盖尔，我在书页上划了一句给你，也可能写了批注。请告诉我你怎么看。",
+      { scrollToBottom: false }
+    );
+
+    expect(bridge.updateModelContext).toHaveBeenCalledWith({
+      content: [
+        {
+          type: "text",
+          text: expect.stringContaining('"selectedText":"爱是一次旅行"')
+        }
+      ]
+    });
+    expect(bridge.updateModelContext.mock.invocationCallOrder[0]!).toBeLessThan(
+      bridge.sendMessage.mock.invocationCallOrder[0]!
+    );
+  });
+
   it("starts the direct ChatGPT fullscreen request in the user gesture call stack", async () => {
     const requestDisplayMode = vi.fn().mockResolvedValue(undefined);
     if (window.openai) window.openai.requestDisplayMode = requestDisplayMode;

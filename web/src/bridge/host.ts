@@ -140,6 +140,7 @@ function shouldPrimeModelContext(prompt: string) {
     prompt.includes("补课已确认完成") ||
     prompt.includes("【实时陪读") ||
     prompt.includes("【盖尔划线") ||
+    prompt.includes("我在书页上划了一句给你") ||
     prompt.includes("【案件簿同步】")
   );
 }

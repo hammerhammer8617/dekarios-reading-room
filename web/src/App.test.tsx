@@ -454,7 +454,7 @@ describe("App", () => {
     );
   });
 
-  it("does not ask ChatGPT to publish a Dock comment when companion auto-save is off", async () => {
+  it("handles a selected sentence as natural discussion instead of a formal Dock comment", async () => {
     const selection = vi.spyOn(window, "getSelection").mockReturnValue({
       toString: () => "不要写回 Dock。",
       removeAllRanges: vi.fn()
@@ -476,7 +476,7 @@ describe("App", () => {
                 commentLength: "short",
                 allowDeepAnalysisByDefault: false,
                 liveReadingStyle: "danmaku",
-                autoSaveCompanionComments: false
+                autoSaveCompanionComments: true
               },
               createdAt: "2026-06-22T00:00:00.000Z",
               updatedAt: "2026-06-22T00:00:00.000Z",
@@ -524,12 +524,14 @@ describe("App", () => {
       return { structuredContent: {} };
     });
     const sendFollowUpMessage = vi.fn();
+    const updateModelContext = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, "openai", {
       configurable: true,
       value: {
         toolOutput: { recentSessions: [] },
         callTool,
         sendFollowUpMessage,
+        updateModelContext,
         requestDisplayMode: vi.fn(),
         setWidgetState: vi.fn()
       }
@@ -554,15 +556,35 @@ describe("App", () => {
       "send_current_context",
       expect.objectContaining({
         selectedText: "不要写回 Dock。",
-        userNote: "用户对选中句子的批注：这一句请只回应，不要保存短评。"
+        userNote: "这一句请只回应，不要保存短评。"
       })
     );
     const prompt = String(sendFollowUpMessage.mock.calls[0]?.[0]?.prompt ?? "");
     expect(prompt).not.toContain("publish_companion_comment");
-    expect(prompt).toContain("不自动保存短评到 Dock");
-    expect(prompt).toContain("不要调用任何应用写回工具");
-    expect(prompt).toContain("直接在聊天区回复短评");
-    expect(prompt).toContain("我对这句的批注：这一句请只回应，不要保存短评。");
+    expect(prompt).not.toContain("reaction_only");
+    expect(prompt).not.toContain("sessionId");
+    expect(prompt).toBe(
+      "盖尔，我在书页上划了一句给你，也可能写了批注。请告诉我你怎么看。"
+    );
+    const hiddenContext = JSON.parse(
+      String(updateModelContext.mock.calls.at(-1)?.[0]?.content?.[0]?.text ?? "{}")
+    ) as Record<string, any>;
+    expect(hiddenContext).toEqual(
+      expect.objectContaining({
+        mode: "selected_text",
+        selectedText: "不要写回 Dock。",
+        userNote: "这一句请只回应，不要保存短评。",
+        companionRequest: expect.objectContaining({
+          type: "selected_text_comment",
+          instructions: expect.arrayContaining([
+            expect.stringContaining("完整阐释和评价"),
+            expect.stringContaining("不要调用 publish_companion_comment")
+          ])
+        })
+      })
+    );
+    expect(hiddenContext).not.toHaveProperty("readingCommentMode");
+    expect(hiddenContext).not.toHaveProperty("commentLength");
     selection.mockRestore();
   });
 

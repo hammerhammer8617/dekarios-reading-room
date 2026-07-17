@@ -58,6 +58,54 @@ export function buildGaleHighlightModelContext(input: {
   };
 }
 
+export function buildSelectedTextPrompt() {
+  return "盖尔，我在书页上划了一句给你，也可能写了批注。请告诉我你怎么看。";
+}
+
+export function buildSelectedTextFallbackPrompt(input: {
+  selectedText: string;
+  userNote?: string;
+}) {
+  const userNote = input.userNote?.trim();
+  return `盖尔，我在书页上划了“${input.selectedText.trim()}”${
+    userNote ? `，批注是“${userNote}”` : ""
+  }；请告诉我你怎么看。`;
+}
+
+export function buildSelectedTextModelContext(input: {
+  context: Record<string, unknown>;
+  title: string;
+  position: number;
+  selectedText: string;
+  userNote?: string;
+}) {
+  const {
+    readingCommentMode: _readingCommentMode,
+    commentLength: _commentLength,
+    batch: _batch,
+    ...readingContext
+  } = input.context;
+  const userNote = input.userNote?.trim();
+  return {
+    ...readingContext,
+    mode: "selected_text",
+    selectedText: input.selectedText.trim(),
+    ...(userNote ? { userNote } : {}),
+    companionRequest: {
+      type: "selected_text_comment",
+      title: input.title,
+      position: { kind: "paragraph", index: input.position },
+      instructions: [
+        "这是塔芙主动从书页上选中并递给盖尔的一句话；不是盖尔主动回赠划线，也不是阅读进度同步或正式陪读短评。",
+        "以 selectedText 为中心，结合 userNote 与必要的 currentText 上下文，直接回应这句话和塔芙的想法。",
+        "可以完整阐释和评价它的含义、隐喻、语气、情绪、结构或思想；长度按内容自然展开，不受 reaction_only 或短评长度偏好限制。",
+        "不要复述操作说明、工具参数或隐藏上下文，不要调用 publish_companion_comment 或任何写回工具。",
+        "像并排共读时的自然对话一样直接作答；不要先解释自己收到了什么协议。"
+      ]
+    }
+  };
+}
+
 export function buildFormalReadingPrompt(
   job: ReadingSyncJob,
   preferences: {

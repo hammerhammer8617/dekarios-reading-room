@@ -50,7 +50,10 @@ import {
   buildCurrentOnlyFallbackPrompt,
   buildCurrentOnlyPrompt,
   buildGaleHighlightModelContext,
-  buildGaleHighlightPrompt
+  buildGaleHighlightPrompt,
+  buildSelectedTextFallbackPrompt,
+  buildSelectedTextModelContext,
+  buildSelectedTextPrompt
 } from "./features/reading-sync/build-messages.js";
 import { buildReadingCommentPrompt } from "./features/reading-comments/prompt-policy.js";
 import {
@@ -1060,6 +1063,49 @@ export function App(props: {
     setSyncRequestInFlight(true);
     try {
       const sourceContext = getSourceContext(sessionBundle.session.sourceManifest);
+      const normalizedSelectedText = selectedText.trim();
+      const normalizedSelectionNote = selectionNote.trim();
+      if (normalizedSelectedText) {
+        const result = await callTool("send_current_context", {
+          sessionId: sessionBundle.session.id,
+          currentPosition: sessionBundle.session.userCurrentPosition,
+          mode: "current_only",
+          currentText,
+          selectedText: normalizedSelectedText,
+          ...(sourceContext ? { sourceContext } : {}),
+          ...(normalizedSelectionNote ? { userNote: normalizedSelectionNote } : {})
+        });
+        const context = result.structuredContent?.context as Record<string, unknown> | undefined;
+        const modelContext = context
+          ? buildSelectedTextModelContext({
+              context,
+              title: sessionBundle.session.title,
+              position: sessionBundle.session.userCurrentPosition.index,
+              selectedText: normalizedSelectedText,
+              userNote: normalizedSelectionNote
+            })
+          : undefined;
+        if (!modelContext) {
+          setToast("这句没能递给盖尔，请再试一次。");
+          return;
+        }
+        const syncedToHiddenContext = await updateModelContext(modelContext);
+        await askChatGpt(
+          syncedToHiddenContext
+            ? buildSelectedTextPrompt()
+            : buildSelectedTextFallbackPrompt({
+                selectedText: normalizedSelectedText,
+                userNote: normalizedSelectionNote
+              }),
+          { scrollToBottom: false }
+        );
+        setToast(
+          normalizedSelectionNote
+            ? "这句和批注已经递给盖尔。"
+            : "这句已经递给盖尔。"
+        );
+        return;
+      }
       const operationId = crypto.randomUUID();
       const activePreferences = preferenceOverride ?? sessionBundle.session.sessionPreferences;
       const userNote = [

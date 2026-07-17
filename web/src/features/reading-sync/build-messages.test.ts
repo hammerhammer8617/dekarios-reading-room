@@ -8,6 +8,9 @@ import {
   buildCurrentOnlyPrompt,
   buildGaleHighlightModelContext,
   buildGaleHighlightPrompt,
+  buildSelectedTextFallbackPrompt,
+  buildSelectedTextModelContext,
+  buildSelectedTextPrompt,
   buildRecentOnlyFallbackPrompt,
   buildRecentOnlyPrompt
 } from "./build-messages.js";
@@ -39,6 +42,54 @@ const job: ReadingSyncJob = {
 };
 
 describe("reading-sync messages", () => {
+  it("keeps a user-selected sentence out of formal short-comment protocols", () => {
+    const context = buildSelectedTextModelContext({
+      context: {
+        sessionId: "session-1",
+        currentText: "我们可以说，爱是一次旅行。",
+        selectedText: "爱是一次旅行",
+        userNote: "我喜欢这个隐喻。",
+        mode: "current_only",
+        readingCommentMode: "reaction_only",
+        commentLength: "short",
+        batch: { id: "old-batch" }
+      },
+      title: "我们赖以生存的隐喻",
+      position: 19,
+      selectedText: "爱是一次旅行",
+      userNote: "我喜欢这个隐喻。"
+    });
+
+    expect(buildSelectedTextPrompt()).toBe(
+      "盖尔，我在书页上划了一句给你，也可能写了批注。请告诉我你怎么看。"
+    );
+    expect(
+      buildSelectedTextFallbackPrompt({
+        selectedText: "爱是一次旅行",
+        userNote: "我喜欢这个隐喻。"
+      })
+    ).toBe(
+      "盖尔，我在书页上划了“爱是一次旅行”，批注是“我喜欢这个隐喻。”；请告诉我你怎么看。"
+    );
+    expect(context).toEqual(
+      expect.objectContaining({
+        mode: "selected_text",
+        selectedText: "爱是一次旅行",
+        userNote: "我喜欢这个隐喻。",
+        companionRequest: expect.objectContaining({
+          type: "selected_text_comment",
+          instructions: expect.arrayContaining([
+            expect.stringContaining("完整阐释和评价"),
+            expect.stringContaining("不要调用 publish_companion_comment")
+          ])
+        })
+      })
+    );
+    expect(context).not.toHaveProperty("readingCommentMode");
+    expect(context).not.toHaveProperty("commentLength");
+    expect(context).not.toHaveProperty("batch");
+  });
+
   it("formats a recognizable non-final catch-up message", () => {
     const message = buildBatchChatMessage(job, batch);
 
