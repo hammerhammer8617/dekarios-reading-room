@@ -1,6 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MangaLocalCache, NovelLocalCache, SessionBundle, SourceManifest } from "@ss/shared";
+import {
+  READING_NEST_RESOURCE_VERSION,
+  type MangaLocalCache,
+  type NovelLocalCache,
+  type SessionBundle,
+  type SourceManifest
+} from "@ss/shared";
 import { App } from "./App.js";
 import { createNovelSourceManifest } from "./features/source-identity/source-manifest.js";
 import { IndexedDbReadingCache } from "./storage/indexeddb-cache.js";
@@ -865,7 +871,7 @@ describe("App", () => {
 
     expect(await screen.findByText("这次想怎么陪读")).toBeInTheDocument();
     expect(screen.getByLabelText("书房版本信息")).toHaveTextContent(
-      /书房 app-v22 · 构建 (?:local|[a-f0-9]{7})/
+      new RegExp(`书房 ${READING_NEST_RESOURCE_VERSION} · 构建 (?:local|[a-f0-9]{7})`)
     );
     fireEvent.click(screen.getByRole("button", { name: "认真分析" }));
 
