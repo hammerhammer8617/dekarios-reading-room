@@ -173,6 +173,7 @@ export function App(props: {
     useState<SourceAvailability>("unknown");
   const [readerScrollTop, setReaderScrollTop] = useState(restoredWidgetState?.scrollTop ?? 0);
   const restoreAttempted = useRef(false);
+  const positionUpdateQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const syncJobRef = useRef<ReadingSyncJob | null>(null);
   const liveReadingInFlightRef = useRef(false);
   const hostLayout = useReadingHostLayout();
@@ -1040,10 +1041,15 @@ export function App(props: {
         updatedAt: new Date().toISOString()
       }
     });
-    await callTool("update_reading_position", {
-      sessionId: sessionBundle.session.id,
-      userCurrentPosition: nextPosition
-    });
+    positionUpdateQueueRef.current = positionUpdateQueueRef.current
+      .catch(() => undefined)
+      .then(() =>
+        callTool("update_reading_position", {
+          sessionId: sessionBundle.session.id,
+          userCurrentPosition: nextPosition
+        })
+      );
+    await positionUpdateQueueRef.current;
   }
 
   async function lookAtNovel(
@@ -2196,6 +2202,7 @@ export function App(props: {
           onRequestGaleHighlight={requestGaleHighlight}
           onSync={() => void requestNovelSync()}
           onSaveQuote={saveQuote}
+          onBookmark={saveBookmark}
           onFinish={finishToday}
           onFullscreen={() => void openFullscreenReader()}
           fullscreenLabel={readerImmersive ? "收进浮窗" : "全屏阅读"}

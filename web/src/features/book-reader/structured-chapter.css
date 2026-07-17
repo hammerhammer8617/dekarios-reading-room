@@ -37,6 +37,20 @@
   object-fit: contain;
 }
 
+.structured-chapter .book-image {
+  min-width: min(12rem, 100%);
+  border-radius: 0.35rem;
+}
+
+.structured-chapter .book-image-missing {
+  width: min(100%, 28rem);
+  margin-inline: auto;
+  padding: 1rem;
+  border: 1px dashed currentColor;
+  border-radius: 0.6rem;
+  opacity: 0.58;
+}
+
 .structured-chapter figcaption {
   margin-top: 0.65rem;
   font-size: 0.85em;

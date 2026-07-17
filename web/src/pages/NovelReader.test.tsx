@@ -2,6 +2,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SESSION_PREFERENCES } from "@ss/shared";
 import { NovelReader } from "./NovelReader.js";
+import { readerLocationStorageKey } from "../features/book-reader/reader-location.js";
+import type {
+  ParsedBookChapter,
+  ParsedBookResource
+} from "../features/book-import/types.js";
 
 describe("NovelReader display layout", () => {
   beforeEach(() => {
@@ -30,6 +35,110 @@ describe("NovelReader display layout", () => {
     expect(toolbar).toHaveClass("reader-jump-toolbar");
     expect(toolbar.nextElementSibling).toHaveClass("reader-workspace");
     expect(container.querySelector('[aria-label="悬浮阅读跳转"]')).not.toBeInTheDocument();
+  });
+
+  it("opens a chapter directory and marks the current reading unit", () => {
+    const props = createProps();
+    props.chunks = ["序章\n从这里开始。", "智能的起源\n第二单元正文。", "机器时代\n第三单元正文。"];
+    props.session = {
+      ...props.session,
+      userCurrentPosition: {
+        kind: "paragraph",
+        index: 2,
+        total: 3,
+        label: "第 2 段"
+      }
+    };
+
+    render(<NovelReader {...props} companionLayoutRevision={0} />);
+    fireEvent.click(screen.getByRole("button", { name: "打开目录" }));
+
+    const dialog = screen.getByRole("dialog", { name: "目录" });
+    expect(dialog).toHaveTextContent("序章");
+    expect(dialog).toHaveTextContent("智能的起源");
+    expect(dialog).toHaveTextContent("机器时代");
+    expect(screen.getByRole("button", { name: /智能的起源.*正在读/ })).toHaveAttribute(
+      "aria-current",
+      "location"
+    );
+  });
+
+  it("restores a newer device reading location when server progress arrived out of order", async () => {
+    const props = createProps();
+    props.chunks = ["第一单元", "第二单元", "第三单元"];
+    localStorage.setItem(
+      readerLocationStorageKey(props.session.id),
+      JSON.stringify({
+        currentIndex: 3,
+        scrollByIndex: { "3": 84 },
+        updatedAt: "2026-06-23T00:00:00.000Z"
+      })
+    );
+
+    render(<NovelReader {...props} companionLayoutRevision={0} />);
+
+    await waitFor(() => expect(props.onPosition).toHaveBeenCalledWith(3));
+  });
+
+  it("keeps the visible bookmark action and its exact local scroll position", async () => {
+    const props = createProps();
+    const { container } = render(
+      <NovelReader {...props} companionLayoutRevision={0} />
+    );
+    const scroll = container.querySelector<HTMLElement>(".reader-scroll")!;
+    scroll.scrollTop = 137;
+    fireEvent.scroll(scroll);
+
+    fireEvent.click(screen.getByRole("button", { name: "在这里夹书签" }));
+
+    await waitFor(() => expect(props.onBookmark).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("书签已夹在第 1 单元这里")
+    );
+    expect(
+      JSON.parse(localStorage.getItem(readerLocationStorageKey(props.session.id)) ?? "{}")
+    ).toMatchObject({
+      currentIndex: 1,
+      bookmarkIndex: 1,
+      bookmarkScrollTop: 137,
+      scrollByIndex: { "1": 137 }
+    });
+  });
+
+  it("renders EPUB image blobs as mobile-safe inline data URLs", async () => {
+    const props = createProps();
+    const structuredChapter: ParsedBookChapter = {
+      id: "chapter-with-image",
+      title: "插图章",
+      text: "插图章",
+      blocks: [
+        { id: "heading", type: "heading", level: 1, text: "插图章" },
+        { id: "image", type: "image", resourcePath: "OPS/images/chart.png", alt: "进化图" }
+      ]
+    };
+    const structuredResources: ParsedBookResource[] = [
+      {
+        path: "OPS/images/chart.png",
+        mediaType: "image/png",
+        blob: new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" })
+      }
+    ];
+
+    render(
+      <NovelReader
+        {...props}
+        structuredChapter={structuredChapter}
+        structuredResources={structuredResources}
+        companionLayoutRevision={0}
+      />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("img", { name: "进化图" })).toHaveAttribute(
+        "src",
+        expect.stringMatching(/^data:image\/png;base64,/)
+      )
+    );
   });
 
   it("keeps selected-sentence comments, progress sync, and quote saving as separate actions", async () => {
@@ -171,6 +280,7 @@ function createProps() {
     onRequestGaleHighlight: vi.fn(),
     onSync: vi.fn(),
     onSaveQuote: vi.fn(),
+    onBookmark: vi.fn().mockResolvedValue(undefined),
     onFinish: vi.fn(),
     onBack: vi.fn(),
     onFullscreen: vi.fn(),

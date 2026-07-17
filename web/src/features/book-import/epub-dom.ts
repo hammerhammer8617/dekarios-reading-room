@@ -93,7 +93,10 @@ function collectReferencedResources(
   for (const path of paths) {
     const bytes = readEpubBytes(archive, path, false);
     if (!bytes) continue;
-    const mediaType = mediaTypeByPath.get(path) ?? inferImageMediaType(path);
+    const declaredMediaType = mediaTypeByPath.get(path);
+    const mediaType = declaredMediaType?.startsWith("image/")
+      ? declaredMediaType
+      : inferImageMediaType(path);
     resources.push({
       path,
       mediaType,

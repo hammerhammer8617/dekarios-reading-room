@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent } from "react";
 import type { CompanionComment, ReadingSession } from "@ss/shared";
 import type {
   ParsedBook,
@@ -16,6 +15,13 @@ import {
   type BookBlockHighlight
 } from "../features/book-reader/FootnotedChapter.js";
 import { FootnoteText } from "../features/book-reader/FootnoteText.js";
+import {
+  isLocalLocationNewer,
+  loadReaderLocation,
+  saveReaderBookmark,
+  saveReaderLocation,
+  savedScrollTop
+} from "../features/book-reader/reader-location.js";
 import {
   createTextSelectionAnchor,
   resolveTextSelectionAnchor,
@@ -50,6 +56,7 @@ export function NovelReader(props: {
   onRequestGaleHighlight: (currentText: string) => void;
   onSync: () => void;
   onSaveQuote: (content: string, note?: string) => void;
+  onBookmark: () => Promise<void>;
   onFinish: () => void;
   onBack: () => void;
   onFullscreen: () => void;
@@ -107,6 +114,18 @@ export function NovelReader(props: {
   const structuredChapter = props.structuredChapter ?? importedBook?.chapters[index];
   const structuredResources = props.structuredResources ?? importedBook?.resources;
   const current = structuredChapter?.text ?? props.chunks[index] ?? "";
+  const tocEntries = useMemo(
+    () =>
+      importedBook?.chapters.map((chapter, chapterIndex) => ({
+        index: chapterIndex + 1,
+        title: chapter.title || `第 ${chapterIndex + 1} 单元`
+      })) ??
+      props.chunks.map((chunk, chunkIndex) => ({
+        index: chunkIndex + 1,
+        title: plainTocTitle(chunk, chunkIndex)
+      })),
+    [importedBook, props.chunks]
+  );
   const plainSelectionBlocks = useMemo(
     () => getPlainSelectionBlocks(current, index),
     [current, index]
@@ -123,36 +142,60 @@ export function NovelReader(props: {
   const [storedHighlights, setStoredHighlights] = useState<StoredHighlight[]>([]);
   const [selectionMessage, setSelectionMessage] = useState("");
   const [selectionSubmitting, setSelectionSubmitting] = useState(false);
-  const [jumpValue, setJumpValue] = useState(String(index + 1));
+  const [tocOpen, setTocOpen] = useState(false);
+  const [bookmarkSaving, setBookmarkSaving] = useState(false);
+  const [bookmarkMessage, setBookmarkMessage] = useState("");
+  const [localLocationRevision, setLocalLocationRevision] = useState(0);
   const scrollRef = useRef<HTMLElement>(null);
+  const currentTocEntryRef = useRef<HTMLButtonElement>(null);
+  const restoredSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     setStoredHighlights(loadHighlights(props.session.id, highlightScopeId));
     clearSelectionState();
   }, [highlightScopeId, props.session.id]);
 
-  useEffect(() => {
-    setJumpValue(String(index + 1));
-  }, [index]);
-
   const chapterHighlights = useMemo(
     () => toBlockHighlights(storedHighlights, selectionBlocks),
     [storedHighlights, selectionBlocks]
   );
 
-  const previous = () => {
-    clearSelectionState();
-    props.onPosition(Math.max(1, index));
-  };
-  const next = () => {
-    clearSelectionState();
-    props.onPosition(Math.min(total, index + 2));
-  };
+  const localLocation = useMemo(
+    () => loadReaderLocation(props.session.id),
+    [localLocationRevision, props.session.id]
+  );
+
+  useEffect(() => {
+    if (restoredSessionRef.current === props.session.id) return;
+    const saved = loadReaderLocation(props.session.id);
+    restoredSessionRef.current = props.session.id;
+    if (
+      saved &&
+      saved.currentIndex <= total &&
+      saved.currentIndex !== index + 1 &&
+      isLocalLocationNewer(saved, props.session.updatedAt)
+    ) {
+      props.onPosition(saved.currentIndex);
+    }
+  }, [index, props, total]);
+
+  const previous = () => jumpToPosition(Math.max(1, index));
+  const next = () => jumpToPosition(Math.min(total, index + 2));
   const swipe = useHorizontalPaging(previous, next);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = props.initialScrollTop;
-  }, [index, props.companionLayoutRevision, props.initialScrollTop]);
+    if (!scrollRef.current) return;
+    const saved = loadReaderLocation(props.session.id);
+    scrollRef.current.scrollTop =
+      savedScrollTop(saved, index + 1) ?? props.initialScrollTop;
+  }, [index, props.companionLayoutRevision, props.session.id]);
+
+  useEffect(() => {
+    if (!tocOpen) return;
+    window.requestAnimationFrame(() => {
+      currentTocEntryRef.current?.scrollIntoView?.({ block: "center" });
+    });
+  }, [tocOpen]);
 
   function clearSelectionState() {
     setSelected("");
@@ -166,19 +209,55 @@ export function NovelReader(props: {
   function jumpToPosition(value: number) {
     if (!Number.isFinite(value)) return;
     const target = Math.max(1, Math.min(total, Math.trunc(value)));
+    if (target === index + 1) {
+      saveReaderLocation(
+        props.session.id,
+        index + 1,
+        scrollRef.current?.scrollTop ?? 0
+      );
+      return;
+    }
+    saveReaderLocation(
+      props.session.id,
+      index + 1,
+      scrollRef.current?.scrollTop ?? 0,
+      { markCurrent: false }
+    );
+    saveReaderLocation(props.session.id, target, 0);
+    setLocalLocationRevision((value) => value + 1);
     clearSelectionState();
-    setJumpValue(String(target));
     props.onPosition(target);
   }
 
-  function submitJump(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const value = Number.parseInt(jumpValue, 10);
-    if (!Number.isFinite(value)) {
-      setJumpValue(String(index + 1));
-      return;
+  function rememberScroll(scrollTop: number) {
+    props.onScrollPosition(scrollTop);
+    saveReaderLocation(props.session.id, index + 1, scrollTop);
+  }
+
+  function leaveReader() {
+    saveReaderLocation(
+      props.session.id,
+      index + 1,
+      scrollRef.current?.scrollTop ?? 0
+    );
+    props.onBack();
+  }
+
+  async function bookmarkHere() {
+    if (bookmarkSaving) return;
+    const scrollTop = scrollRef.current?.scrollTop ?? 0;
+    saveReaderBookmark(props.session.id, index + 1, scrollTop);
+    setLocalLocationRevision((value) => value + 1);
+    setBookmarkSaving(true);
+    setBookmarkMessage("正在夹书签…");
+    try {
+      await props.onBookmark();
+      setBookmarkMessage(`书签已夹在第 ${index + 1} 单元这里。`);
+    } catch {
+      setBookmarkMessage("书签暂时没有保存成功，请再试一次。");
+    } finally {
+      setBookmarkSaving(false);
     }
-    jumpToPosition(value);
   }
 
   function captureSelection() {
@@ -278,47 +357,8 @@ export function NovelReader(props: {
     }
   }
 
-  function renderJumpControl(scope: "page" | "toolbar") {
-    const prefix = scope === "toolbar" ? "工具栏" : "";
-    return (
-      <form
-        onSubmit={submitJump}
-        aria-label={`${prefix}跳转${unitLabel}`}
-        style={{
-          display: "grid",
-          gridTemplateColumns: "auto 72px auto",
-          gap: 6,
-          alignItems: "center"
-        }}
-      >
-        <span>{index + 1} / {total}</span>
-        <input
-          aria-label={`${prefix}跳到第几${unitLabel}`}
-          type="number"
-          min={1}
-          max={total}
-          inputMode="numeric"
-          value={jumpValue}
-          onChange={(event) => setJumpValue(event.currentTarget.value)}
-          onBlur={() => {
-            if (!jumpValue.trim()) setJumpValue(String(index + 1));
-          }}
-          style={{ minHeight: 36, padding: "7px 8px", textAlign: "center" }}
-        />
-        <button
-          type="submit"
-          aria-label={`${prefix}跳转`}
-          style={{ minHeight: 36, padding: "7px 9px" }}
-        >
-          跳转
-        </button>
-      </form>
-    );
-  }
-
   const selectionStatus = selectionMessage ||
     (selected ? `已选中：${truncateSelection(selected)}` : "");
-  const unitLabel = structuredChapter ? "阅读单元" : "段";
 
   return (
     <main
@@ -334,7 +374,7 @@ export function NovelReader(props: {
             : `第 ${index + 1} 段 / 共 ${total} 段`
         }
         fullscreenLabel={props.fullscreenLabel}
-        onBack={props.onBack}
+        onBack={leaveReader}
         onFullscreen={props.onFullscreen}
         onSettings={props.onSettings}
         onMore={props.onMore}
@@ -342,19 +382,45 @@ export function NovelReader(props: {
       <ReadingSyncStatus session={props.session} />
       <div className="reader-jump-toolbar" aria-label="阅读跳转工具栏">
         <button
+          type="button"
+          className="reader-tool-button"
+          aria-label="打开目录"
+          onClick={() => setTocOpen(true)}
+        >
+          <span aria-hidden="true">☰</span>
+          <span>目录</span>
+        </button>
+        <button
           onClick={previous}
           disabled={index === 0}
           aria-label={`工具栏上一${structuredChapter ? "阅读单元" : "段"}`}
         >
-          上一{structuredChapter ? "单元" : "段"}
+          上一
         </button>
-        {renderJumpControl("toolbar")}
+        <button
+          type="button"
+          className="reader-position-button"
+          aria-label={`当前第 ${index + 1} 单元，共 ${total} 单元；打开目录`}
+          onClick={() => setTocOpen(true)}
+        >
+          <strong>{index + 1}</strong><span>/ {total}</span>
+        </button>
         <button
           onClick={next}
           disabled={index >= total - 1}
           aria-label={`工具栏下一${structuredChapter ? "阅读单元" : "段"}`}
         >
-          下一{structuredChapter ? "单元" : "段"}
+          下一
+        </button>
+        <button
+          type="button"
+          className="reader-tool-button reader-bookmark-button"
+          aria-label="在这里夹书签"
+          disabled={bookmarkSaving}
+          onClick={() => void bookmarkHere()}
+        >
+          <span aria-hidden="true">{localLocation?.bookmarkIndex === index + 1 ? "◆" : "◇"}</span>
+          <span>{bookmarkSaving ? "保存中" : "书签"}</span>
         </button>
       </div>
       <div className="reader-workspace">
@@ -362,7 +428,7 @@ export function NovelReader(props: {
           ref={scrollRef}
           className="reader-scroll novel-scroll"
           {...swipe}
-          onScroll={(event) => props.onScrollPosition(event.currentTarget.scrollTop)}
+          onScroll={(event) => rememberScroll(event.currentTarget.scrollTop)}
           onMouseUp={captureSelection}
           onTouchEnd={(event) => {
             swipe.onTouchEnd(event);
@@ -394,7 +460,9 @@ export function NovelReader(props: {
             <button onClick={previous} disabled={index === 0}>
               {structuredChapter ? "上一阅读单元" : "上一段"}
             </button>
-            {renderJumpControl("page")}
+            <button type="button" onClick={() => setTocOpen(true)}>
+              目录 · {index + 1} / {total}
+            </button>
             <button onClick={next} disabled={index >= total - 1}>
               {structuredChapter ? "下一阅读单元" : "下一段"}
             </button>
@@ -412,13 +480,13 @@ export function NovelReader(props: {
           pendingCommentDraft={props.pendingCommentDraft}
           pendingCommentSaving={props.pendingCommentSaving}
           onSavePendingComment={props.onSavePendingComment}
-          onJump={props.onPosition}
+          onJump={jumpToPosition}
           onClear={props.onClearCompanionComments}
         />
       </div>
-      {!selected && selectionStatus ? (
+      {!selected && (selectionStatus || bookmarkMessage) ? (
         <p className="reader-selection-status" role="status">
-          {selectionStatus}
+          {selectionStatus || bookmarkMessage}
         </p>
       ) : null}
       {selected ? (
@@ -469,6 +537,62 @@ export function NovelReader(props: {
             </p>
           ) : null}
         </section>
+      ) : null}
+      {tocOpen ? (
+        <div
+          className="sheet-backdrop reader-toc-backdrop"
+          role="presentation"
+          onClick={() => setTocOpen(false)}
+        >
+          <section
+            className="bottom-sheet reader-toc-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="目录"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="reader-toc-heading">
+              <div>
+                <h2>目录</h2>
+                <p>正在读第 {index + 1} / {total} 单元</p>
+              </div>
+              <button
+                type="button"
+                className="reader-selection-close"
+                aria-label="关闭目录"
+                onClick={() => setTocOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <ol className="reader-toc-list">
+              {tocEntries.map((entry) => {
+                const currentEntry = entry.index === index + 1;
+                const bookmarked = entry.index === localLocation?.bookmarkIndex;
+                return (
+                  <li key={entry.index}>
+                    <button
+                      ref={currentEntry ? currentTocEntryRef : undefined}
+                      type="button"
+                      className={currentEntry ? "is-current" : ""}
+                      aria-current={currentEntry ? "location" : undefined}
+                      onClick={() => {
+                        jumpToPosition(entry.index);
+                        setTocOpen(false);
+                      }}
+                    >
+                      <span className="reader-toc-number">{entry.index}</span>
+                      <span className="reader-toc-title">{entry.title}</span>
+                      <span className="reader-toc-marker">
+                        {currentEntry ? "正在读" : bookmarked ? "书签" : ""}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        </div>
       ) : null}
       <ReaderActions
         primaryLabel="盖尔会划哪一句？"
@@ -614,4 +738,13 @@ function createHighlightId(): string {
 function truncateSelection(text: string): string {
   const normalized = text.replace(/\s+/gu, " ").trim();
   return normalized.length > 72 ? `${normalized.slice(0, 72)}…` : normalized;
+}
+
+function plainTocTitle(text: string, index: number): string {
+  const firstLine = text
+    .split(/\n/u)
+    .map((line) => line.trim())
+    .find(Boolean);
+  if (!firstLine) return `第 ${index + 1} 段`;
+  return firstLine.length > 42 ? `${firstLine.slice(0, 42)}…` : firstLine;
 }
