@@ -1145,8 +1145,10 @@ describe("App", () => {
       return { structuredContent: {} };
     });
     vi.spyOn(window, "getSelection").mockReturnValue({
+      rangeCount: 0,
+      removeAllRanges: vi.fn(),
       toString: () => "值得保存的句子"
-    } as Selection);
+    } as unknown as Selection);
     Object.defineProperty(window, "openai", {
       configurable: true,
       value: {
@@ -1168,7 +1170,7 @@ describe("App", () => {
     await screen.findByRole("button", { name: "盖尔会划哪一句？" });
 
     fireEvent.mouseUp(screen.getByText("值得保存的句子"));
-    fireEvent.change(screen.getByLabelText("批注给盖尔"), {
+    fireEvent.change(await screen.findByLabelText("批注给盖尔"), {
       target: { value: "这是随摘录保存的批注。" }
     });
     fireEvent.click(screen.getByRole("button", { name: "划线并收藏" }));
