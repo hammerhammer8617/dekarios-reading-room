@@ -46,7 +46,7 @@ export function NovelReader(props: {
   structuredChapter?: ParsedBookChapter;
   structuredResources?: ParsedBookResource[];
   onPosition: (index: number) => void;
-  onComment: (currentText: string, selectedText: string, note?: string) => void;
+  onComment: (currentText: string, selectedText: string, note?: string) => Promise<boolean>;
   onRequestGaleHighlight: (currentText: string) => void;
   onSync: () => void;
   onSaveQuote: (content: string, note?: string) => void;
@@ -122,6 +122,7 @@ export function NovelReader(props: {
   const [pendingAnchor, setPendingAnchor] = useState<TextSelectionAnchor | null>(null);
   const [storedHighlights, setStoredHighlights] = useState<StoredHighlight[]>([]);
   const [selectionMessage, setSelectionMessage] = useState("");
+  const [selectionSubmitting, setSelectionSubmitting] = useState(false);
   const [jumpValue, setJumpValue] = useState(String(index + 1));
   const scrollRef = useRef<HTMLElement>(null);
 
@@ -158,6 +159,7 @@ export function NovelReader(props: {
     setSelectionNote("");
     setPendingAnchor(null);
     setSelectionMessage("");
+    setSelectionSubmitting(false);
     window.getSelection()?.removeAllRanges?.();
   }
 
@@ -186,6 +188,7 @@ export function NovelReader(props: {
     setSelectionNote("");
     setPendingAnchor(null);
     setSelectionMessage("");
+    setSelectionSubmitting(false);
 
     if (
       !selection ||
@@ -251,6 +254,28 @@ export function NovelReader(props: {
 
     props.onSaveQuote(selected, selectionNote.trim() || undefined);
     window.getSelection()?.removeAllRanges?.();
+  }
+
+  async function submitSelectedComment() {
+    if (!selected || selectionSubmitting || props.syncRequestInFlight) return;
+    const note = selectionNote.trim();
+    setSelectionSubmitting(true);
+    setSelectionMessage("正在递给盖尔…");
+    try {
+      const delivered = await props.onComment(current, selected, note || undefined);
+      setSelectionMessage(
+        delivered
+          ? note
+            ? "这句和批注已经递给盖尔。"
+            : "这句已经递给盖尔。"
+          : "这句还没有递送成功；原句和批注都保留着，请再试一次。"
+      );
+      if (delivered) window.getSelection()?.removeAllRanges?.();
+    } catch {
+      setSelectionMessage("这句还没有递送成功；原句和批注都保留着，请再试一次。");
+    } finally {
+      setSelectionSubmitting(false);
+    }
   }
 
   function renderJumpControl(scope: "page" | "toolbar") {
@@ -425,17 +450,14 @@ export function NovelReader(props: {
             <button
               type="button"
               className="action-primary"
-              disabled={props.syncRequestInFlight}
-              onClick={() => {
-                const note = selectionNote.trim();
-                props.onComment(current, selected, note || undefined);
-                setSelectionMessage(
-                  note ? "这句和批注已经递给盖尔。" : "这句已经递给盖尔。"
-                );
-                window.getSelection()?.removeAllRanges?.();
-              }}
+              disabled={props.syncRequestInFlight || selectionSubmitting}
+              onClick={() => void submitSelectedComment()}
             >
-              {selectionNote.trim() ? "连同批注递给盖尔" : "把这句递给盖尔"}
+              {selectionSubmitting
+                ? "正在递给盖尔…"
+                : selectionNote.trim()
+                  ? "连同批注递给盖尔"
+                  : "把这句递给盖尔"}
             </button>
             <button type="button" onClick={saveSelectedQuote}>
               划线并收藏

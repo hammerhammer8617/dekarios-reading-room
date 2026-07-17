@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const bridge = {
   connect: vi.fn().mockResolvedValue(undefined),
   callServerTool: vi.fn(),
-  sendMessage: vi.fn().mockResolvedValue(undefined),
+  sendMessage: vi.fn().mockResolvedValue({}),
   updateModelContext: vi.fn().mockResolvedValue({}),
   requestDisplayMode: vi.fn().mockResolvedValue({ mode: "fullscreen" })
 };
@@ -65,6 +65,20 @@ describe("host bridge", () => {
     expect(bridge.sendMessage).toHaveBeenCalledWith({
       role: "user",
       content: [{ type: "text", text: "陪我看看这里" }]
+    });
+  });
+
+  it("falls back to the compatible ChatGPT message API when the host rejects bridge delivery", async () => {
+    const sendFollowUpMessage = vi.fn().mockResolvedValue(undefined);
+    if (window.openai) window.openai.sendFollowUpMessage = sendFollowUpMessage;
+    bridge.sendMessage.mockResolvedValueOnce({ isError: true });
+    const { askChatGpt } = await import("./host.js");
+
+    await askChatGpt("手机端选句", { scrollToBottom: false });
+
+    expect(sendFollowUpMessage).toHaveBeenCalledWith({
+      prompt: "手机端选句",
+      scrollToBottom: false
     });
   });
 

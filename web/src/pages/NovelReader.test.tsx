@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SESSION_PREFERENCES } from "@ss/shared";
 import { NovelReader } from "./NovelReader.js";
@@ -32,7 +32,7 @@ describe("NovelReader display layout", () => {
     expect(container.querySelector('[aria-label="悬浮阅读跳转"]')).not.toBeInTheDocument();
   });
 
-  it("keeps selected-sentence comments, progress sync, and quote saving as separate actions", () => {
+  it("keeps selected-sentence comments, progress sync, and quote saving as separate actions", async () => {
     const props = createProps();
     const selection = vi.spyOn(window, "getSelection").mockReturnValue({
       rangeCount: 0,
@@ -52,6 +52,9 @@ describe("NovelReader display layout", () => {
       "第一段。",
       "这句话的动作感很有意思。"
     );
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("这句和批注已经递给盖尔。")
+    );
     expect(props.onSync).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "划线并收藏" }));
@@ -59,6 +62,41 @@ describe("NovelReader display layout", () => {
       "第一段。",
       "这句话的动作感很有意思。"
     );
+    selection.mockRestore();
+  });
+
+  it("only reports delivery after the host accepts the selected sentence", async () => {
+    let finishDelivery: ((delivered: boolean) => void) | undefined;
+    const props = createProps();
+    props.onComment = vi.fn(
+      () => new Promise<boolean>((resolve) => {
+        finishDelivery = resolve;
+      })
+    );
+    const selection = vi.spyOn(window, "getSelection").mockReturnValue({
+      rangeCount: 0,
+      removeAllRanges: vi.fn(),
+      toString: () => "第一段。"
+    } as unknown as Selection);
+
+    render(<NovelReader {...props} companionLayoutRevision={0} />);
+    fireEvent.mouseUp(screen.getByText("第一段。"));
+    fireEvent.change(screen.getByLabelText("批注给盖尔"), {
+      target: { value: "请看看这里。" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "连同批注递给盖尔" }));
+
+    expect(screen.getByRole("button", { name: "正在递给盖尔…" })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("正在递给盖尔…");
+    finishDelivery?.(false);
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "这句还没有递送成功；原句和批注都保留着，请再试一次。"
+      )
+    );
+    expect(screen.getByLabelText("批注给盖尔")).toHaveValue("请看看这里。");
+    expect(screen.getByRole("button", { name: "连同批注递给盖尔" })).toBeEnabled();
     selection.mockRestore();
   });
 
@@ -129,7 +167,7 @@ function createProps() {
     },
     chunks: ["第一段。"],
     onPosition: vi.fn(),
-    onComment: vi.fn(),
+    onComment: vi.fn().mockResolvedValue(true),
     onRequestGaleHighlight: vi.fn(),
     onSync: vi.fn(),
     onSaveQuote: vi.fn(),

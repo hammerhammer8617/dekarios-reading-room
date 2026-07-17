@@ -115,13 +115,20 @@ export async function askChatGpt(
   if (bridge) {
     await appReady;
     await primeModelContextForPrompt(bridge, prompt);
-    await bridge.sendMessage({ role: "user", content: [{ type: "text", text: prompt }] });
+    const result = await bridge.sendMessage({
+      role: "user",
+      content: [{ type: "text", text: prompt }]
+    });
+    if (!result.isError) return;
+  }
+  if (window.openai?.sendFollowUpMessage) {
+    await window.openai.sendFollowUpMessage({
+      prompt,
+      scrollToBottom: options.scrollToBottom ?? false
+    });
     return;
   }
-  await window.openai?.sendFollowUpMessage?.({
-    prompt,
-    scrollToBottom: options.scrollToBottom ?? false
-  });
+  throw new Error("The host did not accept the follow-up message.");
 }
 
 async function primeModelContextForPrompt(bridge: McpApp, prompt: string) {

@@ -1051,15 +1051,15 @@ export function App(props: {
     selectedText: string,
     selectionNote = "",
     preferenceOverride?: Pick<SessionPreferences, "readingCommentMode" | "commentLength">
-  ) {
-    if (!sessionBundle) return;
-    if (syncRequestInFlight) return;
+  ): Promise<boolean> {
+    if (!sessionBundle) return false;
+    if (syncRequestInFlight) return false;
     const permission = checkSourceSyncPermission({
       mode: "current_only",
       sourceAvailability,
       forceCurrentOnly: true
     });
-    if (!permission.allowed) return;
+    if (!permission.allowed) return false;
     setSyncRequestInFlight(true);
     try {
       const sourceContext = getSourceContext(sessionBundle.session.sourceManifest);
@@ -1087,7 +1087,7 @@ export function App(props: {
           : undefined;
         if (!modelContext) {
           setToast("这句没能递给盖尔，请再试一次。");
-          return;
+          return false;
         }
         const syncedToHiddenContext = await updateModelContext(modelContext);
         await askChatGpt(
@@ -1104,7 +1104,7 @@ export function App(props: {
             ? "这句和批注已经递给盖尔。"
             : "这句已经递给盖尔。"
         );
-        return;
+        return true;
       }
       const operationId = crypto.randomUUID();
       const activePreferences = preferenceOverride ?? sessionBundle.session.sessionPreferences;
@@ -1139,7 +1139,7 @@ export function App(props: {
       const context = result.structuredContent?.context as Record<string, unknown> | undefined;
       if (!context) {
         setToast("当前段落同步失败，请再试一次。");
-        return;
+        return false;
       }
       const fallbackPrompt = buildCurrentOnlyFallbackPrompt({
         sessionId: sessionBundle.session.id,
@@ -1175,6 +1175,14 @@ export function App(props: {
           ? `已同步${sessionBundle.session.userCurrentPosition.label}，盖尔正在看这里。`
           : "已用兼容模式发送当前段落。"
       );
+      return true;
+    } catch {
+      setToast(
+        selectedText.trim()
+          ? "这句还没有递送成功；原句和批注都保留着，请再试一次。"
+          : "当前段落没有发送成功，请再试一次。"
+      );
+      return false;
     } finally {
       setSyncRequestInFlight(false);
     }
