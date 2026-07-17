@@ -111,7 +111,6 @@ export async function askChatGpt(
   prompt: string,
   options: { scrollToBottom?: boolean } = {}
 ) {
-  await requestReaderPip();
   const bridge = connectApp();
   if (bridge) {
     await appReady;
@@ -146,16 +145,16 @@ function shouldPrimeModelContext(prompt: string) {
 }
 
 export async function requestReaderPip(): Promise<boolean> {
-  const bridge = connectApp();
   try {
+    if (window.openai?.requestDisplayMode) {
+      await window.openai.requestDisplayMode({ mode: "pip" });
+      return true;
+    }
+    const bridge = connectApp();
     if (bridge) {
       await appReady;
       const result = await bridge.requestDisplayMode({ mode: "pip" });
       return result.mode === "pip";
-    }
-    if (window.openai?.requestDisplayMode) {
-      await window.openai.requestDisplayMode({ mode: "pip" });
-      return true;
     }
   } catch {
     return false;

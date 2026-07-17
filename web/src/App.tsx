@@ -49,6 +49,7 @@ import {
   buildBatchUserNote,
   buildCurrentOnlyFallbackPrompt,
   buildCurrentOnlyPrompt,
+  buildGaleHighlightModelContext,
   buildGaleHighlightPrompt
 } from "./features/reading-sync/build-messages.js";
 import { buildReadingCommentPrompt } from "./features/reading-comments/prompt-policy.js";
@@ -236,21 +237,6 @@ export function App(props: {
     }, 4_000);
     return () => window.clearInterval(timer);
   }, [loadCompanionComments, screen, sessionBundle?.session.id]);
-
-  useEffect(() => {
-    if (!readerImmersive) return;
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    const baselineHeight = viewport.height;
-    const onResize = () => {
-      if (baselineHeight - viewport.height > 180) {
-        setReaderImmersive(false);
-        void requestReaderInline();
-      }
-    };
-    viewport.addEventListener("resize", onResize);
-    return () => viewport.removeEventListener("resize", onResize);
-  }, [readerImmersive]);
 
   useEffect(() => {
     if (screen !== "novel" && screen !== "manga") return;
@@ -493,7 +479,13 @@ export function App(props: {
     if (readerImmersive) {
       saveFullscreenIntent(false);
       setReaderImmersive(false);
+      const floating = await requestReaderPip();
+      if (floating) {
+        setToast("书房已收进浮窗，阅读位置还在这里。");
+        return;
+      }
       await requestReaderInline();
+      setToast("当前设备暂不支持浮窗，已回到书房卡片。");
       return;
     }
     saveFullscreenIntent(true);
@@ -1164,7 +1156,14 @@ export function App(props: {
         ...(sourceContext ? { sourceContext } : {})
       });
       const context = result.structuredContent?.context as Record<string, unknown> | undefined;
-      if (!context || !(await updateModelContext(context))) {
+      const modelContext = context
+        ? buildGaleHighlightModelContext({
+            context,
+            title: sessionBundle.session.title,
+            position: sessionBundle.session.userCurrentPosition.index
+          })
+        : undefined;
+      if (!modelContext || !(await updateModelContext(modelContext))) {
         setToast("本段没能静默递给盖尔，请再试一次。");
         return;
       }
@@ -1175,7 +1174,7 @@ export function App(props: {
         }),
         { scrollToBottom: false }
       );
-      setToast("本段已经静默递给盖尔，他只会回赠一条划线。");
+      setToast("本段已经静默递给盖尔，他会回赠划线和完整批注。");
     } catch {
       setToast("盖尔的回赠划线没有发送成功，请再试一次。");
     } finally {
@@ -2145,7 +2144,7 @@ export function App(props: {
           onSaveQuote={saveQuote}
           onFinish={finishToday}
           onFullscreen={() => void openFullscreenReader()}
-          fullscreenLabel={readerImmersive ? "退出全屏" : "全屏阅读"}
+          fullscreenLabel={readerImmersive ? "收进浮窗" : "全屏阅读"}
           immersive={readerImmersive}
           companionComments={companionComments}
           companionLoading={companionLoading}
@@ -2177,7 +2176,7 @@ export function App(props: {
           onSaveReaction={saveReaction}
           onFinish={finishToday}
           onFullscreen={() => void openFullscreenReader()}
-          fullscreenLabel={readerImmersive ? "退出全屏" : "全屏阅读"}
+          fullscreenLabel={readerImmersive ? "收进浮窗" : "全屏阅读"}
           immersive={readerImmersive}
           companionComments={companionComments}
           companionLoading={companionLoading}

@@ -459,7 +459,7 @@ export function NovelReader(props: {
         onSecondary={props.onSync}
         secondaryDisabled={props.syncRequestInFlight}
         onFinish={props.onFinish}
-        helperText="“盖尔会划哪一句”只从本段挑一句；“同步到这里”只静默补齐阅读位置。"
+        helperText="“盖尔会划哪一句”会从本段挑一句并完整批注；“同步到这里”只静默补齐阅读位置。"
       />
     </main>
   );

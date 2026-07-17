@@ -54,13 +54,14 @@ describe("host bridge", () => {
     });
   });
 
-  it("requests fullscreen and sends a message without forcing chat scroll", async () => {
+  it("sends a message without changing the reader display mode", async () => {
     const { askChatGpt, requestReaderFullscreen } = await import("./host.js");
 
     await expect(requestReaderFullscreen()).resolves.toBe(true);
+    bridge.requestDisplayMode.mockClear();
     await askChatGpt("陪我看看这里", { scrollToBottom: false });
 
-    expect(bridge.requestDisplayMode).toHaveBeenCalledWith({ mode: "fullscreen" });
+    expect(bridge.requestDisplayMode).not.toHaveBeenCalled();
     expect(bridge.sendMessage).toHaveBeenCalledWith({
       role: "user",
       content: [{ type: "text", text: "陪我看看这里" }]

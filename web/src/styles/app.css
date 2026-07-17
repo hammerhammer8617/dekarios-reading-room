@@ -85,18 +85,6 @@ button:disabled { cursor: default; opacity: .42; }
   height: 100%;
 }
 .home-hero-background { z-index: -2; }
-.home-hero-background::after {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, .5) 0%,
-    rgba(0, 0, 0, .18) 48%,
-    transparent 74%
-  );
-  content: "";
-}
 .home-background-frame {
   object-fit: cover;
   object-position: 66% center;

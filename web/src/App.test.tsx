@@ -267,7 +267,7 @@ describe("App", () => {
     cacheWrite.mockRestore();
   });
 
-  it("includes the current paragraph in the follow-up when model-context sync is unavailable", async () => {
+  it("keeps highlight instructions hidden while preserving the current paragraph context", async () => {
     const visualViewport = new EventTarget() as VisualViewport;
     Object.defineProperty(visualViewport, "height", {
       configurable: true,
@@ -397,8 +397,8 @@ describe("App", () => {
     await waitFor(() => {
       expect(requestDisplayMode).toHaveBeenCalledWith({ mode: "fullscreen" });
     });
-    expect(screen.getByRole("button", { name: "退出全屏" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "退出全屏" }).closest("main")).toHaveClass(
+    expect(screen.getByRole("button", { name: "收进浮窗" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "收进浮窗" }).closest("main")).toHaveClass(
       "reader-immersive"
     );
     Object.defineProperty(visualViewport, "height", {
@@ -406,8 +406,13 @@ describe("App", () => {
       value: 520
     });
     visualViewport.dispatchEvent(new Event("resize"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(requestDisplayMode).not.toHaveBeenCalledWith({ mode: "inline" });
+    expect(screen.getByRole("button", { name: "收进浮窗" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "收进浮窗" }));
     await waitFor(() => {
-      expect(requestDisplayMode).toHaveBeenCalledWith({ mode: "inline" });
+      expect(requestDisplayMode).toHaveBeenCalledWith({ mode: "pip" });
       expect(screen.getByRole("button", { name: "全屏阅读" })).toBeInTheDocument();
     });
     expect(screen.getByText("这是 GPT 必须看到的当前段落。")).toBeInTheDocument();
@@ -426,13 +431,27 @@ describe("App", () => {
       );
       expect(updateModelContext).toHaveBeenCalled();
       expect(sendFollowUpMessage).toHaveBeenCalledWith({
-        prompt: expect.stringContaining("【盖尔划线：第 1 段】"),
+        prompt: "【盖尔划线】给我看看你在《测试小说》第 1 段会划下哪一句。",
         scrollToBottom: false
       });
       expect(String(sendFollowUpMessage.mock.calls[0]?.[0]?.prompt)).not.toContain(
         "这是 GPT 必须看到的当前段落。"
       );
     });
+    const hiddenContext = JSON.parse(
+      String(updateModelContext.mock.calls[0]?.[0]?.content?.[0]?.text ?? "{}")
+    ) as Record<string, any>;
+    expect(hiddenContext).toEqual(
+      expect.objectContaining({
+        currentText: "这是 GPT 必须看到的当前段落。",
+        companionRequest: expect.objectContaining({
+          type: "gale_highlight",
+          instructions: expect.arrayContaining([
+            expect.stringContaining("不限制为一句")
+          ])
+        })
+      })
+    );
   });
 
   it("does not ask ChatGPT to publish a Dock comment when companion auto-save is off", async () => {
@@ -1255,7 +1274,7 @@ describe("App", () => {
     await screen.findByRole("button", { name: "盖尔会划哪一句？" });
     expect(await screen.findByRole("button", { name: "保存盖尔短评" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "全屏阅读" }));
-    expect(await screen.findByRole("button", { name: "退出全屏" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "收进浮窗" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "盖尔会划哪一句？" }));
     await waitFor(() => expect(sendFollowUpMessage).toHaveBeenCalled());
@@ -1282,7 +1301,7 @@ describe("App", () => {
       );
     });
     expect(await screen.findByText("这句吐槽值得贴到书房。")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "退出全屏" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "收进浮窗" })).toBeInTheDocument();
     expect(screen.getByLabelText("短评内容")).toHaveValue("");
     expect(screen.getByRole("button", { name: "收入盖尔短评" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("短评内容"), {
@@ -2239,11 +2258,11 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("第三段。")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "退出全屏" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "收进浮窗" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "退出全屏" }));
+    fireEvent.click(screen.getByRole("button", { name: "收进浮窗" }));
     await waitFor(() => {
-      expect(requestDisplayMode).toHaveBeenCalledWith({ mode: "inline" });
+      expect(requestDisplayMode).toHaveBeenCalledWith({ mode: "pip" });
       expect(screen.getByRole("button", { name: "全屏阅读" })).toBeInTheDocument();
     });
 

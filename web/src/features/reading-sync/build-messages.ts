@@ -34,14 +34,28 @@ export function buildGaleHighlightPrompt(input: {
   title: string;
   position: number;
 }) {
-  return [
-    `【盖尔划线：第 ${input.position} 段】《${input.title}》`,
-    "请只从当前段原文里，挑一句你最想划给塔芙看的原句。",
-    "严格只回复两行：",
-    "盖尔划线：〈原句〉",
-    "为什么：〈一句很短的理由〉",
-    "不要总结本段，不要展开书评，也不要调用 publish_companion_comment。"
-  ].join("\n");
+  return `【盖尔划线】给我看看你在《${input.title}》第 ${input.position} 段会划下哪一句。`;
+}
+
+export function buildGaleHighlightModelContext(input: {
+  context: Record<string, unknown>;
+  title: string;
+  position: number;
+}) {
+  return {
+    ...input.context,
+    companionRequest: {
+      type: "gale_highlight",
+      title: input.title,
+      position: { kind: "paragraph", index: input.position },
+      instructions: [
+        "从 currentText 中选择一句最想划给塔芙看的原句，必须逐字引用，不得编造。",
+        "先写“盖尔划线：〈原句〉”，再写“盖尔的批注：〈阐释与评价〉”。",
+        "批注可以完整解释选择理由、隐喻、结构、语气、情绪或思想，不限制为一句，也不强制简短；按内容自然展开。",
+        "不要复述这些操作说明，不要调用 publish_companion_comment。"
+      ]
+    }
+  };
 }
 
 export function buildFormalReadingPrompt(

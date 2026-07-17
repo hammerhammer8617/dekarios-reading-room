@@ -6,6 +6,7 @@ import {
   buildFormalReadingPrompt,
   buildCurrentOnlyFallbackPrompt,
   buildCurrentOnlyPrompt,
+  buildGaleHighlightModelContext,
   buildGaleHighlightPrompt,
   buildRecentOnlyFallbackPrompt,
   buildRecentOnlyPrompt
@@ -66,15 +67,24 @@ describe("reading-sync messages", () => {
     expect(note).not.toMatch(/总结|判断|推测/);
   });
 
-  it("asks Gale for one returned highlight without embedding the paragraph", () => {
+  it("keeps the visible highlight request brief and the full instructions hidden", () => {
     const prompt = buildGaleHighlightPrompt({ title: "测试小说", position: 8 });
+    const context = buildGaleHighlightModelContext({
+      context: { currentText: "当前段正文" },
+      title: "测试小说",
+      position: 8
+    });
+    const request = context.companionRequest as {
+      instructions: string[];
+    };
 
-    expect(prompt).toContain("【盖尔划线：第 8 段】《测试小说》");
-    expect(prompt).toContain("盖尔划线：〈原句〉");
-    expect(prompt).toContain("为什么：〈一句很短的理由〉");
-    expect(prompt).toContain("不要总结本段");
-    expect(prompt).toContain("不要调用 publish_companion_comment");
-    expect(prompt).not.toContain("当前段正文");
+    expect(prompt).toBe("【盖尔划线】给我看看你在《测试小说》第 8 段会划下哪一句。");
+    expect(prompt).not.toContain("\n");
+    expect(prompt).not.toContain("操作说明");
+    expect(request.instructions.join("\n")).toContain("不限制为一句");
+    expect(request.instructions.join("\n")).toContain("阐释与评价");
+    expect(request.instructions.join("\n")).toContain("不要复述这些操作说明");
+    expect((context as Record<string, unknown>).currentText).toBe("当前段正文");
   });
 
   it("builds a separate formal prompt without repeating source text", () => {
