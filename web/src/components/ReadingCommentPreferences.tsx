@@ -77,7 +77,9 @@ export function ReadingCommentPreferences(props: {
       </div>
 
       {props.liveReadingEnabled ? (
-        <p className="preference-note">实时陪读固定为弹幕式简短回应，每次只说 1–3 句。</p>
+        <p className="preference-note">
+          自动同步只静默记录阅读位置，不会向聊天区发送正文或自动展开评价。
+        </p>
       ) : (
         <>
           <h4>评论长度</h4>

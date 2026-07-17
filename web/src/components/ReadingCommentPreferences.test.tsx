@@ -176,7 +176,7 @@ describe("ReadingCommentPreferences", () => {
     );
 
     expect(screen.queryByRole("button", { name: "简短" })).not.toBeInTheDocument();
-    expect(screen.getByText(/实时陪读固定为弹幕式简短回应/)).toBeInTheDocument();
+    expect(screen.getByText(/自动同步只静默记录阅读位置/)).toBeInTheDocument();
   });
 
   it("reflects each session's own preferences when the active session changes", () => {

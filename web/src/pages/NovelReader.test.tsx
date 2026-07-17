@@ -62,12 +62,13 @@ describe("NovelReader display layout", () => {
     selection.mockRestore();
   });
 
-  it("gives the current paragraph and progress sync their own stable buttons", () => {
+  it("gives Gale's returned highlight and progress sync their own stable buttons", () => {
     const props = createProps();
     render(<NovelReader {...props} companionLayoutRevision={0} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "请盖尔看本段" }));
-    expect(props.onComment).toHaveBeenCalledWith("第一段。", "");
+    fireEvent.click(screen.getByRole("button", { name: "盖尔会划哪一句？" }));
+    expect(props.onRequestGaleHighlight).toHaveBeenCalledWith("第一段。");
+    expect(props.onComment).not.toHaveBeenCalled();
     expect(props.onSync).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "同步到这里" }));
@@ -129,6 +130,7 @@ function createProps() {
     chunks: ["第一段。"],
     onPosition: vi.fn(),
     onComment: vi.fn(),
+    onRequestGaleHighlight: vi.fn(),
     onSync: vi.fn(),
     onSaveQuote: vi.fn(),
     onFinish: vi.fn(),

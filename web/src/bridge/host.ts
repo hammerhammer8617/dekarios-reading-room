@@ -140,6 +140,7 @@ function shouldPrimeModelContext(prompt: string) {
   return (
     prompt.includes("补课已确认完成") ||
     prompt.includes("【实时陪读") ||
+    prompt.includes("【盖尔划线") ||
     prompt.includes("【案件簿同步】")
   );
 }
@@ -165,16 +166,24 @@ export async function requestReaderPip(): Promise<boolean> {
 export async function updateModelContext(context: Record<string, unknown>): Promise<boolean> {
   rememberModelContext(context);
   const bridge = connectApp();
-  if (!bridge) return false;
   try {
-    await appReady;
-    await bridge.updateModelContext({
-      content: [{ type: "text", text: JSON.stringify(context) }]
-    });
-    return true;
+    if (bridge) {
+      await appReady;
+      await bridge.updateModelContext({
+        content: [{ type: "text", text: JSON.stringify(context) }]
+      });
+      return true;
+    }
+    if (window.openai?.updateModelContext) {
+      await window.openai.updateModelContext({
+        content: [{ type: "text", text: JSON.stringify(context) }]
+      });
+      return true;
+    }
   } catch {
     return false;
   }
+  return false;
 }
 
 function rememberModelContext(context: Record<string, unknown>) {

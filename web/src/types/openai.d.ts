@@ -21,6 +21,9 @@ declare global {
       selectFiles?: () => Promise<FileReference[]>;
       getFileDownloadUrl?: (input: { fileId: string }) => Promise<{ download_url: string }>;
       sendFollowUpMessage?: (input: { prompt: string; scrollToBottom?: boolean }) => Promise<void>;
+      updateModelContext?: (input: {
+        content: Array<{ type: "text"; text: string }>;
+      }) => Promise<void>;
       requestDisplayMode?: (input: { mode: "inline" | "pip" | "fullscreen" }) => Promise<void>;
       hostContext?: {
         displayMode?: "inline" | "pip" | "fullscreen";

@@ -47,6 +47,7 @@ export function NovelReader(props: {
   structuredResources?: ParsedBookResource[];
   onPosition: (index: number) => void;
   onComment: (currentText: string, selectedText: string, note?: string) => void;
+  onRequestGaleHighlight: (currentText: string) => void;
   onSync: () => void;
   onSaveQuote: (content: string, note?: string) => void;
   onFinish: () => void;
@@ -448,17 +449,17 @@ export function NovelReader(props: {
         </section>
       ) : null}
       <ReaderActions
-        primaryLabel={structuredChapter ? "请盖尔看本单元" : "请盖尔看本段"}
+        primaryLabel="盖尔会划哪一句？"
         secondaryLabel="同步到这里"
         onPrimary={() => {
-          props.onComment(current, "");
-          setSelectionMessage("已经把当前阅读内容递给盖尔。");
+          props.onRequestGaleHighlight(current);
+          setSelectionMessage("已经把本段静默递给盖尔，请看他的回赠划线。");
         }}
         primaryDisabled={props.syncRequestInFlight}
         onSecondary={props.onSync}
         secondaryDisabled={props.syncRequestInFlight}
         onFinish={props.onFinish}
-        helperText="“看本段”只递当前内容；“同步到这里”会补齐盖尔尚未读到的范围。"
+        helperText="“盖尔会划哪一句”只从本段挑一句；“同步到这里”只静默补齐阅读位置。"
       />
     </main>
   );

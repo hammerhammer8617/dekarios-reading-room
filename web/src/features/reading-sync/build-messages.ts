@@ -30,6 +30,20 @@ export function buildBatchUserNote(job: ReadingSyncJob, batch: SyncBatch) {
   ].join("; ");
 }
 
+export function buildGaleHighlightPrompt(input: {
+  title: string;
+  position: number;
+}) {
+  return [
+    `【盖尔划线：第 ${input.position} 段】《${input.title}》`,
+    "请只从当前段原文里，挑一句你最想划给塔芙看的原句。",
+    "严格只回复两行：",
+    "盖尔划线：〈原句〉",
+    "为什么：〈一句很短的理由〉",
+    "不要总结本段，不要展开书评，也不要调用 publish_companion_comment。"
+  ].join("\n");
+}
+
 export function buildFormalReadingPrompt(
   job: ReadingSyncJob,
   preferences: {

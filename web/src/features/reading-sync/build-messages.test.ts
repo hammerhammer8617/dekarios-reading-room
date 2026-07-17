@@ -6,6 +6,7 @@ import {
   buildFormalReadingPrompt,
   buildCurrentOnlyFallbackPrompt,
   buildCurrentOnlyPrompt,
+  buildGaleHighlightPrompt,
   buildRecentOnlyFallbackPrompt,
   buildRecentOnlyPrompt
 } from "./build-messages.js";
@@ -56,13 +57,24 @@ describe("reading-sync messages", () => {
   expect(message).toContain(batch.text);
 });
 
-it("puts only factual synchronization metadata in userNote", () => {
+  it("puts only factual synchronization metadata in userNote", () => {
     const note = buildBatchUserNote(job, batch);
 
     expect(note).toContain("sessionId=session-1");
     expect(note).toContain("batchRange=3-8");
     expect(note).toContain("hasMoreBatches=true");
     expect(note).not.toMatch(/总结|判断|推测/);
+  });
+
+  it("asks Gale for one returned highlight without embedding the paragraph", () => {
+    const prompt = buildGaleHighlightPrompt({ title: "测试小说", position: 8 });
+
+    expect(prompt).toContain("【盖尔划线：第 8 段】《测试小说》");
+    expect(prompt).toContain("盖尔划线：〈原句〉");
+    expect(prompt).toContain("为什么：〈一句很短的理由〉");
+    expect(prompt).toContain("不要总结本段");
+    expect(prompt).toContain("不要调用 publish_companion_comment");
+    expect(prompt).not.toContain("当前段正文");
   });
 
   it("builds a separate formal prompt without repeating source text", () => {

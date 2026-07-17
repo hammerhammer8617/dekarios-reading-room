@@ -20,7 +20,8 @@ export function SyncProgressSheet(props: {
   return (
     <div className="sheet-backdrop">
       <section className="bottom-sheet sync-sheet" role="dialog" aria-modal="true">
-        <h2>盖尔补课中</h2>
+        <h2>盖尔正在静默同步</h2>
+        <p>正文和评价都不会发到聊天区；每批完成后会自动继续。</p>
         <p>
           已确认：{props.job.confirmedThrough?.label ?? "尚未同步"}
           {batch ? ` · 当前第 ${batch.rangeStart}–${batch.rangeEnd} ${unit}` : ""}

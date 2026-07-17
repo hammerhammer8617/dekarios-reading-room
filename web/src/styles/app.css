@@ -74,7 +74,7 @@ button:disabled { cursor: default; opacity: .42; }
   padding: clamp(22px, 6vw, 42px);
   border: 1px solid color-mix(in srgb, var(--peach-strong) 42%, transparent);
   border-radius: calc(var(--radius-lg) + 6px);
-  background: #100918;
+  background: #101010;
   box-shadow: var(--shadow);
 }
 .home-hero-background,
@@ -89,10 +89,12 @@ button:disabled { cursor: default; opacity: .42; }
   position: absolute;
   z-index: 2;
   inset: 0;
-  background:
-    radial-gradient(circle at 76% 30%, rgba(117, 65, 153, .28), transparent 42%),
-    linear-gradient(90deg, rgba(16, 8, 25, .88) 0%, rgba(24, 11, 37, .64) 44%, rgba(28, 13, 43, .16) 78%),
-    linear-gradient(0deg, rgba(15, 7, 24, .64) 0%, transparent 58%);
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, .5) 0%,
+    rgba(0, 0, 0, .18) 48%,
+    transparent 74%
+  );
   content: "";
 }
 .home-background-frame {
@@ -525,6 +527,9 @@ input:focus, textarea:focus { border-color: var(--peach-strong); box-shadow: 0 0
   box-shadow: 0 -10px 26px color-mix(in srgb, var(--wood) 9%, transparent);
   pointer-events: auto;
 }
+.reader-shell:not(.reader-immersive) .reader-actions {
+  padding-bottom: calc(64px + var(--safe-bottom));
+}
 .reader-actions button, .sheet-action, .action-primary, .danger-button {
   border: 0;
   border-radius: 14px;
@@ -622,6 +627,16 @@ input:focus, textarea:focus { border-color: var(--peach-strong); box-shadow: 0 0
   background: var(--sage);
   font-size: 12px;
   font-weight: 750;
+}
+.reader-selection-actions .action-primary {
+  background: var(--wood);
+  color: var(--paper);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--wood) 38%, transparent);
+}
+.reader-selection-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .46;
+  box-shadow: none;
 }
 .reader-selection-card-status {
   margin: 0;
