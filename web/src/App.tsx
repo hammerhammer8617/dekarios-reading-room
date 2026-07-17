@@ -1148,14 +1148,13 @@ export function App(props: {
     }
   }
 
-  async function requestNovelSync(currentText: string, selectedText: string, note?: string) {
+  async function requestNovelSync() {
     if (!sessionBundle) return;
     if (syncRequestInFlight || syncJobRef.current) return;
     const userIndex = sessionBundle.session.userCurrentPosition.index;
     const assistantIndex = sessionBundle.session.assistantSyncedPosition?.index ?? 0;
     if (userIndex <= assistantIndex) {
-      setToast("盖尔已经看到这里啦，正在换个角度陪你看。");
-      await lookAtNovel(currentText, selectedText, note);
+      setToast("盖尔已经同步到这里了；想聊本段，可以按“请盖尔看本段”。");
       return;
     }
     if (!allowAutomaticSync("range_sync")) return;
@@ -2174,7 +2173,8 @@ if (context) {
           session={sessionBundle.session}
           chunks={chunks}
           onPosition={changePosition}
-          onLook={requestNovelSync}
+          onComment={lookAtNovel}
+          onSync={() => void requestNovelSync()}
           onSaveQuote={saveQuote}
           onFinish={finishToday}
           onFullscreen={() => void openFullscreenReader()}

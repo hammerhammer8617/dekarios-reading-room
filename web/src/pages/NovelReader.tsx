@@ -15,6 +15,7 @@ import {
   FootnotedChapter,
   type BookBlockHighlight
 } from "../features/book-reader/FootnotedChapter.js";
+import { FootnoteText } from "../features/book-reader/FootnoteText.js";
 import {
   createTextSelectionAnchor,
   resolveTextSelectionAnchor,
@@ -45,7 +46,8 @@ export function NovelReader(props: {
   structuredChapter?: ParsedBookChapter;
   structuredResources?: ParsedBookResource[];
   onPosition: (index: number) => void;
-  onLook: (currentText: string, selectedText: string, note?: string) => void;
+  onComment: (currentText: string, selectedText: string, note?: string) => void;
+  onSync: () => void;
   onSaveQuote: (content: string, note?: string) => void;
   onFinish: () => void;
   onBack: () => void;
@@ -104,10 +106,15 @@ export function NovelReader(props: {
   const structuredChapter = props.structuredChapter ?? importedBook?.chapters[index];
   const structuredResources = props.structuredResources ?? importedBook?.resources;
   const current = structuredChapter?.text ?? props.chunks[index] ?? "";
-  const selectionBlocks = useMemo(
-    () => getSelectionBlocks(structuredChapter),
-    [structuredChapter]
+  const plainSelectionBlocks = useMemo(
+    () => getPlainSelectionBlocks(current, index),
+    [current, index]
   );
+  const selectionBlocks = useMemo(
+    () => structuredChapter ? getSelectionBlocks(structuredChapter) : plainSelectionBlocks,
+    [plainSelectionBlocks, structuredChapter]
+  );
+  const highlightScopeId = structuredChapter?.id ?? `plain-unit-${index + 1}`;
 
   const [selected, setSelected] = useState("");
   const [selectionNote, setSelectionNote] = useState("");
@@ -118,13 +125,9 @@ export function NovelReader(props: {
   const scrollRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    setStoredHighlights(
-      structuredChapter
-        ? loadHighlights(props.session.id, structuredChapter.id)
-        : []
-    );
+    setStoredHighlights(loadHighlights(props.session.id, highlightScopeId));
     clearSelectionState();
-  }, [props.session.id, structuredChapter?.id]);
+  }, [highlightScopeId, props.session.id]);
 
   useEffect(() => {
     setJumpValue(String(index + 1));
@@ -185,8 +188,8 @@ export function NovelReader(props: {
 
     if (
       !selection ||
-      selection.rangeCount === 0 ||
-      !structuredChapter ||
+      !selection.rangeCount ||
+      typeof selection.getRangeAt !== "function" ||
       !selectedText ||
       selectionBlocks.length === 0
     ) {
@@ -215,7 +218,7 @@ export function NovelReader(props: {
     try {
       setPendingAnchor(
         createTextSelectionAnchor({
-          chapterId: structuredChapter.id,
+          chapterId: highlightScopeId,
           blocks: selectionBlocks,
           startBlockId,
           startOffset,
@@ -231,7 +234,7 @@ export function NovelReader(props: {
   function saveSelectedQuote() {
     if (!selected) return;
 
-    if (structuredChapter && pendingAnchor) {
+    if (pendingAnchor) {
       const highlight: StoredHighlight = {
         id: createHighlightId(),
         anchor: pendingAnchor,
@@ -239,8 +242,8 @@ export function NovelReader(props: {
       };
       const nextHighlights = [...storedHighlights, highlight];
       setStoredHighlights(nextHighlights);
-      saveHighlights(props.session.id, structuredChapter.id, nextHighlights);
-      setSelectionMessage("已经划线并收藏，重新打开这本书时仍会保留。");
+      saveHighlights(props.session.id, highlightScopeId, nextHighlights);
+      setSelectionMessage("已经在书页上划线并收藏，重新打开时仍会保留。");
     } else {
       setSelectionMessage("这句已经收藏。当前文本暂时只保存摘录。");
     }
@@ -349,8 +352,15 @@ export function NovelReader(props: {
             />
           ) : (
             <article className="novel-paper">
-              {current.split("\n").map((line, lineIndex) => (
-                <p key={lineIndex}>{line}</p>
+              {plainSelectionBlocks.map((block) => (
+                <p key={block.id} data-book-block-id={block.id}>
+                  <FootnoteText
+                    text={block.text}
+                    highlights={chapterHighlights
+                      .filter((highlight) => highlight.blockId === block.id)
+                      .map(({ blockId: _blockId, ...highlight }) => highlight)}
+                  />
+                </p>
               ))}
             </article>
           )}
@@ -380,43 +390,75 @@ export function NovelReader(props: {
           onClear={props.onClearCompanionComments}
         />
       </div>
-      {selectionStatus ? (
+      {!selected && selectionStatus ? (
         <p className="reader-selection-status" role="status">
           {selectionStatus}
         </p>
       ) : null}
       {selected ? (
-        <label className="reader-selection-note">
-          <span>批注给盖尔（可选）</span>
-          <textarea
-            aria-label="批注给盖尔"
-            maxLength={4_000}
-            rows={2}
-            value={selectionNote}
-            placeholder="写下你想和盖尔一起看的地方"
-            onChange={(event) => setSelectionNote(event.currentTarget.value)}
-          />
-        </label>
+        <section className="reader-selection-card" aria-label="选句操作">
+          <div className="reader-selection-card-header">
+            <strong>你选中的句子</strong>
+            <button
+              type="button"
+              className="reader-selection-close"
+              aria-label="取消选句"
+              onClick={clearSelectionState}
+            >
+              ×
+            </button>
+          </div>
+          <p className="reader-selected-quote">{truncateSelection(selected)}</p>
+          <label className="reader-selection-note">
+            <span>批注给盖尔（可选）</span>
+            <textarea
+              aria-label="批注给盖尔"
+              maxLength={4_000}
+              rows={2}
+              value={selectionNote}
+              placeholder="写下你想和盖尔一起看的地方"
+              onChange={(event) => setSelectionNote(event.currentTarget.value)}
+            />
+          </label>
+          <div className="reader-selection-actions">
+            <button
+              type="button"
+              className="action-primary"
+              disabled={props.syncRequestInFlight}
+              onClick={() => {
+                const note = selectionNote.trim();
+                props.onComment(current, selected, note || undefined);
+                setSelectionMessage(
+                  note ? "这句和批注已经递给盖尔。" : "这句已经递给盖尔。"
+                );
+                window.getSelection()?.removeAllRanges?.();
+              }}
+            >
+              {selectionNote.trim() ? "连同批注递给盖尔" : "把这句递给盖尔"}
+            </button>
+            <button type="button" onClick={saveSelectedQuote}>
+              划线并收藏
+            </button>
+          </div>
+          {selectionMessage ? (
+            <p className="reader-selection-card-status" role="status">
+              {selectionMessage}
+            </p>
+          ) : null}
+        </section>
       ) : null}
       <ReaderActions
-        primaryLabel={
-          selected
-            ? "给盖尔看这句"
-            : structuredChapter
-              ? "陪我看看这一阅读单元"
-              : "陪我看看这里"
-        }
-        secondaryLabel={structuredChapter ? "划线并收藏" : "保存这句"}
+        primaryLabel={structuredChapter ? "请盖尔看本单元" : "请盖尔看本段"}
+        secondaryLabel="同步到这里"
         onPrimary={() => {
-          props.onLook(current, selected, selectionNote.trim() || undefined);
-          setSelectionMessage(
-            selected ? "已经把这句递给盖尔。" : "已经把当前阅读内容递给盖尔。"
-          );
+          props.onComment(current, "");
+          setSelectionMessage("已经把当前阅读内容递给盖尔。");
         }}
         primaryDisabled={props.syncRequestInFlight}
-        onSecondary={saveSelectedQuote}
-        secondaryDisabled={!selected}
+        onSecondary={props.onSync}
+        secondaryDisabled={props.syncRequestInFlight}
         onFinish={props.onFinish}
+        helperText="“看本段”只递当前内容；“同步到这里”会补齐盖尔尚未读到的范围。"
       />
     </main>
   );
@@ -436,6 +478,16 @@ function getSelectionBlocks(
     : chapter.text
       ? [{ id: `${chapter.id}-fallback`, text: chapter.text }]
       : [];
+}
+
+function getPlainSelectionBlocks(
+  text: string,
+  index: number
+): SelectionTextBlock[] {
+  return text.split("\n").map((line, lineIndex) => ({
+    id: `plain-unit-${index + 1}-line-${lineIndex + 1}`,
+    text: line
+  }));
 }
 
 function toBlockHighlights(

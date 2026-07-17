@@ -403,7 +403,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "全屏阅读" })).toBeInTheDocument();
     });
     expect(screen.getByText("这是 GPT 必须看到的当前段落。")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "陪我看看这里" }));
+    fireEvent.click(screen.getByRole("button", { name: "请盖尔看本段" }));
 
     await waitFor(() => {
       expect(callTool).toHaveBeenCalledWith(
@@ -511,12 +511,12 @@ describe("App", () => {
       target: { value: "不要写回 Dock。" }
     });
     fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
-    await screen.findByRole("button", { name: "陪我看看这里" });
+    await screen.findByRole("button", { name: "请盖尔看本段" });
     fireEvent.mouseUp(screen.getByText("不要写回 Dock。"));
     fireEvent.change(screen.getByLabelText("批注给盖尔"), {
       target: { value: "这一句请只回应，不要保存短评。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "给盖尔看这句" }));
+    fireEvent.click(screen.getByRole("button", { name: "连同批注递给盖尔" }));
 
     await waitFor(() => expect(sendFollowUpMessage).toHaveBeenCalled());
     expect(callTool).toHaveBeenCalledWith(
@@ -606,7 +606,7 @@ describe("App", () => {
       target: { value: "等一下。" }
     });
     fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
-    const action = await screen.findByRole("button", { name: "陪我看看这里" });
+    const action = await screen.findByRole("button", { name: "请盖尔看本段" });
 
     fireEvent.click(action);
     await waitFor(() => expect(action).toBeDisabled());
@@ -678,7 +678,7 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("button", { name: "下一段" }));
     }
     await screen.findByText(/用户读到：第 28 段/);
-    fireEvent.click(screen.getByRole("button", { name: "陪我看看这里" }));
+    fireEvent.click(screen.getByRole("button", { name: "同步到这里" }));
 
     expect(await screen.findByText("中间有较多剧情，要怎么同步？")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /完整补课后再陪读/ })).toBeInTheDocument();
@@ -774,7 +774,7 @@ describe("App", () => {
 
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "继续阅读《编排测试》" }));
-    const lookButton = await screen.findByRole("button", { name: "陪我看看这里" });
+    const lookButton = await screen.findByRole("button", { name: "同步到这里" });
     fireEvent.click(lookButton);
 
     await waitFor(() => expect(sendFollowUpMessage).toHaveBeenCalledTimes(1));
@@ -865,7 +865,7 @@ describe("App", () => {
 
     expect(await screen.findByText("这次想怎么陪读")).toBeInTheDocument();
     expect(screen.getByLabelText("书房版本信息")).toHaveTextContent(
-      /书房 app-v24 · 构建 (?:local|[a-f0-9]{7})/
+      /书房 app-v22 · 构建 (?:local|[a-f0-9]{7})/
     );
     fireEvent.click(screen.getByRole("button", { name: "认真分析" }));
 
@@ -1021,13 +1021,13 @@ describe("App", () => {
       target: { value: "值得保存的句子" }
     });
     fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
-    await screen.findByRole("button", { name: "陪我看看这里" });
+    await screen.findByRole("button", { name: "请盖尔看本段" });
 
     fireEvent.mouseUp(screen.getByText("值得保存的句子"));
     fireEvent.change(screen.getByLabelText("批注给盖尔"), {
       target: { value: "这是随摘录保存的批注。" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "保存这句" }));
+    fireEvent.click(screen.getByRole("button", { name: "划线并收藏" }));
     expect(callTool).toHaveBeenCalledWith(
       "save_quote",
       expect.objectContaining({
@@ -1147,12 +1147,12 @@ describe("App", () => {
       target: { value: "这段需要盖尔吐槽一下。" }
     });
     fireEvent.click(screen.getByRole("button", { name: "进入书房" }));
-    await screen.findByRole("button", { name: "陪我看看这里" });
+    await screen.findByRole("button", { name: "请盖尔看本段" });
     expect(await screen.findByRole("button", { name: "保存盖尔短评" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "全屏阅读" }));
     expect(await screen.findByRole("button", { name: "退出全屏" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "陪我看看这里" }));
+    fireEvent.click(screen.getByRole("button", { name: "请盖尔看本段" }));
     await waitFor(() => expect(sendFollowUpMessage).toHaveBeenCalled());
     expect(callTool).not.toHaveBeenCalledWith(
       "publish_companion_comment",
