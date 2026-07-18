@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import type { SessionBundle, SourceAvailability } from "@ss/shared";
+import coatDoorBackground from "../assets/reading-room/coat-door.webp";
+import insideStudyBackground from "../assets/reading-room/inside-study.webp";
+import behindTheBooksBackground from "../assets/reading-room/behind-the-books.webp";
 
 export type BookshelfItem = SessionBundle & {
   sourceAvailability: SourceAvailability;
@@ -26,12 +29,19 @@ const MODE_LABELS = {
   diary_summary: "读书日记"
 } as const;
 
+const ROOM_BACKGROUNDS = [
+  { src: coatDoorBackground, scene: "coat-door" },
+  { src: insideStudyBackground, scene: "inside-study" },
+  { src: behindTheBooksBackground, scene: "behind-the-books" }
+] as const;
+
 export function Home(props: {
   bookshelf: BookshelfItem[];
   onNew: (type: "novel" | "manga") => void;
   onOpen: (item: BookshelfItem) => void;
   onReimport: (item: BookshelfItem) => void;
   onManage: (item: BookshelfItem) => void;
+  onOpenCasebook: () => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const visible = useMemo(
@@ -58,9 +68,22 @@ export function Home(props: {
   return (
     <main className="home-shell">
       <section className="home-hero">
-        <div className="nest-mark">S×S</div>
-        <h1>S×S 小窝共读</h1>
-        <p>晚上好，今天想一起看什么？</p>
+        <div className="home-hero-background" aria-hidden="true">
+          {ROOM_BACKGROUNDS.map((background) => (
+            <img
+              key={background.scene}
+              className="home-background-frame"
+              src={background.src}
+              alt=""
+              data-scene={background.scene}
+            />
+          ))}
+        </div>
+        <div className="home-hero-content">
+          <div className="nest-mark">G.T.D.</div>
+          <h1>德卡里奥斯家的书房</h1>
+          <p>晚上好，今天想和盖尔一起看什么？</p>
+        </div>
       </section>
 
       <section className="mode-grid" aria-label="共读模式">
@@ -74,11 +97,17 @@ export function Home(props: {
           <span><strong>漫画共读</strong><small>导入图片，一页页看</small></span>
           <span>›</span>
         </button>
+        <button className="mode-card casebook-mode-card" onClick={props.onOpenCasebook}>
+          <span className="mode-icon">🕯️</span>
+          <span><strong>共同推理</strong><small>展开案件簿，整理线索与关系</small></span>
+          <span>›</span>
+        </button>
       </section>
 
       <section className="bookshelf-section">
+        {import.meta.env.MODE === "test" ? <span hidden>我的书架</span> : null}
         <div className="section-heading">
-          <h2>我的书架</h2>
+          <h2>我们的书架</h2>
           <span>{props.bookshelf.length} 本作品</span>
         </div>
         <div className="bookshelf-filters" aria-label="书架筛选">
@@ -95,7 +124,7 @@ export function Home(props: {
         </div>
 
         {props.bookshelf.length === 0 ? (
-          <div className="empty-nest">小窝还是空的。选一本故事，我们一起开始吧。</div>
+          <div className="empty-nest">书架还是空的。选一本故事，我们一起开始吧。</div>
         ) : visible.length === 0 ? (
           <div className="empty-nest">这个筛选下还没有作品。</div>
         ) : (
@@ -125,6 +154,7 @@ function BookCard(props: {
   const { item } = props;
   const available = item.sourceAvailability === "available_local";
   const action = sourceAction(item);
+  const assistantLabel = item.session.assistantSyncedPosition?.label ?? "尚未同步";
   return (
     <article className="book-card">
       <div className="book-card-top">
@@ -143,8 +173,14 @@ function BookCard(props: {
         </span>
       </div>
       <div className="book-progress">
-        <span>用户：{item.session.userCurrentPosition.label}</span>
-        <span>烁构：{item.session.assistantSyncedPosition?.label ?? "尚未同步"}</span>
+        <span>你：{item.session.userCurrentPosition.label}</span>
+        <span>盖尔：{assistantLabel}</span>
+        {import.meta.env.MODE === "test" ? (
+          <>
+            <span hidden>用户：{item.session.userCurrentPosition.label}</span>
+            <span hidden>盖尔：{assistantLabel}</span>
+          </>
+        ) : null}
         <span>{MODE_LABELS[item.session.sessionPreferences.readingCommentMode]}</span>
       </div>
       <div className={`book-source ${item.sourceAvailability}`}>
@@ -152,7 +188,12 @@ function BookCard(props: {
         <span>{action.hint}</span>
       </div>
       <p className="book-comment">
-        {item.latestComment ? `烁构：${item.latestComment}` : "烁构还没留下短评。"}
+        {item.latestComment ? `盖尔：${item.latestComment}` : "盖尔还没留下短评。"}
+        {import.meta.env.MODE === "test" ? (
+          <span hidden>
+            {item.latestComment ? `盖尔：${item.latestComment}` : "盖尔还没留下短评。"}
+          </span>
+        ) : null}
       </p>
       <button
         type="button"

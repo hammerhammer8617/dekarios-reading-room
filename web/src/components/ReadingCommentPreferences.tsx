@@ -77,7 +77,9 @@ export function ReadingCommentPreferences(props: {
       </div>
 
       {props.liveReadingEnabled ? (
-        <p className="preference-note">实时陪读固定为弹幕式简短回应，每次只说 1–3 句。</p>
+        <p className="preference-note">
+          自动同步只静默记录阅读位置，不会向聊天区发送正文或自动展开评价。
+        </p>
       ) : (
         <>
           <h4>评论长度</h4>
@@ -118,7 +120,7 @@ export function ReadingCommentPreferences(props: {
       </div>
 
       <label className="toggle-row comment-save-toggle">
-        <span>自动保存烁构陪读短评</span>
+        <span>自动保存盖尔陪读短评</span>
         <input
           type="checkbox"
           checked={props.preferences.autoSaveCompanionComments}
@@ -128,7 +130,7 @@ export function ReadingCommentPreferences(props: {
         />
       </label>
       <p className="privacy-note">
-        开启后，本书会自动保存烁构的轻量陪读短评，方便以后翻回旧段落查看。不会保存小说正文、prompt 或完整聊天。
+        开启后，本书会自动保存盖尔的轻量陪读短评，方便以后翻回旧段落查看。不会保存小说正文、prompt 或完整聊天。
       </p>
     </section>
   );

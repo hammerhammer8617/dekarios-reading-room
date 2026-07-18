@@ -28,7 +28,7 @@ describe("ReadingCommentPreferences", () => {
     ]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
-    expect(screen.getByRole("checkbox", { name: "自动保存烁构陪读短评" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "自动保存盖尔陪读短评" })).not.toBeChecked();
     expect(screen.getByText(/不会保存小说正文、prompt 或完整聊天/)).toBeInTheDocument();
   });
 
@@ -110,7 +110,7 @@ describe("ReadingCommentPreferences", () => {
     expect(onQuickAction).toHaveBeenCalledWith("deep_analysis", "long");
     expect(onQuickAction).toHaveBeenCalledWith("diary_summary", "long");
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "自动保存烁构陪读短评" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "自动保存盖尔陪读短评" }));
     expect(onChange).toHaveBeenCalledWith({ autoSaveCompanionComments: true });
   });
 
@@ -134,7 +134,7 @@ describe("ReadingCommentPreferences", () => {
 
     const deepButton = screen.getByRole("button", { name: "认真分析" });
     fireEvent.click(deepButton);
-    fireEvent.click(screen.getByRole("checkbox", { name: "自动保存烁构陪读短评" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "自动保存盖尔陪读短评" }));
 
     expect(deepButton).toBeEnabled();
     expect(onChange).toHaveBeenCalledWith({
@@ -176,7 +176,7 @@ describe("ReadingCommentPreferences", () => {
     );
 
     expect(screen.queryByRole("button", { name: "简短" })).not.toBeInTheDocument();
-    expect(screen.getByText(/实时陪读固定为弹幕式简短回应/)).toBeInTheDocument();
+    expect(screen.getByText(/自动同步只静默记录阅读位置/)).toBeInTheDocument();
   });
 
   it("reflects each session's own preferences when the active session changes", () => {
@@ -198,7 +198,7 @@ describe("ReadingCommentPreferences", () => {
       "aria-pressed",
       "true"
     );
-    expect(screen.getByRole("checkbox", { name: "自动保存烁构陪读短评" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "自动保存盖尔陪读短评" })).toBeChecked();
 
     rerender(
       <ReadingCommentPreferences
@@ -218,6 +218,6 @@ describe("ReadingCommentPreferences", () => {
       "aria-pressed",
       "true"
     );
-    expect(screen.getByRole("checkbox", { name: "自动保存烁构陪读短评" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "自动保存盖尔陪读短评" })).not.toBeChecked();
   });
 });

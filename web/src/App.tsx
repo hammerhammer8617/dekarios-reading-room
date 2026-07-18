@@ -46,16 +46,16 @@ import {
 import { checkSourceSyncPermission } from "./features/source-identity/sync-guard.js";
 import { buildSyncBatches } from "./features/reading-sync/build-batches.js";
 import {
-  buildBatchChatMessage,
   buildBatchUserNote,
+  buildCurrentOnlyFallbackPrompt,
   buildCurrentOnlyPrompt,
-  buildFormalReadingPrompt,
-  buildRecentOnlyPrompt
+  buildGaleHighlightModelContext,
+  buildGaleHighlightPrompt,
+  buildSelectedTextFallbackPrompt,
+  buildSelectedTextModelContext,
+  buildSelectedTextPrompt
 } from "./features/reading-sync/build-messages.js";
-import {
-  buildLiveReadingPrompt,
-  buildReadingCommentPrompt
-} from "./features/reading-comments/prompt-policy.js";
+import { buildReadingCommentPrompt } from "./features/reading-comments/prompt-policy.js";
 import {
   cancelSyncJob,
   getActiveBatch,
@@ -98,7 +98,7 @@ type ImportProgress = {
   screen?: Screen;
   message?: string;
 };
-type OpenOutput = {
+export type OpenOutput = {
   bookshelfSessions?: Array<SessionBundle & { cacheState?: string }>;
   recentSessions?: Array<SessionBundle & { cacheState?: string }>;
   sourceEndpointBase?: string;
@@ -110,8 +110,11 @@ const MAX_NOVEL_FILE_SIZE = 5 * 1024 * 1024;
 const LARGE_NOVEL_TEXTAREA_PREVIEW_BYTES = 2 * 1024 * 1024;
 const LARGE_NOVEL_TEXTAREA_PREVIEW_CHARS = 1200;
 
-export function App() {
-  const initial = initialToolOutput<OpenOutput>();
+export function App(props: {
+  initialOutput?: OpenOutput;
+  onOpenCasebook?: () => void;
+} = {}) {
+  const initial = props.initialOutput ?? initialToolOutput<OpenOutput>();
   const sourceEndpointBase = initial?.sourceEndpointBase ?? deriveSourceEndpointBase();
   const cloudSourceClient = useMemo(
     () => new CloudSourceClient(sourceEndpointBase, undefined, callTool),
@@ -170,7 +173,9 @@ export function App() {
     useState<SourceAvailability>("unknown");
   const [readerScrollTop, setReaderScrollTop] = useState(restoredWidgetState?.scrollTop ?? 0);
   const restoreAttempted = useRef(false);
+  const positionUpdateQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const syncJobRef = useRef<ReadingSyncJob | null>(null);
+  const liveReadingInFlightRef = useRef(false);
   const hostLayout = useReadingHostLayout();
   const manualCompanionDraft = useMemo<PendingCompanionCommentDraft | null>(() => {
     if (!sessionBundle) return null;
@@ -236,21 +241,6 @@ export function App() {
     }, 4_000);
     return () => window.clearInterval(timer);
   }, [loadCompanionComments, screen, sessionBundle?.session.id]);
-
-  useEffect(() => {
-    if (!readerImmersive) return;
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    const baselineHeight = viewport.height;
-    const onResize = () => {
-      if (baselineHeight - viewport.height > 180) {
-        setReaderImmersive(false);
-        void requestReaderInline();
-      }
-    };
-    viewport.addEventListener("resize", onResize);
-    return () => viewport.removeEventListener("resize", onResize);
-  }, [readerImmersive]);
 
   useEffect(() => {
     if (screen !== "novel" && screen !== "manga") return;
@@ -493,7 +483,13 @@ export function App() {
     if (readerImmersive) {
       saveFullscreenIntent(false);
       setReaderImmersive(false);
+      const floating = await requestReaderPip();
+      if (floating) {
+        setToast("书房已收进浮窗，阅读位置还在这里。");
+        return;
+      }
       await requestReaderInline();
+      setToast("当前设备暂不支持浮窗，已回到书房卡片。");
       return;
     }
     saveFullscreenIntent(true);
@@ -540,7 +536,7 @@ export function App() {
         result.structuredContent?.nextCursor as string | undefined
       );
     } catch {
-      setToast("烁构评论历史暂时没有读取成功。");
+      setToast("盖尔评论历史暂时没有读取成功。");
     } finally {
       setHistoryLoading(false);
     }
@@ -800,7 +796,7 @@ export function App() {
         stage: "creating_session",
         paragraphCount: setupType === "novel" ? novelChunks.length : current.paragraphCount,
         screen,
-        message: "正在创建阅读小窝"
+        message: "正在创建书房"
       }));
       await nextFrame();
       const result = await callTool("start_reading_session", { title: title.trim(), type: setupType });
@@ -814,7 +810,7 @@ export function App() {
       ...current,
       sessionId: session?.id,
       screen,
-      message: "阅读小窝已创建"
+      message: "书房已创建"
     }));
     await nextFrame();
     let sourceManifest =
@@ -1027,7 +1023,7 @@ export function App() {
     try {
       await startReading();
     } catch {
-      setToast("创建阅读小窝失败，请重试；正文仍保留在当前页面。");
+      setToast("创建书房失败，请重试；正文仍保留在当前页面。");
     } finally {
       setStartReadingInFlight(false);
     }
@@ -1045,35 +1041,87 @@ export function App() {
         updatedAt: new Date().toISOString()
       }
     });
-    await callTool("update_reading_position", {
-      sessionId: sessionBundle.session.id,
-      userCurrentPosition: nextPosition
-    });
+    positionUpdateQueueRef.current = positionUpdateQueueRef.current
+      .catch(() => undefined)
+      .then(() =>
+        callTool("update_reading_position", {
+          sessionId: sessionBundle.session.id,
+          userCurrentPosition: nextPosition
+        })
+      );
+    await positionUpdateQueueRef.current;
   }
 
   async function lookAtNovel(
     currentText: string,
     selectedText: string,
+    selectionNote = "",
     preferenceOverride?: Pick<SessionPreferences, "readingCommentMode" | "commentLength">
-  ) {
-    if (!sessionBundle) return;
-    if (syncRequestInFlight) return;
+  ): Promise<boolean> {
+    if (!sessionBundle) return false;
+    if (syncRequestInFlight) return false;
     const permission = checkSourceSyncPermission({
       mode: "current_only",
       sourceAvailability,
       forceCurrentOnly: true
     });
-    if (!permission.allowed) return;
+    if (!permission.allowed) return false;
     setSyncRequestInFlight(true);
     try {
       const sourceContext = getSourceContext(sessionBundle.session.sourceManifest);
+      const normalizedSelectedText = selectedText.trim();
+      const normalizedSelectionNote = selectionNote.trim();
+      if (normalizedSelectedText) {
+        const result = await callTool("send_current_context", {
+          sessionId: sessionBundle.session.id,
+          currentPosition: sessionBundle.session.userCurrentPosition,
+          mode: "current_only",
+          currentText,
+          selectedText: normalizedSelectedText,
+          ...(sourceContext ? { sourceContext } : {}),
+          ...(normalizedSelectionNote ? { userNote: normalizedSelectionNote } : {})
+        });
+        const context = result.structuredContent?.context as Record<string, unknown> | undefined;
+        const modelContext = context
+          ? buildSelectedTextModelContext({
+              context,
+              title: sessionBundle.session.title,
+              position: sessionBundle.session.userCurrentPosition.index,
+              selectedText: normalizedSelectedText,
+              userNote: normalizedSelectionNote
+            })
+          : undefined;
+        if (!modelContext) {
+          setToast("这句没能递给盖尔，请再试一次。");
+          return false;
+        }
+        const syncedToHiddenContext = await updateModelContext(modelContext);
+        await askChatGpt(
+          syncedToHiddenContext
+            ? buildSelectedTextPrompt()
+            : buildSelectedTextFallbackPrompt({
+                selectedText: normalizedSelectedText,
+                userNote: normalizedSelectionNote
+              }),
+          { scrollToBottom: false }
+        );
+        setToast(
+          normalizedSelectionNote
+            ? "这句和批注已经递给盖尔。"
+            : "这句已经递给盖尔。"
+        );
+        return true;
+      }
       const operationId = crypto.randomUUID();
       const activePreferences = preferenceOverride ?? sessionBundle.session.sessionPreferences;
+      const userNote = [
+        permission.userNote,
+        selectionNote.trim() ? `用户对选中句子的批注：${selectionNote.trim()}` : ""
+      ].filter(Boolean).join("\n");
       const policyPrompt = buildCurrentOnlyPrompt({
         sessionId: sessionBundle.session.id,
         title: sessionBundle.session.title,
         position: sessionBundle.session.userCurrentPosition.index,
-        text: currentText,
         hasUnconfirmedGap:
           sessionBundle.session.userCurrentPosition.index >
           (sessionBundle.session.assistantSyncedPosition?.index ?? 0),
@@ -1092,17 +1140,29 @@ export function App() {
         commentLength: activePreferences.commentLength,
         ...(selectedText ? { selectedText } : {}),
         ...(sourceContext ? { sourceContext } : {}),
-        ...(permission.userNote ? { userNote: permission.userNote } : {})
+        ...(userNote ? { userNote } : {})
       });
       const context = result.structuredContent?.context as Record<string, unknown> | undefined;
       if (!context) {
         setToast("当前段落同步失败，请再试一次。");
-        return;
+        return false;
       }
-      const fallbackPrompt = [
-        policyPrompt,
-        selectedText ? `我选中的句子：${selectedText}` : ""
-      ].filter(Boolean).join("\n");
+      const fallbackPrompt = buildCurrentOnlyFallbackPrompt({
+        sessionId: sessionBundle.session.id,
+        title: sessionBundle.session.title,
+        position: sessionBundle.session.userCurrentPosition.index,
+        text: currentText,
+        selectedText,
+        userNote: selectionNote,
+        hasUnconfirmedGap:
+          sessionBundle.session.userCurrentPosition.index >
+          (sessionBundle.session.assistantSyncedPosition?.index ?? 0),
+        mode: activePreferences.readingCommentMode,
+        length: activePreferences.commentLength,
+        operationId,
+        autoSaveCompanionComments:
+          sessionBundle.session.sessionPreferences.autoSaveCompanionComments
+      });
       const mode = await syncCurrentContext({
         context,
         successPrompt: policyPrompt,
@@ -1118,22 +1178,77 @@ export function App() {
       });
       setToast(
         mode === "context"
-          ? `已同步${sessionBundle.session.userCurrentPosition.label}，烁构正在看这里。`
+          ? `已同步${sessionBundle.session.userCurrentPosition.label}，盖尔正在看这里。`
           : "已用兼容模式发送当前段落。"
       );
+      return true;
+    } catch {
+      setToast(
+        selectedText.trim()
+          ? "这句还没有递送成功；原句和批注都保留着，请再试一次。"
+          : "当前段落没有发送成功，请再试一次。"
+      );
+      return false;
     } finally {
       setSyncRequestInFlight(false);
     }
   }
 
-  async function requestNovelSync(currentText: string, selectedText: string) {
+  async function requestGaleHighlight(currentText: string) {
+    if (!sessionBundle || syncRequestInFlight) return;
+    const permission = checkSourceSyncPermission({
+      mode: "current_only",
+      sourceAvailability,
+      forceCurrentOnly: true
+    });
+    if (!permission.allowed) {
+      setToast(sourceSyncBlockedMessage(sourceAvailability));
+      return;
+    }
+    setSyncRequestInFlight(true);
+    try {
+      const sourceContext = getSourceContext(sessionBundle.session.sourceManifest);
+      const result = await callTool("send_current_context", {
+        sessionId: sessionBundle.session.id,
+        currentPosition: sessionBundle.session.userCurrentPosition,
+        mode: "current_only",
+        currentText,
+        ...(sourceContext ? { sourceContext } : {})
+      });
+      const context = result.structuredContent?.context as Record<string, unknown> | undefined;
+      const modelContext = context
+        ? buildGaleHighlightModelContext({
+            context,
+            title: sessionBundle.session.title,
+            position: sessionBundle.session.userCurrentPosition.index
+          })
+        : undefined;
+      if (!modelContext || !(await updateModelContext(modelContext))) {
+        setToast("本段没能静默递给盖尔，请再试一次。");
+        return;
+      }
+      await askChatGpt(
+        buildGaleHighlightPrompt({
+          title: sessionBundle.session.title,
+          position: sessionBundle.session.userCurrentPosition.index
+        }),
+        { scrollToBottom: false }
+      );
+      setToast("本段已经静默递给盖尔，他会回赠划线和完整批注。");
+    } catch {
+      setToast("盖尔的回赠划线没有发送成功，请再试一次。");
+    } finally {
+      setSyncRequestInFlight(false);
+    }
+  }
+
+  async function requestNovelSync() {
     if (!sessionBundle) return;
     if (syncRequestInFlight || syncJobRef.current) return;
     const userIndex = sessionBundle.session.userCurrentPosition.index;
     const assistantIndex = sessionBundle.session.assistantSyncedPosition?.index ?? 0;
     if (userIndex <= assistantIndex) {
-      setToast("烁构已经看到这里啦，正在换个角度陪你看。");
-      await lookAtNovel(currentText, selectedText);
+      setToast("盖尔已经同步到这里了；想看他的回赠划线，可以按“盖尔会划哪一句？”。");
       return;
     }
     if (!allowAutomaticSync("range_sync")) return;
@@ -1278,17 +1393,16 @@ export function App() {
           }
         });
         const context = result.structuredContent?.context as Record<string, unknown> | undefined;
-        if (context) await updateModelContext(context);
-        await askChatGpt(
-          `【漫画补课第 ${batch.ordinal}/${batch.totalBatches} 批：第 ${batch.rangeEnd} 页】\n请只简短回复：“已读到第 ${batch.rangeEnd} 页。”`,
-          { scrollToBottom: false }
-        );
+        if (!context || !(await updateModelContext(context))) {
+          throw new Error("Manga context could not be synced silently");
+        }
         const sent = markBatchSent(job, batch.id);
         storeSyncJob(sent);
         await cache.putSyncJob(sent).catch(() => undefined);
+        await confirmSyncBatch(sent);
         return;
       }
-      await callTool("send_current_context", {
+      const result = await callTool("send_current_context", {
         sessionId: job.sessionId,
         previousSyncedPosition: job.confirmedThrough,
         currentPosition: job.targetPosition,
@@ -1296,7 +1410,7 @@ export function App() {
         includedText: batch.text,
         userNote: buildBatchUserNote(job, batch),
         ...(sourceContext ? { sourceContext } : {}),
-        mode: "range_sync",
+        mode: job.mode,
         batch: {
           id: batch.id,
           ordinal: batch.ordinal,
@@ -1306,91 +1420,63 @@ export function App() {
           hasMore: !batch.isFinal
         }
       });
-      await askChatGpt(buildBatchChatMessage(job, batch), { scrollToBottom: false });
+      const context = result.structuredContent?.context as Record<string, unknown> | undefined;
+      if (!context || !(await updateModelContext(context))) {
+        throw new Error("Novel context could not be synced silently");
+      }
       const sent = markBatchSent(job, batch.id);
       storeSyncJob(sent);
       await cache.putSyncJob(sent).catch(() => undefined);
+      await confirmSyncBatch(sent);
     } catch {
       const failed = markBatchFailed(job, batch.id);
       storeSyncJob(failed);
       await cache.putSyncJob(failed).catch(() => undefined);
+      setToast("静默同步没有完成，请重试本批；正文没有发到聊天区。");
     }
   }
 
-  async function confirmSyncBatch() {
-    if (!syncJob || !sessionBundle) return;
-    const batch = getActiveBatch(syncJob);
+  async function confirmSyncBatch(jobOverride?: ReadingSyncJob) {
+    const activeJob = jobOverride ?? syncJob;
+    if (!activeJob || !sessionBundle) return;
+    const batch = getActiveBatch(activeJob);
     if (!batch || batch.status !== "sent-awaiting-confirmation") return;
     const confirmedPosition = makePosition(
-      syncJob.type,
+      activeJob.type,
       batch.rangeEnd,
-      syncJob.type === "novel" ? chunks.length : mangaPages.length
+      activeJob.type === "novel" ? chunks.length : mangaPages.length
     );
-    if (syncJob.mode !== "recent_only") {
+    if (activeJob.mode !== "recent_only") {
       await callTool("confirm_assistant_synced_position", {
-        sessionId: syncJob.sessionId,
+        sessionId: activeJob.sessionId,
         confirmedPosition,
         batchId: batch.id,
         operationId: `confirm-${batch.id}`
       });
     }
-    const confirmed = markBatchConfirmed(syncJob, batch.id);
-    if (syncJob.mode !== "recent_only") {
-      setSessionBundle({
-        ...sessionBundle,
-        session: {
-          ...sessionBundle.session,
-          assistantSyncedPosition: confirmedPosition,
-          updatedAt: new Date().toISOString()
-        }
-      });
+    const confirmed = markBatchConfirmed(activeJob, batch.id);
+    if (activeJob.mode !== "recent_only") {
+      setSessionBundle((current) =>
+        current?.session.id === activeJob.sessionId
+          ? {
+              ...current,
+              session: {
+                ...current.session,
+                assistantSyncedPosition: confirmedPosition,
+                updatedAt: new Date().toISOString()
+              }
+            }
+          : current
+      );
     }
     if (batch.isFinal) {
-      if (confirmed.mode === "live_reading") {
-        clearSyncJobState();
-        await cache.removeSyncJob(syncJob.sessionId).catch(() => undefined);
-        setToast(`已确认烁构读到第 ${batch.rangeEnd} 段。`);
-        return;
-      }
-      const formalMode = sessionBundle.session.sessionPreferences.readingCommentMode;
-      const formalLength = sessionBundle.session.sessionPreferences.commentLength;
-      const formalOperationId = `catch-up-comment-${batch.id}`;
-      const prompt =
-        confirmed.type === "novel"
-          ? buildFormalReadingPrompt(confirmed, {
-              mode: formalMode,
-              length: formalLength,
-              operationId: formalOperationId,
-              autoSaveCompanionComments:
-                sessionBundle.session.sessionPreferences.autoSaveCompanionComments
-            })
-          : buildReadingCommentPrompt({
-              sessionId: confirmed.sessionId,
-              mode: formalMode,
-              length: formalLength,
-              title: confirmed.title,
-              position: confirmed.targetPosition,
-              syncedRange: {
-                start: confirmed.batches[0]?.rangeStart ?? batch.rangeEnd,
-                end: batch.rangeEnd
-              },
-              source: "catch_up_complete",
-              operationId: formalOperationId,
-              autoSaveCompanionComments:
-                sessionBundle.session.sessionPreferences.autoSaveCompanionComments
-            });
-      void askChatGpt(prompt, { scrollToBottom: false }).catch(() => {
-        setToast("正式短评没有发送成功，请重试。");
-      });
-      rememberPendingCommentDraft({
-        position: confirmed.targetPosition,
-        mode: formalMode,
-        length: formalLength,
-        operationId: formalOperationId
-      });
       clearSyncJobState();
-      await cache.removeSyncJob(syncJob.sessionId).catch(() => undefined);
-      setToast("烁构追上你啦，可以正式陪读了。");
+      await cache.removeSyncJob(activeJob.sessionId).catch(() => undefined);
+      setToast(
+        confirmed.mode === "recent_only"
+          ? "最近内容已静默递给盖尔。"
+          : `盖尔已静默同步到${confirmedPosition.label}。`
+      );
       return;
     }
     storeSyncJob(confirmed);
@@ -1399,7 +1485,7 @@ export function App() {
   }
 
   async function sendRecentNovelContext() {
-    if (!sessionBundle) return;
+    if (!sessionBundle || syncRequestInFlight) return;
     if (!allowAutomaticSync("recent_only")) return;
     const end = sessionBundle.session.userCurrentPosition.index;
     const start = Math.max(1, end - 4);
@@ -1408,21 +1494,32 @@ export function App() {
       .map((chunk, offset) => `【第 ${start + offset} 段】\n${chunk}`)
       .join("\n\n");
     setSyncChoiceOpen(false);
-    await askChatGpt(
-      buildRecentOnlyPrompt({
+    setSyncRequestInFlight(true);
+    try {
+      const result = await callTool("send_current_context", {
         sessionId: sessionBundle.session.id,
-        title: sessionBundle.session.title,
-        rangeStart: start,
-        rangeEnd: end,
-        text,
-        mode: sessionBundle.session.sessionPreferences.readingCommentMode,
-        length: sessionBundle.session.sessionPreferences.commentLength,
-        operationId: crypto.randomUUID(),
-        autoSaveCompanionComments:
-          sessionBundle.session.sessionPreferences.autoSaveCompanionComments
-      }),
-      { scrollToBottom: false }
-    );
+        previousSyncedPosition: sessionBundle.session.assistantSyncedPosition,
+        currentPosition: sessionBundle.session.userCurrentPosition,
+        contextRange: { start, end },
+        includedText: text,
+        mode: "recent_only",
+        readingCommentMode: sessionBundle.session.sessionPreferences.readingCommentMode,
+        commentLength: sessionBundle.session.sessionPreferences.commentLength,
+        ...(getSourceContext(sessionBundle.session.sourceManifest)
+          ? { sourceContext: getSourceContext(sessionBundle.session.sourceManifest) }
+          : {})
+      });
+      const context = result.structuredContent?.context as Record<string, unknown> | undefined;
+      if (!context || !(await updateModelContext(context))) {
+        setToast("最近段落没有静默同步成功，请再试一次。");
+        return;
+      }
+      setToast(`第 ${start}–${end} 段已静默递给盖尔。`);
+    } catch {
+      setToast("最近段落没有静默同步成功，请再试一次。");
+    } finally {
+      setSyncRequestInFlight(false);
+    }
   }
 
   async function cancelCurrentSync() {
@@ -1435,7 +1532,12 @@ export function App() {
 
   const sendLiveReading = useCallback(
     async (index: number) => {
-      if (!sessionBundle || sessionBundle.session.type !== "novel" || syncJob) return;
+      if (
+        !sessionBundle ||
+        sessionBundle.session.type !== "novel" ||
+        syncJob ||
+        liveReadingInFlightRef.current
+      ) return;
       const session = sessionBundle.session;
       if (
         session.assistantSyncedPosition?.kind === session.userCurrentPosition.kind &&
@@ -1448,87 +1550,68 @@ export function App() {
         sourceAvailability
       });
       if (!permission.allowed) return;
-      const mode = session.sessionPreferences.readingCommentMode;
-      const length = session.sessionPreferences.commentLength;
-      const operationId = buildLiveReadingOperationId(session.id, session.userCurrentPosition.kind, index, mode, length);
-      if (
-        companionComments.some(
-          (comment) =>
-            comment.sessionId === session.id &&
-            comment.operationId === operationId &&
-            comment.source === "live_reading"
-        )
-      ) {
-        return;
-      }
+      const operationId = buildLiveReadingOperationId(
+        session.id,
+        session.userCurrentPosition.kind,
+        index,
+        session.sessionPreferences.readingCommentMode,
+        session.sessionPreferences.commentLength
+      );
       const sourceContext = getSourceContext(session.sourceManifest);
       const start = Math.max(1, index - 1);
+      const targetPosition = makePosition("novel", index, chunks.length);
       const text = chunks
         .slice(start - 1, index)
         .map((chunk, offset) => `【第 ${start + offset} 段】\n${chunk}`)
         .join("\n\n");
-      const batch = {
-        id: operationId,
-        ordinal: 1,
-        totalBatches: 1,
-        rangeStart: start,
-        rangeEnd: index,
-        characterCount: text.length,
-        text,
-        isFinal: true,
-        oversizedParagraph: false,
-        status: "pending" as const
-      };
-      const job: ReadingSyncJob = {
-        sessionId: sessionBundle.session.id,
-        title: session.title,
-        type: "novel",
-        mode: "live_reading",
-        targetPosition: session.userCurrentPosition,
-        confirmedThrough: session.assistantSyncedPosition,
-        batches: [batch],
-        activeBatchIndex: 0,
-        createdAt: new Date().toISOString()
-      };
+      liveReadingInFlightRef.current = true;
       try {
-        await callTool("send_current_context", {
-          sessionId: job.sessionId,
-          previousSyncedPosition: job.confirmedThrough,
-          currentPosition: job.targetPosition,
+        const result = await callTool("send_current_context", {
+          sessionId: session.id,
+          previousSyncedPosition: session.assistantSyncedPosition,
+          currentPosition: targetPosition,
           contextRange: { start, end: index },
           includedText: text,
           ...(sourceContext ? { sourceContext } : {}),
           mode: "live_reading",
           batch: {
-            id: batch.id,
+            id: operationId,
             ordinal: 1,
-            total: 1,
+            totalBatches: 1,
             rangeStart: start,
             rangeEnd: index,
             hasMore: false
           }
         });
-        await askChatGpt(
-          buildLiveReadingPrompt({
-            sessionId: sessionBundle.session.id,
-            title: session.title,
-            position: job.targetPosition,
-            operationId: batch.id,
-            autoSaveCompanionComments:
-              session.sessionPreferences.autoSaveCompanionComments,
-            requestedMode: mode,
-            requestedLength: length
-          }),
-          { scrollToBottom: false }
+        const context = result.structuredContent?.context as Record<string, unknown> | undefined;
+        if (!context || !(await updateModelContext(context))) {
+          throw new Error("Live context could not be synced silently");
+        }
+        await callTool("confirm_assistant_synced_position", {
+          sessionId: session.id,
+          confirmedPosition: targetPosition,
+          batchId: operationId,
+          operationId: `confirm-${operationId}`
+        });
+        setSessionBundle((current) =>
+          current?.session.id === session.id
+            ? {
+                ...current,
+                session: {
+                  ...current.session,
+                  assistantSyncedPosition: targetPosition,
+                  updatedAt: new Date().toISOString()
+                }
+              }
+            : current
         );
-        const sent = markBatchSent(job, batch.id);
-        storeSyncJob(sent);
-        await cache.putSyncJob(sent).catch(() => undefined);
       } catch {
-        setToast("这次实时跟读没有发送成功。");
+        setToast("自动同步未能静默完成，请按“同步到这里”重试。");
+      } finally {
+        liveReadingInFlightRef.current = false;
       }
     },
-    [chunks, companionComments, sessionBundle, sourceAvailability, syncJob]
+    [chunks, sessionBundle, sourceAvailability, syncJob]
   );
 
   useLiveReading({
@@ -1762,7 +1845,7 @@ export function App() {
     setOverlay(null);
     if (sessionBundle.session.type === "novel") {
       const currentText = chunks[sessionBundle.session.userCurrentPosition.index - 1] ?? "";
-      await lookAtNovel(currentText, "", updated);
+      await lookAtNovel(currentText, "", "", updated);
       return;
     }
     await lookAtManga(updated);
@@ -1846,7 +1929,7 @@ export function App() {
       setPendingCommentDraft(null);
       setManualSaveRevision((value) => value + 1);
       void loadCompanionComments(sessionBundle.session.id, true);
-      setToast("短评已经收入小窝。");
+      setToast("短评已经收入书房。");
     } catch (error) {
       console.warn("Companion comment save failed", error);
       setToast("短评保存失败，可重试。");
@@ -1883,17 +1966,18 @@ export function App() {
     );
   }
 
-  async function saveQuote(content: string) {
+  async function saveQuote(content: string, note?: string) {
     if (!sessionBundle || !content.trim()) return;
     const result = await callTool("save_quote", {
       sessionId: sessionBundle.session.id,
       content,
       position: sessionBundle.session.userCurrentPosition,
+      ...(note?.trim() ? { note: note.trim() } : {}),
       operationId: crypto.randomUUID()
     });
     const quote = result.structuredContent?.quote as any;
     if (quote) appendSessionRecord(sessionBundle.session.id, { quotes: [quote] });
-    setToast("这句已经收进小窝。");
+    setToast("这句已经收进书房。");
   }
 
   async function saveReaction() {
@@ -2025,11 +2109,12 @@ export function App() {
           onOpen={continueReading}
           onReimport={prepareReimport}
           onManage={(item) => void openBookManagement(item)}
+          onOpenCasebook={props.onOpenCasebook ?? (() => undefined)}
         />
       ) : null}
       {screen === "setup" ? (
         <main className="setup-shell">
-          <button className="back-link" onClick={() => setScreen("home")}>‹ 返回小窝</button>
+          <button className="back-link" onClick={() => setScreen("home")}>‹ 返回书房</button>
           <h1>{setupType === "novel" ? "小说共读" : "漫画共读"}</h1>
           <p>{existingSession ? `继续《${existingSession.title}》` : "准备好内容，我们就一起开始。"}</p>
           <label>作品名<input aria-label="作品名" value={title} onChange={(e) => setTitle(e.target.value)} /></label>
@@ -2075,15 +2160,15 @@ export function App() {
           <label className="remember-row"><input type="checkbox" checked={remembered} onChange={(e) => setRemembered(e.target.checked)} />在本设备记住{setupType === "novel" ? "这本书" : "这部漫画"}</label>
           <p className="privacy-note">正文/图片只保存在本设备，用于下次继续阅读；服务器不会保存全文或漫画原图。</p>
           {existingSession ? (
-            <section className="setup-companion-summary" aria-label="烁构最近短评">
+            <section className="setup-companion-summary" aria-label="盖尔最近短评">
               <div>
-                <strong>烁构最近短评</strong>
+                <strong>盖尔最近短评</strong>
                 <span>重新导入正文后，陪读 Dock 会继续显示这些短评。</span>
               </div>
-              {companionLoading ? <p>正在看看烁构留下了什么……</p> : null}
+              {companionLoading ? <p>正在看看盖尔留下了什么……</p> : null}
               {!companionLoading && companionError ? <p>{companionError}</p> : null}
               {!companionLoading && !companionError && companionComments.length === 0 ? (
-                <p>烁构还没留下短评。</p>
+                <p>盖尔还没留下短评。</p>
               ) : null}
               {!companionLoading && !companionError
                 ? companionComments.slice(0, 3).map((comment) => (
@@ -2104,7 +2189,7 @@ export function App() {
             disabled={startReadingInFlight}
             onClick={() => void submitReadingSetup()}
           >
-            {startReadingInFlight ? "正在进入…" : "进入阅读小窝"}
+            {startReadingInFlight ? "正在进入…" : "进入书房"}
           </button>
         </main>
       ) : null}
@@ -2112,12 +2197,16 @@ export function App() {
         <NovelReader
           session={sessionBundle.session}
           chunks={chunks}
+          sourceText={sourceText}
           onPosition={changePosition}
-          onLook={requestNovelSync}
+          onComment={lookAtNovel}
+          onRequestGaleHighlight={requestGaleHighlight}
+          onSync={() => void requestNovelSync()}
           onSaveQuote={saveQuote}
+          onBookmark={saveBookmark}
           onFinish={finishToday}
           onFullscreen={() => void openFullscreenReader()}
-          fullscreenLabel={readerImmersive ? "退出全屏" : "全屏阅读"}
+          fullscreenLabel={readerImmersive ? "收进浮窗" : "全屏阅读"}
           immersive={readerImmersive}
           companionComments={companionComments}
           companionLoading={companionLoading}
@@ -2149,7 +2238,7 @@ export function App() {
           onSaveReaction={saveReaction}
           onFinish={finishToday}
           onFullscreen={() => void openFullscreenReader()}
-          fullscreenLabel={readerImmersive ? "退出全屏" : "全屏阅读"}
+          fullscreenLabel={readerImmersive ? "收进浮窗" : "全屏阅读"}
           immersive={readerImmersive}
           companionComments={companionComments}
           companionLoading={companionLoading}
@@ -2183,7 +2272,7 @@ export function App() {
           onClose={() => setOverlay(null)}
         />
       ) : null}
-      {overlay === "diary" && diaryContext ? <DiaryPreview context={diaryContext} onWrite={() => askChatGpt("请根据刚刚整理的小窝日记素材，写一篇温暖、可复制到 Notion 的今日共读日记。")} onClose={() => setOverlay(null)} /> : null}
+      {overlay === "diary" && diaryContext ? <DiaryPreview context={diaryContext} onWrite={() => askChatGpt("请根据刚刚整理的书房日记素材，写一篇温暖、可复制到 Notion 的今日共读日记。")} onClose={() => setOverlay(null)} /> : null}
       {overlay === "management" && managedBook ? (
         <BookManagementSheet
           bundle={managedBook}

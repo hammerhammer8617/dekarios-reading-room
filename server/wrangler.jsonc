@@ -6,6 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  "vars": {
+    "BUILD_SHA": "local"
+  },
   "secrets": {
     "required": ["MCP_PATH_TOKEN"]
   },
@@ -13,7 +16,7 @@
     {
       "binding": "DB",
       "database_name": "ss-reading-nest-db",
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "database_id": "71ba1240-b35d-4c85-9cd2-aa6c3ae3d0f7",
       "migrations_dir": "./migrations"
     }
   ],

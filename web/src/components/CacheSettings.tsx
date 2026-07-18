@@ -22,7 +22,7 @@ export function CacheSettings(props: {
           />
         </label>
         <label className="toggle-row">
-          <span>实时陪读模式（停留 1.8 秒后同步）</span>
+          <span>自动静默同步（停留 1.8 秒后记录进度）</span>
           <input
             type="checkbox"
             checked={props.liveReadingEnabled}
@@ -30,7 +30,7 @@ export function CacheSettings(props: {
           />
         </label>
         <p className="privacy-note">
-          正文/图片只保存在本设备，用于下次继续阅读；服务器不会保存全文或漫画原图。
+          自动同步不会把正文或评价发到聊天区。正文/图片只保存在本设备，用于下次继续阅读；服务器不会保存全文或漫画原图。
         </p>
         <button className="danger-button" onClick={props.onClear}>
           {props.type === "novel" ? "清除正文缓存" : "清除漫画缓存"}

@@ -9,12 +9,19 @@ import {
 import type { ReadingRepository } from "./reading-repository.js";
 
 const emptyDatabase = (): ReadingDatabase => ({
-  schemaVersion: 4,
+  schemaVersion: 6,
   sessions: [],
   quotes: [],
   reactions: [],
   bookmarks: [],
-  companionComments: []
+  companionComments: [],
+  cases: [],
+  caseEntries: [],
+  caseEntities: [],
+  caseRelations: [],
+  caseHypotheses: [],
+  caseObservationTasks: [],
+  caseSyncOperations: []
 });
 
 export class JsonReadingRepository implements ReadingRepository {

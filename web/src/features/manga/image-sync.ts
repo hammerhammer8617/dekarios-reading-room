@@ -31,6 +31,6 @@ export async function prepareCurrentPageContext(input: {
     syncMode: "description",
     ...(input.pageDescription ? { pageDescription: input.pageDescription } : {}),
     ...(input.userNote ? { userNote: input.userNote } : {}),
-    warning: "当前环境暂不支持图片同步，可以先用页面描述让烁构共读。"
+    warning: "当前环境暂不支持图片同步，可以先用页面描述让盖尔共读。"
   };
 }

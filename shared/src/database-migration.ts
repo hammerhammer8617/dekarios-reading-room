@@ -61,6 +61,34 @@ interface RepairableV4Database extends Omit<RepairableV3Database, "schemaVersion
   schemaVersion: 4;
 }
 
+interface V4Database {
+  schemaVersion: 4;
+  sessions: ReadingSession[];
+  quotes: Quote[];
+  reactions: Reaction[];
+  bookmarks: Bookmark[];
+  companionComments: CompanionComment[];
+}
+
+interface RepairableV5Database extends Omit<RepairableV4Database, "schemaVersion"> {
+  schemaVersion: 5;
+  cases?: ReadingDatabase["cases"];
+  caseEntries?: ReadingDatabase["caseEntries"];
+  caseEntities?: ReadingDatabase["caseEntities"];
+  caseRelations?: ReadingDatabase["caseRelations"];
+  caseHypotheses?: ReadingDatabase["caseHypotheses"];
+  caseSyncOperations?: ReadingDatabase["caseSyncOperations"];
+}
+
+type V5Database = Omit<ReadingDatabase, "schemaVersion" | "caseObservationTasks"> & {
+  schemaVersion: 5;
+};
+
+interface RepairableV6Database extends Omit<RepairableV5Database, "schemaVersion"> {
+  schemaVersion: 6;
+  caseObservationTasks?: ReadingDatabase["caseObservationTasks"];
+}
+
 type RepairableSourceManifest = Omit<SourceManifest, "cloudSync"> & {
   cloudSync?: SourceManifest["cloudSync"];
 };
@@ -73,10 +101,24 @@ const DISABLED_R2_CLOUD_SYNC: SourceManifest["cloudSync"] = {
 export function migrateReadingDatabase(input: unknown): ReadingDatabase {
   assertDatabaseCollections(input);
   const version = (input as { schemaVersion?: unknown }).schemaVersion;
-  if (version === 1) return migrateV3ToV4(migrateV2ToV3(migrateV1ToV2(input as V1Database)));
-  if (version === 2) return migrateV3ToV4(migrateV2ToV3(input as V2Database));
-  if (version === 3) return migrateV3ToV4(normalizeV3(input as RepairableV3Database));
-  if (version === 4) return normalizeV4(input as RepairableV4Database);
+  if (version === 1) {
+    return migrateV5ToV6(
+      migrateV4ToV5(migrateV3ToV4(migrateV2ToV3(migrateV1ToV2(input as V1Database))))
+    );
+  }
+  if (version === 2) {
+    return migrateV5ToV6(migrateV4ToV5(migrateV3ToV4(migrateV2ToV3(input as V2Database))));
+  }
+  if (version === 3) {
+    return migrateV5ToV6(
+      migrateV4ToV5(migrateV3ToV4(normalizeV3(input as RepairableV3Database)))
+    );
+  }
+  if (version === 4) {
+    return migrateV5ToV6(migrateV4ToV5(normalizeV4(input as RepairableV4Database)));
+  }
+  if (version === 5) return migrateV5ToV6(normalizeV5(input as RepairableV5Database));
+  if (version === 6) return normalizeV6(input as RepairableV6Database);
   throw new Error("Unsupported schemaVersion");
 }
 
@@ -129,14 +171,14 @@ function normalizeV3(database: RepairableV3Database): RepairableV3Database {
   };
 }
 
-function migrateV3ToV4(database: RepairableV3Database): ReadingDatabase {
+function migrateV3ToV4(database: RepairableV3Database): V4Database {
   return normalizeV4({
     ...database,
     schemaVersion: 4
   });
 }
 
-function normalizeV4(database: RepairableV4Database): ReadingDatabase {
+function normalizeV4(database: RepairableV4Database): V4Database {
   assertV2Sessions(database.sessions);
   return {
     schemaVersion: 4,
@@ -152,11 +194,57 @@ function normalizeV4(database: RepairableV4Database): ReadingDatabase {
   };
 }
 
+function migrateV4ToV5(database: RepairableV4Database): V5Database {
+  return normalizeV5({
+    ...database,
+    schemaVersion: 5,
+    cases: [],
+    caseEntries: [],
+    caseEntities: [],
+    caseRelations: [],
+    caseHypotheses: [],
+    caseSyncOperations: []
+  });
+}
+
+function normalizeV5(database: RepairableV5Database): V5Database {
+  const reading = normalizeV4({ ...database, schemaVersion: 4 });
+  return {
+    ...reading,
+    schemaVersion: 5,
+    cases: structuredClone(database.cases ?? []),
+    caseEntries: structuredClone(database.caseEntries ?? []),
+    caseEntities: structuredClone(database.caseEntities ?? []),
+    caseRelations: structuredClone(database.caseRelations ?? []),
+    caseHypotheses: structuredClone(database.caseHypotheses ?? []),
+    caseSyncOperations: structuredClone(database.caseSyncOperations ?? [])
+  };
+}
+
+function migrateV5ToV6(database: V5Database): ReadingDatabase {
+  return normalizeV6({
+    ...database,
+    schemaVersion: 6,
+    caseObservationTasks: []
+  });
+}
+
+function normalizeV6(database: RepairableV6Database): ReadingDatabase {
+  const casebook = normalizeV5({ ...database, schemaVersion: 5 });
+  return {
+    ...casebook,
+    schemaVersion: 6,
+    caseObservationTasks: structuredClone(database.caseObservationTasks ?? [])
+  };
+}
+
 function assertDatabaseCollections(input: unknown): asserts input is
   | V1Database
   | V2Database
   | RepairableV3Database
-  | RepairableV4Database {
+  | RepairableV4Database
+  | RepairableV5Database
+  | RepairableV6Database {
   if (!input || typeof input !== "object") throw new Error("Unsupported data shape");
   const value = input as Record<string, unknown>;
   if (

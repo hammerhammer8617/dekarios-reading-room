@@ -35,7 +35,7 @@ describe("prepareCurrentPageContext", () => {
       syncMode: "description",
       pageDescription: "这一页男主在哭。",
       userNote: "这里好难过。",
-      warning: "当前环境暂不支持图片同步，可以先用页面描述让烁构共读。"
+      warning: "当前环境暂不支持图片同步，可以先用页面描述让盖尔共读。"
     });
   });
 });

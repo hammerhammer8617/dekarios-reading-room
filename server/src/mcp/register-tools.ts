@@ -26,11 +26,12 @@ import {
   updateReadingPositionInputSchema
 } from "@ss/shared";
 import type { ReadingSession, SendCurrentContextInput, SourceManifest } from "@ss/shared";
+import { READING_NEST_RESOURCE_URI } from "@ss/shared";
 import { ReadingService } from "../services/reading-service.js";
 import type { CloudSourceService } from "../services/cloud-source-service.js";
 import { toolResult } from "./tool-result.js";
 
-export const READING_NEST_URI = "ui://ss-reading-nest/app-v19.html";
+export const READING_NEST_URI = READING_NEST_RESOURCE_URI;
 
 const readOnly = {
   readOnlyHint: true,
@@ -45,15 +46,15 @@ const mutation = {
 
 export const TOOL_CONFIGS = {
   open_reading_nest: {
-    title: "打开 S×S 小窝共读",
+    title: "打开德卡里奥斯家的书房",
     description: "Use this when the user wants to open the reading nest or continue recent reading.",
     inputSchema: openReadingNestInputSchema,
     annotations: readOnly,
     _meta: {
       ui: { resourceUri: READING_NEST_URI },
       "openai/outputTemplate": READING_NEST_URI,
-      "openai/toolInvocation/invoking": "正在点亮小窝…",
-      "openai/toolInvocation/invoked": "小窝已经准备好"
+      "openai/toolInvocation/invoking": "正在点亮书房…",
+      "openai/toolInvocation/invoked": "书房已经准备好"
     }
   },
   start_reading_session: {
@@ -69,7 +70,7 @@ export const TOOL_CONFIGS = {
     annotations: { ...mutation, idempotentHint: true }
   },
   confirm_assistant_synced_position: {
-    title: "确认烁构已读位置",
+    title: "确认盖尔已读位置",
     description:
       "Use this only after the user explicitly confirms that ChatGPT replied it has read through a batch end.",
     inputSchema: confirmAssistantSyncedPositionInputSchema,
@@ -124,21 +125,21 @@ export const TOOL_CONFIGS = {
     annotations: { ...mutation, idempotentHint: true }
   },
   publish_companion_comment: {
-    title: "发布烁构陪读短评",
+    title: "发布盖尔陪读短评",
     description:
       "Use this before replying with a lightweight reading comment so the same short text appears in the reading Dock.",
     inputSchema: publishCompanionCommentInputSchema,
     annotations: { ...mutation, idempotentHint: true }
   },
   list_companion_comments: {
-    title: "读取烁构陪读短评",
+    title: "读取盖尔陪读短评",
     description:
       "Use this when the reading widget needs recent or paged historical companion comments for one session.",
     inputSchema: listCompanionCommentsInputSchema,
     annotations: readOnly
   },
   clear_companion_comments: {
-    title: "清除烁构陪读短评",
+    title: "清除盖尔陪读短评",
     description:
       "Use this when the user explicitly clears recent, historical, or all companion comments for one session.",
     inputSchema: clearCompanionCommentsInputSchema,
@@ -207,7 +208,7 @@ export const TOOL_CONFIGS = {
     annotations: { ...mutation, idempotentHint: true }
   },
   generate_diary_context: {
-    title: "生成小窝日记素材",
+    title: "生成书房日记素材",
     description: "Use this when the user wants ChatGPT to write today's copyable reading diary.",
     inputSchema: generateDiaryContextInputSchema,
     annotations: readOnly
@@ -234,7 +235,7 @@ export function registerReadingTools(
         recentSessions: bookshelfSessions.slice(0, 10),
         ...(options.sourceEndpointBase ? { sourceEndpointBase: options.sourceEndpointBase } : {})
       },
-      "已打开 S×S 小窝共读。"
+      "已打开德卡里奥斯家的书房。"
     );
   });
 
@@ -259,7 +260,7 @@ export function registerReadingTools(
           assistantSyncedPosition: session.assistantSyncedPosition,
           updatedAt: session.updatedAt
         },
-        `用户进度已更新到${userCurrentPosition.label}。`
+        `已记住用户看到${session.userCurrentPosition.label}。`
       );
     }
   );
@@ -271,12 +272,11 @@ export function registerReadingTools(
       const session = await service.confirmAssistantPosition(input);
       return toolResult(
         {
-          sessionId: session.id,
+          sessionId: input.sessionId,
           assistantSyncedPosition: session.assistantSyncedPosition,
-          confirmedBatchId: input.batchId,
-          updatedAt: session.updatedAt
+          confirmedAt: session.lastAssistantConfirmation?.confirmedAt
         },
-        `已由用户确认烁构读到${input.confirmedPosition.label}。`
+        `已确认盖尔读到${input.confirmedPosition.label}。`
       );
     }
   );
@@ -286,14 +286,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.set_live_reading_mode,
     async ({ sessionId, enabled }) => {
       const session = await service.setLiveReadingMode(sessionId, enabled);
-      return toolResult(
-        {
-          sessionId,
-          liveReadingEnabled: session.liveReadingEnabled,
-          updatedAt: session.updatedAt
-        },
-        enabled ? "实时陪读模式已开启。" : "实时陪读模式已关闭。"
-      );
+      return toolResult({ liveReadingEnabled: session.liveReadingEnabled }, enabled ? "实时陪读已开启。" : "实时陪读已关闭。");
     }
   );
 
@@ -305,10 +298,9 @@ export function registerReadingTools(
       return toolResult(
         {
           sessionId,
-          sourceManifest: session.sourceManifest,
-          updatedAt: session.updatedAt
+          sourceManifest: session.sourceManifest
         },
-        "本设备阅读来源已校验并保存。"
+        "已确认本设备阅读来源。"
       );
     }
   );
@@ -318,58 +310,77 @@ export function registerReadingTools(
     TOOL_CONFIGS.get_cloud_source_status,
     async ({ sessionId }) => {
       if (!cloudSourceService) {
-        return toolResult({ status: "disabled" as const }, "私人云端正文服务尚未启用。");
+        return toolResult({ status: "unavailable" }, "私人云端正文服务未配置。");
       }
-      const result = await cloudSourceService.getCloudSourceStatus(sessionId);
-      return toolResult(result, "已检查这本书的私人云端正文状态。");
+      const status = await cloudSourceService.getCloudSourceStatus(sessionId);
+      return toolResult(status, "已检查私人云端正文状态。");
     }
   );
 
-  registerAppTool(server, "upload_cloud_source", TOOL_CONFIGS.upload_cloud_source, async (input) => {
-    if (!cloudSourceService) {
-      return toolResult({ uploaded: false }, "ç§äººäº‘ç«¯æ­£æ–‡æœåŠ¡å°šæœªå¯ç”¨ã€‚");
-    }
-    const result =
-      input.sourceKind === "manga_import"
-        ? await cloudSourceService.uploadMangaSource({
+  server.registerTool(
+    "upload_cloud_source",
+    TOOL_CONFIGS.upload_cloud_source,
+    async (input) => {
+      if (!cloudSourceService) {
+        return toolResult({ uploaded: false, status: "unavailable" }, "私人云端正文服务未配置。");
+      }
+      if (input.sourceKind === "manga_import") {
+        const uploadPages = await Promise.all(
+          input.pages.map(async (page) => ({
+            index: page.index,
+            fileName: page.fileName,
+            mimeType: page.mimeType,
+            bytes: base64ToBytes(page.bytesBase64)
+          }))
+        );
+        const result = await cloudSourceService.uploadMangaSource({
+          sessionId: input.sessionId,
+          pages: uploadPages,
+          ...(input.title ? { title: input.title } : {})
+        });
+        const response = toolResult(
+          {
+            uploaded: true,
             sessionId: input.sessionId,
-            ...(input.title ? { title: input.title } : {}),
-            pages: input.pages.map((page) => ({
-              index: page.index,
-              bytes: base64ToBytes(page.bytesBase64),
-              mimeType: page.mimeType,
-              ...(page.fileName ? { fileName: page.fileName } : {})
-            }))
-          })
-        : await cloudSourceService.uploadNovelSource({
-            sessionId: input.sessionId,
-            sourceKind: input.sourceKind,
-            ...(input.title ? { title: input.title } : {}),
-            sourceText: input.sourceText
-          });
-    const response = toolResult(
-      {
-        uploaded: true,
+            ...summarizeCloudSourceManifest(result.sourceManifest)
+          },
+          "私人云端漫画已上传。"
+        );
+        return {
+          ...response,
+          _meta: { sourceManifest: result.sourceManifest }
+        };
+      }
+      const result = await cloudSourceService.uploadNovelSource({
         sessionId: input.sessionId,
-        ...summarizeCloudSourceManifest(result.sourceManifest)
-      },
-      "ç§äººäº‘ç«¯æ­£æ–‡å·²ä¸Šä¼ ã€‚"
-    );
-    return {
-      ...response,
-      _meta: { sourceManifest: result.sourceManifest }
-    };
-  });
+        sourceKind: input.sourceKind,
+        sourceText: input.sourceText,
+        ...(input.title ? { title: input.title } : {})
+      });
+      const response = toolResult(
+        {
+          uploaded: true,
+          sessionId: input.sessionId,
+          ...summarizeCloudSourceManifest(result.sourceManifest)
+        },
+        "私人云端正文已上传。"
+      );
+      return {
+        ...response,
+        _meta: { sourceManifest: result.sourceManifest }
+      };
+    }
+  );
 
   server.registerTool(
     "delete_cloud_source",
     TOOL_CONFIGS.delete_cloud_source,
     async ({ sessionId }) => {
       if (!cloudSourceService) {
-        return toolResult({ deleted: false }, "私人云端正文服务尚未启用。");
+        return toolResult({ deleted: false, status: "unavailable" }, "私人云端正文服务未配置。");
       }
       const result = await cloudSourceService.deleteCloudSource(sessionId);
-      return toolResult(result, result.deleted ? "私人云端正文副本已删除。" : "没有可删除的私人云端正文副本。");
+      return toolResult(result, result.cloudSourceDeleted ? "私人云端正文副本已删除。" : "私人云端正文副本不存在。");
     }
   );
 
@@ -379,12 +390,8 @@ export function registerReadingTools(
     async ({ sessionId, preferences }) => {
       const session = await service.updateSessionPreferences(sessionId, preferences);
       return toolResult(
-        {
-          sessionId,
-          sessionPreferences: session.sessionPreferences,
-          updatedAt: session.updatedAt
-        },
-        "本书的陪读偏好已更新。"
+        { sessionPreferences: session.sessionPreferences },
+        "陪读偏好已更新。"
       );
     }
   );
@@ -394,10 +401,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.publish_companion_comment,
     async (input) => {
       const comment = await service.publishCompanionComment(input);
-      return toolResult(
-        { saved: true, comment },
-        "陪读短评已同步到这本书的小窝。请在聊天区回复相同短评。"
-      );
+      return toolResult({ saved: true, comment }, "陪读短评已经同步到 Dock。");
     }
   );
 
@@ -406,7 +410,7 @@ export function registerReadingTools(
     TOOL_CONFIGS.list_companion_comments,
     async (input) => {
       const result = await service.listCompanionComments(input);
-      return toolResult(result, "已读取这本书的烁构陪读短评。");
+      return toolResult(result, "已读取陪读短评。");
     }
   );
 
@@ -416,7 +420,7 @@ export function registerReadingTools(
     async ({ sessionId, scope }) => {
       const result = await service.clearCompanionComments(sessionId, scope);
       return toolResult(
-        { sessionId, scope, ...result },
+        result,
         "已按用户选择清除这本书的陪读短评。"
       );
     }
@@ -447,26 +451,11 @@ export function registerReadingTools(
     "delete_reading_session",
     TOOL_CONFIGS.delete_reading_session,
     async ({ sessionId, operationId, deleteCloudSource }) => {
-      let cloudResult:
-        | {
-            cloudSourceDeleted: boolean;
-            cloudSourceDeleteError?: string;
-          }
-        | undefined;
-      if (deleteCloudSource && cloudSourceService) {
-        const result = await cloudSourceService.deleteCloudSource(sessionId);
-        cloudResult = {
-          cloudSourceDeleted: result.cloudSourceDeleted,
-          ...(result.cloudSourceDeleteError
-            ? { cloudSourceDeleteError: result.cloudSourceDeleteError }
-            : {})
-        };
-      }
-      const result = await service.deleteSession(sessionId, operationId, {
-        deleteCloudSource: false
-      });
-      const combined = { ...result, ...cloudResult };
-      return toolResult(combined, result.deleted ? "这本书的云端阅读数据已删除。" : "这本书已不在书架中。");
+      const result = await service.deleteSession(sessionId, operationId, { deleteCloudSource });
+      return toolResult(
+        result,
+        result.deleted ? "这本书的云端阅读数据已删除。" : "这本书已不在书架中。"
+      );
     }
   );
 
@@ -486,7 +475,7 @@ export function registerReadingTools(
 
   server.registerTool("save_quote", TOOL_CONFIGS.save_quote, async (input) => {
     const quote = await service.saveQuote(input);
-    return toolResult({ saved: true, quote }, "摘录已经放进小窝。");
+    return toolResult({ saved: true, quote }, "摘录已经放进书房。");
   });
 
   server.registerTool("save_reaction", TOOL_CONFIGS.save_reaction, async (input) => {
@@ -527,7 +516,7 @@ export function registerReadingTools(
       const diaryContext = await service.diaryContext(sessionId);
       return toolResult(
         { diaryContext },
-        "日记素材已经整理好。请在聊天里把这些素材写成一篇可复制的小窝日记。"
+        "日记素材已经整理好。请在聊天里把这些素材写成一篇可复制的书房日记。"
       );
     }
   );
@@ -557,12 +546,7 @@ function summarizeCloudSourceManifest(sourceManifest: SourceManifest) {
 }
 
 function base64ToBytes(value: string): Uint8Array {
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
+  return Uint8Array.from(Buffer.from(value, "base64"));
 }
 
 export function buildCurrentReadingContext(

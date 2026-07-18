@@ -6,6 +6,7 @@ import type {
 } from "@ss/shared";
 
 type RecordTab = "bookmarks" | "quotes" | "reactions" | "comments";
+type QuoteRecord = SessionBundle["quotes"][number];
 
 export function BookManagementSheet(props: {
   bundle: SessionBundle;
@@ -24,6 +25,24 @@ export function BookManagementSheet(props: {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleteCloudSource, setDeleteCloudSource] = useState(false);
   const [deleteLocalCache, setDeleteLocalCache] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const quoteExportText = formatQuotesForExport(
+    props.bundle.session.title,
+    props.bundle.quotes
+  );
+
+  async function copyQuoteExport() {
+    if (props.bundle.quotes.length === 0) return;
+    try {
+      if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+        throw new Error("Clipboard API unavailable");
+      }
+      await navigator.clipboard.writeText(quoteExportText);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+  }
 
   return (
     <div className="sheet-backdrop" role="presentation" onClick={props.onClose}>
@@ -71,14 +90,37 @@ export function BookManagementSheet(props: {
             <button aria-pressed={tab === "bookmarks"} onClick={() => setTab("bookmarks")}>书签</button>
             <button aria-pressed={tab === "quotes"} onClick={() => setTab("quotes")}>摘录</button>
             <button aria-pressed={tab === "reactions"} onClick={() => setTab("reactions")}>用户反应</button>
-            <button aria-pressed={tab === "comments"} onClick={() => setTab("comments")}>烁构评论</button>
+            <button aria-pressed={tab === "comments"} onClick={() => setTab("comments")}>盖尔评论</button>
           </div>
+          {tab === "quotes" ? (
+            <div className="quote-export-panel">
+              <h4>摘录汇总</h4>
+              <p>这些划线可以复制到读书笔记、手帐或 Notion。</p>
+              <textarea
+                aria-label="摘录汇总文本"
+                readOnly
+                rows={8}
+                value={quoteExportText}
+              />
+              <button
+                className="sheet-action"
+                disabled={props.bundle.quotes.length === 0}
+                onClick={() => void copyQuoteExport()}
+              >
+                复制全部摘录
+              </button>
+              {copyStatus === "copied" ? <p className="export-status">已复制全部摘录。</p> : null}
+              {copyStatus === "failed" ? <p className="export-status">自动复制失败，可以手动全选上面的文本。</p> : null}
+            </div>
+          ) : null}
           <div className="record-list">
             {tab === "bookmarks"
               ? recordItems(props.bundle.bookmarks, (item) => item.label || item.position.label)
               : null}
             {tab === "quotes"
-              ? recordItems(props.bundle.quotes, (item) => item.content)
+              ? recordItems(props.bundle.quotes, (item) =>
+                  item.note ? `${item.content}\n批注：${item.note}` : item.content
+                )
               : null}
             {tab === "reactions"
               ? recordItems(props.bundle.reactions, (item) => item.content)
@@ -169,15 +211,46 @@ export function BookManagementSheet(props: {
   );
 }
 
-function recordItems<T extends { id: string; position: { label: string } }>(
+function recordItems<T extends { id: string; position: { label: string }; createdAt?: string }>(
   items: T[],
   content: (item: T) => string
 ) {
   if (items.length === 0) return <p className="record-empty">这里还没有记录。</p>;
-  return items.map((item) => (
-    <article key={item.id} className="record-item">
-      <span>{item.position.label}</span>
-      <p>{content(item)}</p>
-    </article>
-  ));
+  return [...items]
+    .sort((left, right) => {
+      const createdOrder = (right.createdAt ?? "").localeCompare(left.createdAt ?? "");
+      if (createdOrder !== 0) return createdOrder;
+      return right.position.label.localeCompare(left.position.label);
+    })
+    .map((item) => (
+      <article key={item.id} className="record-item">
+        <span>{item.position.label}</span>
+        <p>{content(item)}</p>
+      </article>
+    ));
+}
+
+function formatQuotesForExport(title: string, quotes: QuoteRecord[]) {
+  if (quotes.length === 0) {
+    return `# 《${title}》划线摘录\n\n（这里还没有摘录。）`;
+  }
+  const sortedQuotes = [...quotes].sort((left, right) => {
+    const leftIndex = left.position?.index ?? Number.MAX_SAFE_INTEGER;
+    const rightIndex = right.position?.index ?? Number.MAX_SAFE_INTEGER;
+    return leftIndex - rightIndex;
+  });
+  const quoteBlocks = sortedQuotes.map((quote) => [
+    `## ${quote.position.label}`,
+    blockquote(quote.content),
+    quote.note ? `我的批注：${quote.note}` : ""
+  ].filter(Boolean).join("\n\n"));
+  return [`# 《${title}》划线摘录`, quoteBlocks.join("\n\n---\n\n")].join("\n\n");
+}
+
+function blockquote(content: string) {
+  return content
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => `> ${line}`)
+    .join("\n");
 }
