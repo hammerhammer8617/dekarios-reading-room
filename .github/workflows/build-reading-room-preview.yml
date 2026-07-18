@@ -57,12 +57,12 @@ jobs:
 
       - name: Commit generated preview
         run: |
-          if git diff --quiet -- docs/index.html; then
+          if git diff --quiet -- docs/index.html docs/bindery; then
             echo "Pages bundle is already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/index.html
+          git add docs/index.html docs/bindery
           git commit -m "build(pages): refresh reading room preview [skip preview build]"
           git push origin HEAD:feat/gtd-reading-room
