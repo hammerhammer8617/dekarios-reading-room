@@ -52,6 +52,8 @@ jobs:
         run: |
           mkdir -p docs
           cp web/dist/index.html docs/index.html
+          mkdir -p docs/bindery
+          cp -R bindery/dist/. docs/bindery/
 
       - name: Commit generated preview
         run: |
