@@ -513,53 +513,55 @@ export const recordReadingTurnInputSchema = z
       .max(30)
       .optional()
       .default([]),
+    endSnapshot: z
+      .object({
+        progressSummary: z
+          .string()
+          .trim()
+          .min(1)
+          .max(240)
+          .refine((value) => !isBareReadingPositionSummary(value), {
+            message: "progressSummary must describe story or argument progress, not only a page or chapter number"
+          }),
+        readingSummary: z.string().trim().min(1).max(600)
+      })
+      .strict()
+      .optional(),
     operationId: z.string().min(1).max(200)
   })
   .strict()
-  .refine((input) => input.progress || input.thoughts.length > 0, {
-    message: "Record at least progress or one durable thought"
+  .refine((input) => input.progress || input.thoughts.length > 0 || input.endSnapshot, {
+    message: "Record at least progress, one durable thought, or an end snapshot"
   });
 
 export const getBookDetailsInputSchema = z.object({ bookId: sessionIdSchema }).strict();
 export const openBookshelfInputSchema = z.object({}).strict();
 export const renderReadingStatusInputSchema = z.object({ bookId: sessionIdSchema }).strict();
-export const renderReadingEndCardInputSchema = z
+export const notionSyncStatusSchema = z.enum(["synced", "pending", "not_requested"]);
+export const readingEndSnapshotSchema = z
   .object({
+    id: z.string().min(1).max(200),
     bookId: sessionIdSchema,
-    operationId: z.string().min(1).max(200).optional(),
-    progressSummary: z
-      .string()
-      .trim()
-      .min(1)
-      .max(240)
-      .describe("Where today's reading arrived in the plot or argument; add meaning beyond a bare page number."),
-    readingSummary: z
-      .string()
-      .trim()
-      .min(1)
-      .max(600)
-      .describe("A spoiler-safe summary of what was actually read today, based only on pages the user supplied."),
-    tavThought: z
-      .string()
-      .trim()
-      .min(1)
-      .max(400)
-      .optional()
-      .describe("Tav's latest thought in her own meaning; omit if she did not express one."),
-    galeThought: z
-      .string()
-      .trim()
-      .min(1)
-      .max(400)
-      .optional()
-      .describe("Gale's latest thought from the shared-reading discussion; omit if none was formed."),
-    openQuestion: z
-      .string()
-      .trim()
-      .min(1)
-      .max(400)
-      .optional()
-      .describe("One unresolved question worth carrying into the next reading session.")
+    operationId: z.string().min(1).max(200),
+    createdAt: z.string().datetime(),
+    title: z.string().trim().min(1).max(200),
+    positionLabel: z.string().trim().min(1).max(100),
+    progressSummary: z.string().trim().min(1).max(240),
+    readingSummary: z.string().trim().min(1).max(600),
+    tavThought: z.string().trim().min(1).max(400).optional(),
+    galeThought: z.string().trim().min(1).max(400).optional(),
+    openQuestion: z.string().trim().min(1).max(400).optional(),
+    notionSyncStatus: notionSyncStatusSchema,
+    thoughtCount: z.number().int().min(0).max(30)
+  })
+  .strict();
+export const renderReadingEndCardInputSchema = z
+  .object({ snapshotId: z.string().min(1).max(200) })
+  .strict();
+export const renderReadingEndCardOutputSchema = z
+  .object({
+    view: z.literal("reading_end"),
+    snapshot: readingEndSnapshotSchema
   })
   .strict();
 export const prepareNotionSyncInputSchema = z
@@ -679,4 +681,13 @@ export type UploadCloudSourceInput = z.infer<typeof uploadCloudSourceInputSchema
 export type GetOrStartBookContextInput = z.infer<typeof getOrStartBookContextInputSchema>;
 export type RecordReadingTurnInput = z.infer<typeof recordReadingTurnInputSchema>;
 export type RenderReadingEndCardInput = z.infer<typeof renderReadingEndCardInputSchema>;
+export type RenderReadingEndCardOutput = z.infer<typeof renderReadingEndCardOutputSchema>;
 export type RecordCasebookUpdateInput = z.infer<typeof recordCasebookUpdateInputSchema>;
+
+function isBareReadingPositionSummary(value: string) {
+  const normalized = value.trim().replace(/[。.!！]$/, "");
+  return (
+    /^(?:读到\s*)?第?\s*\d+\s*(?:页|章|节|段|卷)$/u.test(normalized) ||
+    /^\d+\s*\/\s*\d+$/u.test(normalized)
+  );
+}

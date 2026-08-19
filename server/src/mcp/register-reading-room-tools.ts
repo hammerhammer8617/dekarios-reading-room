@@ -7,9 +7,11 @@ import {
   markNotionSyncedInputSchema,
   openBookshelfInputSchema,
   prepareNotionSyncInputSchema,
+  READING_END_RESOURCE_URI,
   recordCasebookUpdateInputSchema,
   recordReadingTurnInputSchema,
   renderReadingEndCardInputSchema,
+  renderReadingEndCardOutputSchema,
   renderReadingStatusInputSchema
 } from "@ss/shared";
 import type { ReadingRoomService } from "../services/reading-room-service.js";
@@ -61,7 +63,7 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     {
       title: "保存一次共读进展",
       description:
-        "Call after discussing supplied book pages when there is a clear progress change or a durable thought worth keeping. Save Tav, Gale, and shared thoughts with attribution; preserve questions, predictions, disagreements, cross-book connections, revisions, and spoiler boundaries. Do not store generic small talk or infer page contents the user did not supply.",
+        "Call after discussing supplied book pages when there is a clear progress change or a durable thought worth keeping. Save Tav, Gale, and shared thoughts with attribution; preserve questions, predictions, disagreements, cross-book connections, revisions, and spoiler boundaries. When the user stops for today, include endSnapshot.progressSummary and endSnapshot.readingSummary in this same operation so the server persists an authoritative closing snapshot and returns its id. Do not store generic small talk or infer page contents the user did not supply.",
       inputSchema: recordReadingTurnInputSchema,
       annotations: { ...mutation, idempotentHint: true },
       _meta: {
@@ -202,12 +204,13 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     {
       title: "显示今天读到这里",
       description:
-        "Render the compact ‘今天读到这里’ card after the reading turn has been recorded and any requested Notion sync has completed. Always supply a meaningful progressSummary and a spoiler-safe readingSummary based only on pages the user supplied; a bare page number is not enough. Include Tav's latest thought, Gale's latest thought, and one open question whenever they occurred in the conversation. Use one of the six built-in backgrounds; do not ask the user to operate the card.",
+        "Render the isolated ‘今天读到这里’ card only from the snapshotId returned by record_reading_turn. Do not pass or invent render-time summary text. If the snapshot is missing or incomplete, the tool fails instead of mounting an empty card.",
       inputSchema: renderReadingEndCardInputSchema,
+      outputSchema: renderReadingEndCardOutputSchema,
       annotations: readOnly,
       _meta: {
-        ui: { resourceUri: READING_NEST_URI },
-        "openai/outputTemplate": READING_NEST_URI,
+        ui: { resourceUri: READING_END_RESOURCE_URI },
+        "openai/outputTemplate": READING_END_RESOURCE_URI,
         "openai/toolInvocation/invoking": "正在合上今天的书页…",
         "openai/toolInvocation/invoked": "今天读到这里"
       }

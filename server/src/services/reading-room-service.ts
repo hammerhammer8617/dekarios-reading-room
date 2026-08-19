@@ -7,6 +7,7 @@ import type {
   GetOrStartBookContextInput,
   MysteryReadingCasebook,
   ReadingDatabase,
+  ReadingEndSnapshot,
   ReadingPosition,
   ReadingSession,
   ReadingRoomCaseEntity,
@@ -88,6 +89,11 @@ export class ReadingRoomService {
   async recordReadingTurn(input: RecordReadingTurnInput) {
     return this.repository.mutate((database) => {
       const session = this.requireSession(database, input.bookId);
+      const snapshots = (database.readingEndSnapshots ??= []);
+      const existingSnapshot = snapshots.find(
+        (snapshot) =>
+          snapshot.bookId === input.bookId && snapshot.operationId === input.operationId
+      );
       const alreadyRecorded = database.thoughts.filter(
         (thought) => thought.sessionId === input.bookId && thought.operationId === input.operationId
       );
@@ -102,7 +108,7 @@ export class ReadingRoomService {
 
       const created: DurableThought[] = [];
       if (alreadyRecorded.length === 0) {
-        for (const draft of input.thoughts) {
+        for (const draft of input.thoughts ?? []) {
           if (draft.relatedThoughtId) {
             const related = database.thoughts.find(
               (thought) => thought.id === draft.relatedThoughtId && thought.sessionId === input.bookId
@@ -135,6 +141,43 @@ export class ReadingRoomService {
       session.updatedAt = now;
       session.lastReadAt = now;
       delete session.completedAt;
+
+      const operationThoughts = database.thoughts.filter(
+        (thought) =>
+          thought.sessionId === input.bookId && thought.operationId === input.operationId
+      );
+      let endSnapshot = existingSnapshot;
+      if (input.endSnapshot && !endSnapshot) {
+        this.assertMeaningfulProgressSummary(input.endSnapshot.progressSummary);
+        const tavThought = operationThoughts.find((thought) => thought.author === "tav");
+        const galeThought = operationThoughts.find((thought) => thought.author === "gale");
+        const openQuestion = operationThoughts.find(
+          (thought) => thought.kind === "question" && thought.status === "open"
+        );
+        endSnapshot = {
+          id: this.deps.id(),
+          bookId: session.id,
+          operationId: input.operationId,
+          createdAt: now,
+          title: session.title,
+          positionLabel: session.userCurrentPosition.label,
+          progressSummary: input.endSnapshot.progressSummary,
+          readingSummary: input.endSnapshot.readingSummary,
+          ...(tavThought
+            ? { tavThought: compactSnapshotText(tavThought.content, 400) }
+            : {}),
+          ...(galeThought
+            ? { galeThought: compactSnapshotText(galeThought.content, 400) }
+            : {}),
+          ...(openQuestion
+            ? { openQuestion: compactSnapshotText(openQuestion.content, 400) }
+            : {}),
+          notionSyncStatus: this.snapshotNotionStatus(operationThoughts),
+          thoughtCount: operationThoughts.length
+        };
+        snapshots.push(endSnapshot);
+      }
+
       return {
         bookId: session.id,
         operationId: input.operationId,
@@ -148,7 +191,8 @@ export class ReadingRoomService {
         ).length,
         unsyncedThoughtCount: database.thoughts.filter(
           (thought) => thought.sessionId === session.id && !thought.notionSyncedAt
-        ).length
+        ).length,
+        ...(endSnapshot ? { endSnapshot: structuredClone(endSnapshot) } : {})
       };
     });
   }
@@ -269,6 +313,14 @@ export class ReadingRoomService {
       }
       session.lastNotionSyncedAt = timestamp;
       session.updatedAt = timestamp;
+      for (const snapshot of database.readingEndSnapshots ?? []) {
+        if (snapshot.bookId !== bookId) continue;
+        const operationThoughts = database.thoughts.filter(
+          (thought) =>
+            thought.sessionId === bookId && thought.operationId === snapshot.operationId
+        );
+        snapshot.notionSyncStatus = this.snapshotNotionStatus(operationThoughts);
+      }
       return { bookId, marked, syncedAt: timestamp };
     });
   }
@@ -452,40 +504,55 @@ export class ReadingRoomService {
 
   async getEndCard(input: RenderReadingEndCardInput) {
     const database = await this.repository.read();
-    const session = this.requireSession(database, input.bookId);
-    const allThoughts = this.sortThoughts(
-      database.thoughts.filter((thought) => thought.sessionId === input.bookId)
+    const snapshot = (database.readingEndSnapshots ?? []).find(
+      (item) => item.id === input.snapshotId
     );
-    const thoughts = input.operationId
-      ? allThoughts.filter((thought) => thought.operationId === input.operationId)
-      : allThoughts.slice(0, 12);
-    const latestTavThought = thoughts.find((thought) => thought.author === "tav");
-    const latestGaleThought = thoughts.find((thought) => thought.author === "gale");
-    const latestSharedThought = thoughts.find((thought) => thought.author === "shared");
-    const latestQuestion = thoughts.find(
-      (thought) => thought.kind === "question" && thought.status === "open"
-    );
+    if (!snapshot) {
+      throw new AppError("NOT_FOUND", "找不到这次阅读的收尾快照，卡片没有生成。");
+    }
+    this.requireSession(database, snapshot.bookId);
+    this.assertCompleteSnapshot(snapshot);
     return {
       view: "reading_end" as const,
-      book: this.summarizeSession(session),
-      operationId: input.operationId,
-      progressSummary: input.progressSummary,
-      readingSummary: input.readingSummary,
-      tavThought: input.tavThought ?? latestTavThought?.content,
-      galeThought: input.galeThought ?? latestGaleThought?.content,
-      openQuestion: input.openQuestion ?? latestQuestion?.content,
-      tavThoughtCount: thoughts.filter((thought) => thought.author === "tav").length,
-      galeThoughtCount: thoughts.filter((thought) => thought.author === "gale").length,
-      sharedThoughtCount: thoughts.filter((thought) => thought.author === "shared").length,
-      newQuestionCount: thoughts.filter(
-        (thought) => thought.kind === "question" && thought.status === "open"
-      ).length,
-      latestTavThought,
-      latestGaleThought,
-      latestSharedThought,
-      latestQuestion,
-      unsyncedThoughtCount: allThoughts.filter((thought) => !thought.notionSyncedAt).length
+      snapshot: structuredClone(snapshot)
     };
+  }
+
+  private snapshotNotionStatus(thoughts: DurableThought[]): ReadingEndSnapshot["notionSyncStatus"] {
+    if (thoughts.length === 0) return "not_requested";
+    return thoughts.every((thought) => thought.notionSyncedAt) ? "synced" : "pending";
+  }
+
+  private assertMeaningfulProgressSummary(value: string) {
+    const normalized = value.trim().replace(/[。.!！]$/, "");
+    if (
+      /^(?:读到\s*)?第?\s*\d+\s*(?:页|章|节|段|卷)$/u.test(normalized) ||
+      /^\d+\s*\/\s*\d+$/u.test(normalized)
+    ) {
+      throw new AppError("INVALID_OPERATION", "“读到哪里”必须说明故事或论证推进，不能只有页码。");
+    }
+  }
+
+  private assertCompleteSnapshot(snapshot: ReadingEndSnapshot) {
+    const required = [
+      snapshot.id,
+      snapshot.bookId,
+      snapshot.operationId,
+      snapshot.createdAt,
+      snapshot.title,
+      snapshot.positionLabel,
+      snapshot.progressSummary,
+      snapshot.readingSummary
+    ];
+    if (
+      required.some((value) => typeof value !== "string" || value.trim().length === 0) ||
+      !["synced", "pending", "not_requested"].includes(snapshot.notionSyncStatus) ||
+      !Number.isInteger(snapshot.thoughtCount) ||
+      snapshot.thoughtCount < 0
+    ) {
+      throw new AppError("DATA_STORE_CORRUPTED", "收尾快照字段不完整，卡片没有生成。");
+    }
+    this.assertMeaningfulProgressSummary(snapshot.progressSummary);
   }
 
   private createSession(title: string, genre: BookGenre, author?: string): ReadingSession {
@@ -654,4 +721,10 @@ function normalizeText(value: string) {
 
 function unique(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function compactSnapshotText(value: string, maxLength: number) {
+  const normalized = value.trim().replace(/\s+/gu, " ");
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
 }

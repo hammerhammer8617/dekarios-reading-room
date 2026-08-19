@@ -1,5 +1,6 @@
 import { registerAppResource, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { READING_END_RESOURCE_URI } from "@ss/shared";
 import { READING_NEST_URI } from "./register-tools.js";
 
 export const READING_NEST_RESOURCE_URIS = [
@@ -73,4 +74,45 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
       }
     );
   }
+}
+
+export function registerReadingEndResource(
+  server: McpServer,
+  readingEndHtml: string,
+  workerOrigin?: string
+) {
+  const connectDomains = [workerOrigin ?? "http://localhost:8787"];
+  const resourceCsp = { connectDomains, resourceDomains: [] };
+  const openaiWidgetCsp = { connect_domains: connectDomains, resource_domains: [] };
+  const description =
+    "一个完全隔离的‘今天读到这里’收尾卡，只显示已保存的权威阅读快照。";
+
+  registerAppResource(
+    server,
+    "德卡里奥斯家的书房｜今天读到这里",
+    READING_END_RESOURCE_URI,
+    {
+      description,
+      _meta: {
+        ui: { csp: resourceCsp, prefersBorder: true },
+        "openai/widgetCSP": openaiWidgetCsp,
+        "openai/widgetDescription": description
+      }
+    },
+    async () => ({
+      contents: [
+        {
+          uri: READING_END_RESOURCE_URI,
+          mimeType: RESOURCE_MIME_TYPE,
+          text: readingEndHtml,
+          _meta: {
+            ui: { csp: resourceCsp, prefersBorder: true },
+            "openai/widgetCSP": openaiWidgetCsp,
+            "openai/widgetDescription": description,
+            "openai/widgetPrefersBorder": true
+          }
+        }
+      ]
+    })
+  );
 }

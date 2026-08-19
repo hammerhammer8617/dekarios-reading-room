@@ -1,0 +1,206 @@
+:root {
+  color-scheme: light;
+  font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body,
+#reading-end-root {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+body { padding: 0; }
+
+.reading-end-v1-root {
+  width: 100%;
+  margin: 0;
+}
+
+.reading-end-v1 {
+  --ink: #24231f;
+  --muted: #6f675c;
+  --paper: #f5ecd6;
+  --paper-strong: #ead9b6;
+  --wine: #794438;
+  --green: #254536;
+  --gold: #a87a31;
+  position: relative;
+  width: min(100%, 620px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(48, 58, 44, .2);
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: 0 16px 44px rgba(39, 31, 22, .14);
+  color: var(--ink);
+}
+
+.reading-end-v1__image {
+  position: absolute;
+  inset: 0 0 0 66%;
+  background-image:
+    linear-gradient(90deg, rgba(245, 236, 214, .92), rgba(245, 236, 214, .08) 55%),
+    var(--reading-end-image);
+  background-position: center;
+  background-size: cover;
+}
+
+.reading-end-v1__paper {
+  position: relative;
+  z-index: 1;
+  width: 72%;
+  padding: 24px 26px 20px;
+  background: linear-gradient(90deg, rgba(245, 236, 214, .99) 82%, rgba(245, 236, 214, .82));
+}
+
+.reading-end-v1 header time,
+.reading-end-v1 header p,
+.reading-end-v1__position,
+.reading-end-v1__section h2,
+.reading-end-v1 footer {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.reading-end-v1 header time {
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .08em;
+}
+
+.reading-end-v1 header p {
+  margin: 4px 0 1px;
+  color: var(--wine);
+  font-size: clamp(25px, 5vw, 35px);
+  font-weight: 620;
+  letter-spacing: .04em;
+  line-height: 1.14;
+}
+
+.reading-end-v1 header h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.reading-end-v1__position {
+  display: inline-flex;
+  margin-top: 7px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(121, 68, 56, .1);
+  color: var(--wine);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.reading-end-v1__section {
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(81, 69, 51, .14);
+}
+
+.reading-end-v1__section h2 {
+  margin: 0;
+  color: var(--wine);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.reading-end-v1__section p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.58;
+  text-wrap: pretty;
+}
+
+.reading-end-v1__section--emphasis {
+  padding: 11px 12px 12px;
+  border-top: 0;
+  border-left: 3px solid var(--gold);
+  border-radius: 0 12px 12px 0;
+  background: rgba(255, 251, 239, .72);
+}
+
+.reading-end-v1__section--gale h2 { color: var(--green); }
+
+.reading-end-v1__section--question {
+  border-top-style: dashed;
+}
+
+.reading-end-v1__section--question h2 { color: var(--gold); }
+
+.reading-end-v1 footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  margin-top: 16px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(81, 69, 51, .18);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.reading-end-v1 footer span:nth-child(2) { color: var(--gold); }
+
+.reading-end-v1-diagnostic {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 16px 18px;
+  border: 1px solid rgba(80, 51, 43, .22);
+  border-radius: 18px;
+  background: #f5ecd6;
+  color: #24231f;
+}
+
+.reading-end-v1-diagnostic > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: #794438;
+  color: #f2cf83;
+}
+
+.reading-end-v1-diagnostic strong { font-size: 14px; }
+.reading-end-v1-diagnostic p { margin: 3px 0 0; color: #6f675c; font-size: 11px; line-height: 1.45; }
+
+@media (max-width: 520px) {
+  .reading-end-v1 {
+    border-radius: 18px;
+  }
+
+  .reading-end-v1__image {
+    position: relative;
+    inset: auto;
+    height: 116px;
+    background-image:
+      linear-gradient(180deg, rgba(32, 38, 31, .02), rgba(32, 38, 31, .2)),
+      var(--reading-end-image);
+    background-position: center 45%;
+  }
+
+  .reading-end-v1__paper {
+    width: 100%;
+    padding: 18px 17px 17px;
+    background: var(--paper);
+  }
+
+  .reading-end-v1 header p { font-size: 28px; }
+  .reading-end-v1__section p { font-size: 12px; line-height: 1.55; }
+}

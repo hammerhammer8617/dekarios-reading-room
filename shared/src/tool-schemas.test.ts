@@ -12,8 +12,10 @@ import {
   uploadCloudSourceInputSchema,
   listCompanionCommentsInputSchema,
   publishCompanionCommentInputSchema,
+  recordReadingTurnInputSchema,
   renameReadingSessionInputSchema,
   renderReadingEndCardInputSchema,
+  renderReadingEndCardOutputSchema,
   sendCurrentContextInputSchema,
   setReadingSessionStatusInputSchema,
   setSourceManifestInputSchema,
@@ -24,25 +26,67 @@ import {
 } from "./tool-schemas.js";
 
 describe("reading end card schema", () => {
-  it("requires meaning beyond the saved page number", () => {
+  it("persists meaningful summaries with the reading operation and renders by identity only", () => {
     expect(() =>
-      renderReadingEndCardInputSchema.parse({ bookId: "book-1" })
+      recordReadingTurnInputSchema.parse({
+        bookId: "book-1",
+        operationId: "turn-18",
+        endSnapshot: {
+          progressSummary: "第 91 页",
+          readingSummary: "今天读了几页。"
+        }
+      })
     ).toThrow();
 
     expect(
-      renderReadingEndCardInputSchema.parse({
+      recordReadingTurnInputSchema.parse({
         bookId: "book-1",
         operationId: "turn-18",
-        progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
-        readingSummary: "今天的章节让三份证词互相冲突，并把叙述中的时间断层推到台前。",
-        tavThought: "真正的交换发生在证词之外。",
-        galeThought: "叙述节奏正在替某个人遮掩时间。",
-        openQuestion: "缺失的十分钟是谁制造的？"
+        endSnapshot: {
+          progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
+          readingSummary: "今天的章节让三份证词互相冲突，并把叙述中的时间断层推到台前。"
+        }
       })
     ).toMatchObject({
-      progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
-      readingSummary: "今天的章节让三份证词互相冲突，并把叙述中的时间断层推到台前。"
+      endSnapshot: {
+        progressSummary: "读完时间证词，进入对缺失十分钟的追查。"
+      }
     });
+
+    expect(renderReadingEndCardInputSchema.parse({ snapshotId: "snapshot-1" })).toEqual({
+      snapshotId: "snapshot-1"
+    });
+    expect(() =>
+      renderReadingEndCardInputSchema.parse({
+        snapshotId: "snapshot-1",
+        readingSummary: "渲染时不得再传文案"
+      })
+    ).toThrow();
+  });
+
+  it("keeps the render output schema exactly aligned with the persisted snapshot", () => {
+    const output = {
+      view: "reading_end" as const,
+      snapshot: {
+        id: "snapshot-1",
+        bookId: "book-1",
+        operationId: "turn-18",
+        createdAt: "2026-08-19T12:00:00.000Z",
+        title: "打怪",
+        positionLabel: "第 19 页",
+        progressSummary: "读完“崇高的怪物性”，进入“受遏制的怪物性”",
+        readingSummary: "怪物从崇高的边界经验转向被社会秩序约束与命名的对象。",
+        notionSyncStatus: "pending" as const,
+        thoughtCount: 3
+      }
+    };
+    expect(renderReadingEndCardOutputSchema.parse(output)).toEqual(output);
+    expect(() =>
+      renderReadingEndCardOutputSchema.parse({
+        ...output,
+        snapshot: { ...output.snapshot, readingSummary: undefined }
+      })
+    ).toThrow();
   });
 });
 

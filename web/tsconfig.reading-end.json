@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/reading-end/**/*.ts",
+    "src/reading-end/**/*.tsx",
+    "src/types/openai.d.ts",
+    "vite.reading-end.config.ts"
+  ],
+  "exclude": ["src/reading-end/**/*.test.ts", "src/reading-end/**/*.test.tsx"]
+}

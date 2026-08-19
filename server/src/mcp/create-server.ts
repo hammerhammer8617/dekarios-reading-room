@@ -5,10 +5,25 @@ import { JsonReadingRepository } from "../repositories/json-reading-repository.j
 import { createMcpServerFromRepository } from "./server-factory.js";
 
 const widgetPath = fileURLToPath(new URL("../../../web/dist/index.html", import.meta.url));
+const readingEndPath = fileURLToPath(
+  new URL("../../../web/dist-reading-end/reading-end.html", import.meta.url)
+);
 
 export async function createMcpServer(dataFile = resolve("data", "sessions.json")) {
   const widgetHtml = await readWidgetHtml();
-  return createMcpServerFromRepository(new JsonReadingRepository(dataFile), widgetHtml);
+  const readingEndHtml = await readReadingEndHtml();
+  return createMcpServerFromRepository(new JsonReadingRepository(dataFile), widgetHtml, undefined, {
+    readingEndHtml
+  });
+}
+
+async function readReadingEndHtml() {
+  try {
+    return await readFile(readingEndPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return "<!doctype html><html><body><main>Build web first to load the reading-end card.</main></body></html>";
+  }
 }
 
 async function readWidgetHtml() {

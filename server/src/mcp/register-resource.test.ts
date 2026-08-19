@@ -11,11 +11,18 @@ describe("registerReadingResource", () => {
   it("serves the current app-v35 template and cached compatibility templates", async () => {
     const {
       READING_NEST_RESOURCE_URIS,
+      registerReadingEndResource,
       registerReadingResource
     } = await import("./register-resource.js");
     const { READING_NEST_URI } = await import("./register-tools.js");
+    const { READING_END_RESOURCE_URI } = await import("@ss/shared");
 
     registerReadingResource({} as never, "<html></html>", "https://reading-nest.example.workers.dev");
+    registerReadingEndResource(
+      {} as never,
+      "<html><body>isolated end</body></html>",
+      "https://reading-nest.example.workers.dev"
+    );
 
     expect(READING_NEST_URI).toBe("ui://ss-reading-nest/app-v35.html");
     expect(READING_NEST_RESOURCE_URIS).toEqual([
@@ -37,7 +44,7 @@ describe("registerReadingResource", () => {
       "ui://ss-reading-nest/app-v20.html",
       "ui://ss-reading-nest/app-v19.html"
     ]);
-    expect(registerAppResource).toHaveBeenCalledTimes(17);
+    expect(registerAppResource).toHaveBeenCalledTimes(18);
 
     for (const [index, expectedUri] of READING_NEST_RESOURCE_URIS.entries()) {
       const [, , uri, descriptor, loader] = registerAppResource.mock.calls[index];
@@ -60,5 +67,12 @@ describe("registerReadingResource", () => {
         "https://reading-nest.example.workers.dev"
       );
     }
+
+    const [, , endUri, endDescriptor, endLoader] = registerAppResource.mock.calls[17];
+    expect(endUri).toBe(READING_END_RESOURCE_URI);
+    expect(endDescriptor.description).toContain("完全隔离");
+    const endLoaded = await endLoader();
+    expect(endLoaded.contents[0].uri).toBe(READING_END_RESOURCE_URI);
+    expect(endLoaded.contents[0].text).toContain("isolated end");
   });
 });

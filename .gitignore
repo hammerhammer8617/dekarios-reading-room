@@ -25,6 +25,7 @@ server/.dev.vars*
 # Runtime/build artifacts
 server/dist/
 web/dist/
+web/dist-reading-end/
 shared/dist/
 server/.wrangler/
 web/.wrangler/
