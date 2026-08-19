@@ -53,7 +53,7 @@ export type StaticBookshelfDependencies = {
 };
 
 const PROTOCOL_VERSION = "2026-01-26";
-const INITIALIZE_ID = "bookshelf-static-v1-initialize";
+const INITIALIZE_ID = "bookshelf-static-v2-initialize";
 const genreLabels: Record<BookshelfItem["genre"], string> = {
   novel: "小说",
   mystery: "推理",
@@ -105,7 +105,7 @@ const defaultDependencies: StaticBookshelfDependencies = {
         320,
         document.documentElement.scrollHeight,
         document.body.scrollHeight,
-        document.getElementById("bookshelf-static-v1")?.scrollHeight ?? 0
+        document.getElementById("bookshelf-static-v2")?.scrollHeight ?? 0
       )
     )
   })
@@ -229,8 +229,8 @@ export function renderBookshelf(doc: Document, books: BookshelfItem[]) {
   setText(doc, "bookshelf-title", "我们的书架");
   doc.getElementById("bookshelf-probe")?.setAttribute("hidden", "");
   doc.getElementById("bookshelf-content")?.removeAttribute("hidden");
-  setText(doc, "bookshelf-status", `${books.length} 本作品 · open_bookshelf 工具结果已抵达`);
-  const root = doc.getElementById("bookshelf-static-v1");
+  setText(doc, "bookshelf-status", `${books.length} 本作品 · open_bookshelf_v2 工具结果已抵达`);
+  const root = doc.getElementById("bookshelf-static-v2");
   if (root) root.dataset.state = "bookshelf";
 }
 
@@ -320,7 +320,7 @@ function isNonEmptyString(value: unknown): value is string {
 
 function showError(doc: Document, message: string) {
   setText(doc, "bookshelf-status", message);
-  const root = doc.getElementById("bookshelf-static-v1");
+  const root = doc.getElementById("bookshelf-static-v2");
   if (root) root.dataset.state = "error";
 }
 
@@ -336,7 +336,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 if (
   typeof window !== "undefined" &&
   typeof document !== "undefined" &&
-  document.getElementById("bookshelf-static-v1")
+  document.getElementById("bookshelf-static-v2")
 ) {
   createStaticBookshelfApp();
 }

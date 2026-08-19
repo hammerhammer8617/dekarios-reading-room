@@ -25,8 +25,8 @@ const required = [
   "ui/notifications/size-changed",
   "ui/initialize",
   "notifyIntrinsicHeight",
-  "如果你看见这张卡，ChatGPT 已经选择并渲染了 open_bookshelf 的 UI resource。",
-  'data-bookshelf-height-strategy="raw-postmessage-v1"'
+  "如果你看见这张卡，ChatGPT 已经选择并渲染了 open_bookshelf_v2 的 UI resource。",
+  'data-bookshelf-height-strategy="raw-postmessage-v2"'
 ];
 for (const value of required) {
   if (!html.includes(value)) throw new Error(`Bookshelf build is missing: ${value}`);

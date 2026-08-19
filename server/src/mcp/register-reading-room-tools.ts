@@ -2,9 +2,11 @@ import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   BOOKSHELF_RESOURCE_URI,
+  BOOKSHELF_TOOL_NAME,
   getBookDetailsInputSchema,
   getCasebookInputSchema,
   getOrStartBookContextInputSchema,
+  LEGACY_BOOKSHELF_TOOL_NAME,
   markNotionSyncedInputSchema,
   openBookshelfInputSchema,
   openBookshelfOutputSchema,
@@ -157,28 +159,48 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     async ({ bookId }) => toolResult({ casebook: await service.getCasebook(bookId) }, "案件簿已打开。")
   );
 
+  const renderBookshelf = async () =>
+    toolResult(
+      { view: "bookshelf" as const, bookshelf: await service.listBookshelf() },
+      "书架已经完整显示；不要在卡片外重复列出全部内容。"
+    );
+
   registerAppTool(
     server,
-    "open_bookshelf",
+    LEGACY_BOOKSHELF_TOOL_NAME,
     {
-      title: "打开德卡里奥斯家的书架",
+      title: "打开德卡里奥斯家的书架（兼容入口）",
       description:
-        "Render the mobile-first bookshelf only when the user explicitly asks to open the bookshelf, see what they are reading, inspect book records, or open a casebook. Do not render it for each page photo or ordinary reading turn.",
+        "Legacy app-only bookshelf entry retained for already-mounted reading-room components. Models must use open_bookshelf_v2 instead.",
       inputSchema: openBookshelfInputSchema,
       outputSchema: openBookshelfOutputSchema,
       annotations: readOnly,
       _meta: {
-        ui: { resourceUri: BOOKSHELF_RESOURCE_URI },
+        ui: { resourceUri: BOOKSHELF_RESOURCE_URI, visibility: ["app"] },
+        "openai/outputTemplate": BOOKSHELF_RESOURCE_URI
+      }
+    },
+    renderBookshelf
+  );
+
+  registerAppTool(
+    server,
+    BOOKSHELF_TOOL_NAME,
+    {
+      title: "打开德卡里奥斯家的书架",
+      description:
+        "Use this versioned render tool when the user explicitly asks to open the bookshelf, see what they are reading, inspect book records, or open a casebook. It replaces the legacy open_bookshelf descriptor. Do not render it for each page photo or ordinary reading turn.",
+      inputSchema: openBookshelfInputSchema,
+      outputSchema: openBookshelfOutputSchema,
+      annotations: readOnly,
+      _meta: {
+        ui: { resourceUri: BOOKSHELF_RESOURCE_URI, visibility: ["model", "app"] },
         "openai/outputTemplate": BOOKSHELF_RESOURCE_URI,
         "openai/toolInvocation/invoking": "正在推开书房的门…",
         "openai/toolInvocation/invoked": "德卡里奥斯家的书架已经打开"
       }
     },
-    async () =>
-      toolResult(
-        { view: "bookshelf" as const, bookshelf: await service.listBookshelf() },
-        "书架已经完整显示；不要在卡片外重复列出全部内容。"
-      )
+    renderBookshelf
   );
 
   registerAppTool(

@@ -87,12 +87,28 @@ async function waitForDeployedWidgets(health) {
         JSON.stringify(readingEndTool.inputSchema?.required) === JSON.stringify(["snapshotId"]),
         "reading-end tool contract is not the authoritative snapshot-only schema"
       );
-      const bookshelfTool = tools.tools.find((tool) => tool.name === "open_bookshelf");
-      assert(bookshelfTool, "open_bookshelf is missing");
-      const bookshelfResourceUri = "ui://ss-reading-nest/bookshelf-static-v1.html";
+      const legacyBookshelfTool = tools.tools.find((tool) => tool.name === "open_bookshelf");
+      assert(legacyBookshelfTool, "legacy open_bookshelf compatibility tool is missing");
+      assert(
+        JSON.stringify(legacyBookshelfTool._meta?.ui?.visibility) === JSON.stringify(["app"]),
+        "legacy open_bookshelf must remain app-only"
+      );
+      const bookshelfToolName = "open_bookshelf_v2";
+      const bookshelfTool = tools.tools.find((tool) => tool.name === bookshelfToolName);
+      assert(bookshelfTool, `${bookshelfToolName} is missing`);
+      const bookshelfResourceUri = "ui://ss-reading-nest/bookshelf-static-v2.html";
       assert(
         bookshelfTool._meta?.ui?.resourceUri === bookshelfResourceUri,
         "standard bookshelf resource URI is stale"
+      );
+      assert(
+        bookshelfTool._meta?.["ui/resourceUri"] === bookshelfResourceUri,
+        "top-level MCP Apps bookshelf resource URI is stale"
+      );
+      assert(
+        JSON.stringify(bookshelfTool._meta?.ui?.visibility) ===
+          JSON.stringify(["model", "app"]),
+        "versioned bookshelf tool must be visible to model and app"
       );
       assert(
         bookshelfTool._meta?.["openai/outputTemplate"] === bookshelfResourceUri,
@@ -105,14 +121,14 @@ async function waitForDeployedWidgets(health) {
         "bookshelf tool is missing its complete output schema"
       );
 
-      const bookshelfResult = await client.callTool({ name: "open_bookshelf", arguments: {} });
+      const bookshelfResult = await client.callTool({ name: bookshelfToolName, arguments: {} });
       assert(
         bookshelfResult.structuredContent?.view === "bookshelf",
-        "open_bookshelf did not return the bookshelf view"
+        `${bookshelfToolName} did not return the bookshelf view`
       );
       assert(
         Array.isArray(bookshelfResult.structuredContent?.bookshelf),
-        "open_bookshelf did not return a bookshelf array"
+        `${bookshelfToolName} did not return a bookshelf array`
       );
 
       const resource = await client.readResource({ uri: resourceUri });
@@ -146,15 +162,15 @@ async function waitForDeployedWidgets(health) {
         "deployed bookshelf resource has the wrong MCP Apps MIME type"
       );
       assert(
-        bookshelfHtml.includes("data-bookshelf-static-v1"),
+        bookshelfHtml.includes("data-bookshelf-static-v2"),
         "deployed bookshelf resource is missing its pre-rendered static shell"
       );
       assert(
-        bookshelfHtml.includes('data-bookshelf-height-strategy="raw-postmessage-v1"'),
+        bookshelfHtml.includes('data-bookshelf-height-strategy="raw-postmessage-v2"'),
         "deployed bookshelf resource is missing raw intrinsic-height recovery"
       );
       assert(
-        bookshelfHtml.includes("ChatGPT 已经选择并渲染了 open_bookshelf 的 UI resource"),
+        bookshelfHtml.includes("ChatGPT 已经选择并渲染了 open_bookshelf_v2 的 UI resource"),
         "deployed bookshelf resource is missing the visible binding diagnostic"
       );
       assert(
