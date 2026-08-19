@@ -52,7 +52,7 @@ const bookshelfOutput = {
 
 function mountShell() {
   document.body.innerHTML = `
-    <main id="bookshelf-static-v1" data-state="shell">
+    <main id="bookshelf-static-v2" data-state="shell">
       <h1 id="bookshelf-title">静态书架已加载</h1>
       <section id="bookshelf-probe"></section>
       <section id="bookshelf-content" hidden><div id="bookshelf-list"></div></section>
@@ -109,7 +109,7 @@ describe("bookshelf static stop-loss resource", () => {
     const html = readFileSync(resolve(process.cwd(), "bookshelf.html"), "utf8");
     expect(html).toContain("width: min(100%, 620px)");
     expect(html).toContain("min-height: 320px !important");
-    expect(html).toContain("data-bookshelf-static-v1");
+    expect(html).toContain("data-bookshelf-static-v2");
     expect(html).not.toMatch(/100(?:d?vh|svh|lvh)/u);
     expect(html).not.toMatch(/overflow\s*:\s*(?:auto|scroll)/u);
     expect(Math.min(390 - 8, 620)).toBe(382);
@@ -144,7 +144,7 @@ describe("bookshelf static stop-loss resource", () => {
       expect.objectContaining({
         jsonrpc: "2.0",
         method: "ui/initialize",
-        id: "bookshelf-static-v1-initialize"
+        id: "bookshelf-static-v2-initialize"
       })
     );
   });
@@ -154,7 +154,7 @@ describe("bookshelf static stop-loss resource", () => {
     harness.flushFrame();
     harness.emitMessage({
       jsonrpc: "2.0",
-      id: "bookshelf-static-v1-initialize",
+      id: "bookshelf-static-v2-initialize",
       result: { protocolVersion: "2026-01-26" }
     });
     harness.flushFrame();
@@ -183,13 +183,13 @@ describe("bookshelf static stop-loss resource", () => {
       params: { structuredContent: bookshelfOutput }
     });
 
-    expect(document.getElementById("bookshelf-static-v1")?.dataset.state).toBe("bookshelf");
+    expect(document.getElementById("bookshelf-static-v2")?.dataset.state).toBe("bookshelf");
     expect(document.getElementById("bookshelf-title")?.textContent).toBe("我们的书架");
     expect(document.body.textContent).toContain("《侦破我的命案》");
     expect(document.body.textContent).toContain("塔芙：第 91 页 · 共同进度：第 88 页");
     expect(document.body.textContent).toContain("案件簿 4 项");
     expect(document.body.textContent).toContain("《打怪》");
-    expect(document.body.textContent).toContain("2 本作品 · open_bookshelf 工具结果已抵达");
+    expect(document.body.textContent).toContain("2 本作品 · open_bookshelf_v2 工具结果已抵达");
   });
 
   it("reads already-available compatibility output and reports the same intrinsic height", () => {
@@ -199,7 +199,7 @@ describe("bookshelf static stop-loss resource", () => {
     });
     harness.flushFrame();
 
-    expect(document.getElementById("bookshelf-static-v1")?.dataset.state).toBe("bookshelf");
+    expect(document.getElementById("bookshelf-static-v2")?.dataset.state).toBe("bookshelf");
     expect(notifyIntrinsicHeight).toHaveBeenCalledWith({ height: 320 });
   });
 
@@ -231,7 +231,7 @@ describe("bookshelf static stop-loss resource", () => {
     const harness = createHarness();
     harness.emitGlobals({ view: "bookshelf", bookshelf: [{}] });
 
-    expect(document.getElementById("bookshelf-static-v1")?.dataset.state).toBe("error");
+    expect(document.getElementById("bookshelf-static-v2")?.dataset.state).toBe("error");
     expect(document.getElementById("bookshelf-title")?.textContent).toBe("静态书架已加载");
     expect(document.getElementById("bookshelf-status")?.textContent).toContain("结果不完整");
   });

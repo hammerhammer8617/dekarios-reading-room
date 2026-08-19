@@ -121,7 +121,7 @@ export function registerBookshelfResource(server: McpServer, bookshelfHtml: stri
   const resourceCsp = { connectDomains: [], resourceDomains: [] };
   const openaiWidgetCsp = { connect_domains: [], resource_domains: [] };
   const description =
-    "一个最小、预渲染的独立书架，只显示 open_bookshelf 返回的书目与共读进度。";
+    "一个最小、预渲染的独立书架，只显示 open_bookshelf_v2 返回的书目与共读进度。";
 
   registerAppResource(
     server,

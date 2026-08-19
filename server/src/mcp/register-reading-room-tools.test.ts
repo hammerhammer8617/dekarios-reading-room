@@ -4,7 +4,12 @@ const { registerAppTool } = vi.hoisted(() => ({ registerAppTool: vi.fn() }));
 vi.mock("@modelcontextprotocol/ext-apps/server", () => ({ registerAppTool }));
 
 import { READING_NEST_URI } from "./register-tools.js";
-import { BOOKSHELF_RESOURCE_URI, READING_END_RESOURCE_URI } from "@ss/shared";
+import {
+  BOOKSHELF_RESOURCE_URI,
+  BOOKSHELF_TOOL_NAME,
+  LEGACY_BOOKSHELF_TOOL_NAME,
+  READING_END_RESOURCE_URI
+} from "@ss/shared";
 import { registerReadingRoomTools } from "./register-reading-room-tools.js";
 
 describe("registerReadingRoomTools", () => {
@@ -24,16 +29,29 @@ describe("registerReadingRoomTools", () => {
       "get_casebook"
     ]);
     expect(registerAppTool.mock.calls.map(([, name]) => name)).toEqual([
-      "open_bookshelf",
+      LEGACY_BOOKSHELF_TOOL_NAME,
+      BOOKSHELF_TOOL_NAME,
       "render_reading_status",
       "render_reading_end_card_v4"
     ]);
-    const bookshelfDescriptor = registerAppTool.mock.calls[0]?.[2];
+    const legacyBookshelfDescriptor = registerAppTool.mock.calls.find(
+      ([, name]) => name === LEGACY_BOOKSHELF_TOOL_NAME
+    )?.[2];
+    expect(legacyBookshelfDescriptor._meta.ui.visibility).toEqual(["app"]);
+    const bookshelfDescriptor = registerAppTool.mock.calls.find(
+      ([, name]) => name === BOOKSHELF_TOOL_NAME
+    )?.[2];
     expect(bookshelfDescriptor._meta.ui.resourceUri).toBe(BOOKSHELF_RESOURCE_URI);
+    expect(bookshelfDescriptor._meta.ui.visibility).toEqual(["model", "app"]);
     expect(bookshelfDescriptor._meta["openai/outputTemplate"]).toBe(BOOKSHELF_RESOURCE_URI);
     expect(bookshelfDescriptor.outputSchema).toBeDefined();
-    expect(registerAppTool.mock.calls[1]?.[2]._meta.ui.resourceUri).toBe(READING_NEST_URI);
-    const endDescriptor = registerAppTool.mock.calls[2]?.[2];
+    const statusDescriptor = registerAppTool.mock.calls.find(
+      ([, name]) => name === "render_reading_status"
+    )?.[2];
+    expect(statusDescriptor._meta.ui.resourceUri).toBe(READING_NEST_URI);
+    const endDescriptor = registerAppTool.mock.calls.find(
+      ([, name]) => name === "render_reading_end_card_v4"
+    )?.[2];
     expect(endDescriptor._meta.ui.resourceUri).toBe(READING_END_RESOURCE_URI);
     expect(endDescriptor.outputSchema).toBeDefined();
   });
@@ -59,7 +77,7 @@ describe("registerReadingRoomTools", () => {
     ]);
     registerReadingRoomTools({ registerTool } as never, { listBookshelf } as never);
     const [, , descriptor, handler] = registerAppTool.mock.calls.find(
-      ([, name]) => name === "open_bookshelf"
+      ([, name]) => name === BOOKSHELF_TOOL_NAME
     );
 
     const result = await handler();
@@ -82,7 +100,7 @@ describe("registerReadingRoomTools", () => {
       ([name]) => name === "get_or_start_book_context"
     )?.[1];
     const bookshelfDescriptor = registerAppTool.mock.calls.find(
-      ([, name]) => name === "open_bookshelf"
+      ([, name]) => name === BOOKSHELF_TOOL_NAME
     )?.[2];
 
     expect(contextDescriptor.description).toContain("book-page photo");

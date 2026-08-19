@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { BOOKSHELF_TOOL_NAME } from "@ss/shared";
 import type {
   DurableThought,
   MysteryReadingCasebook,
@@ -81,7 +82,7 @@ export function ReadingRoomSurface({ initialOutput }: { initialOutput: RoomOutpu
     setLoading(true);
     setError("");
     try {
-      const result = await callTool("open_bookshelf", {});
+      const result = await callTool(BOOKSHELF_TOOL_NAME, {});
       setOutput(result.structuredContent as RoomOutput);
       setDetails(null);
       await requestReaderInline();
