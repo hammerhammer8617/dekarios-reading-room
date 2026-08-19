@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { READING_NEST_BUILD_INFO } from "../../build-info.js";
 import { CloudSourceClient } from "./cloud-source-client.js";
 
 describe("CloudSourceClient", () => {
@@ -245,7 +246,9 @@ describe("CloudSourceClient", () => {
     });
     const message = result.diagnostics.directUploadError ?? "";
 
-    expect(message).toContain("resourceVersion=app-v19");
+    expect(message).toContain(
+      `resourceVersion=${READING_NEST_BUILD_INFO.resourceVersion}`
+    );
     expect(message).toContain("appVersion=0.3.0");
     expect(message).toContain("sourceEndpointBase=present");
     expect(message).toContain("uploadOrigin=https://worker.example.test");
