@@ -82,6 +82,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Audit Worker bundle size
+        run: pnpm --filter @ss/server audit:worker-size
+
       - name: Apply D1 migrations
         run: pnpm --filter @ss/server exec wrangler d1 migrations apply ss-reading-nest-db --remote
 

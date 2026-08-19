@@ -6,15 +6,9 @@ import type {
 } from "@ss/shared";
 import { callTool, requestReaderInline } from "../bridge/host.js";
 import bookroomBackground from "../assets/reading-room/bookroom-background.webp";
-import endBooksTea from "../assets/reading-room/end-books-tea.webp";
-import endCinemaPopcorn from "../assets/reading-room/end-cinema-popcorn.webp";
-import endGameNight from "../assets/reading-room/end-game-night.webp";
-import endOrangeTree from "../assets/reading-room/end-orange-tree.webp";
-import endSharedTableClose from "../assets/reading-room/end-shared-table-close.webp";
-import endSharedTableWide from "../assets/reading-room/end-shared-table-wide.webp";
 import "../styles/reading-room.css";
 
-type ViewName = "bookshelf" | "reading_status" | "reading_end";
+type ViewName = "bookshelf" | "reading_status";
 
 type BookSummary = {
   bookId: string;
@@ -40,21 +34,6 @@ export type RoomOutput = {
   book?: BookSummary;
   latestThought?: DurableThought;
   openQuestionCount?: number;
-  operationId?: string;
-  tavThoughtCount?: number;
-  galeThoughtCount?: number;
-  sharedThoughtCount?: number;
-  newQuestionCount?: number;
-  latestTavThought?: DurableThought;
-  latestGaleThought?: DurableThought;
-  latestSharedThought?: DurableThought;
-  latestQuestion?: DurableThought;
-  progressSummary?: string;
-  readingSummary?: string;
-  tavThought?: string;
-  galeThought?: string;
-  openQuestion?: string;
-  unsyncedThoughtCount?: number;
 };
 
 type BookDetails = {
@@ -75,15 +54,6 @@ type BookDetails = {
   unsyncedThoughtCount: number;
   casebook?: MysteryReadingCasebook;
 };
-
-const endBackgrounds = [
-  endBooksTea,
-  endCinemaPopcorn,
-  endGameNight,
-  endOrangeTree,
-  endSharedTableClose,
-  endSharedTableWide
-];
 
 const authorLabels = { tav: "塔芙", gale: "盖尔", shared: "我们" } as const;
 const genreLabels: Record<string, string> = {
@@ -154,10 +124,6 @@ export function ReadingRoomSurface({ initialOutput }: { initialOutput: RoomOutpu
     );
   }
 
-  if (output.view === "reading_end" && output.book) {
-    return <ReadingEndCard output={{ ...output, book: output.book }} onOpenBookshelf={openBookshelf} loading={loading} />;
-  }
-
   return (
     <main className="reading-room" style={{ "--room-image": `url(${bookroomBackground})` } as React.CSSProperties}>
       <header className="room-hero">
@@ -217,60 +183,6 @@ function ReadingStatusCard({
           <button type="button" onClick={onOpenBookshelf} disabled={loading}>查看书架</button>
         </div>
         {error ? <p className="room-notice room-notice--error">{error}</p> : null}
-      </div>
-    </article>
-  );
-}
-
-function ReadingEndCard({
-  output,
-  onOpenBookshelf,
-  loading
-}: {
-  output: RoomOutput & { book: BookSummary };
-  onOpenBookshelf: () => void;
-  loading: boolean;
-}) {
-  const seed = `${output.book.bookId}:${output.operationId ?? output.book.lastReadAt}`;
-  const image = endBackgrounds[hash(seed) % endBackgrounds.length];
-  const tavThought = output.tavThought ?? output.latestTavThought?.content;
-  const galeThought = output.galeThought ?? output.latestGaleThought?.content;
-  const openQuestion = output.openQuestion ?? output.latestQuestion?.content;
-  const readingSummary = output.readingSummary ?? output.latestSharedThought?.content;
-  return (
-    <article className="reading-end-card" style={{ "--end-image": `url(${image})` } as React.CSSProperties}>
-      <div className="end-card__paper">
-        <span className="room-kicker">{formatDate(output.book.lastReadAt)}</span>
-        <h1>今天读到这里</h1>
-        <h2>《{output.book.title}》</h2>
-        <p className="end-position">
-          <b>读到</b>
-          <span>{output.book.tavPosition.label}</span>
-          {output.progressSummary ? <i>{output.progressSummary}</i> : null}
-        </p>
-        {readingSummary ? (
-          <section className="end-summary">
-            <b>今天读了什么</b>
-            <p>{readingSummary}</p>
-          </section>
-        ) : null}
-        {tavThought || galeThought ? (
-          <div className="end-thoughts">
-            {tavThought ? <p><b>塔芙留下</b><span>{tavThought}</span></p> : null}
-            {galeThought ? <p><b>盖尔留下</b><span>{galeThought}</span></p> : null}
-          </div>
-        ) : null}
-        {openQuestion ? (
-          <p className="end-question"><span>留到下次</span>{openQuestion}</p>
-        ) : null}
-        <footer>
-          <div>
-            <span>{(output.tavThoughtCount ?? 0) + (output.galeThoughtCount ?? 0) + (output.sharedThoughtCount ?? 0)} 个新想法</span>
-            <span> · </span>
-            <span>{output.unsyncedThoughtCount ? `${output.unsyncedThoughtCount} 条待同步` : "已收进书页边缘"}</span>
-          </div>
-          <button type="button" onClick={onOpenBookshelf} disabled={loading}>回书房看看</button>
-        </footer>
       </div>
     </article>
   );
@@ -416,12 +328,6 @@ function RelationMap({ casebook }: { casebook: MysteryReadingCasebook }) {
       </svg>
     </div>
   );
-}
-
-function hash(value: string) {
-  let result = 0;
-  for (let index = 0; index < value.length; index += 1) result = (result * 31 + value.charCodeAt(index)) >>> 0;
-  return result;
 }
 
 function formatDate(value: string) {

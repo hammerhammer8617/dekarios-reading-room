@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "audit:worker-size": "node scripts/audit-worker-size.mjs",
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/index.ts",
     "dev:cloud": "wrangler dev",
