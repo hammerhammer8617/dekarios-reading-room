@@ -5,7 +5,11 @@ import { ReadingService } from "../services/reading-service.js";
 import { ReadingRoomService } from "../services/reading-room-service.js";
 import { CasebookService } from "../services/casebook-service.js";
 import type { CloudSourceService } from "../services/cloud-source-service.js";
-import { registerReadingEndResource, registerReadingResource } from "./register-resource.js";
+import {
+  registerBookshelfResource,
+  registerReadingEndResource,
+  registerReadingResource
+} from "./register-resource.js";
 import { registerReadingTools } from "./register-tools.js";
 import { registerReadingRoomTools } from "./register-reading-room-tools.js";
 import { registerCasebookTools } from "./register-casebook-tools.js";
@@ -17,6 +21,7 @@ export function createMcpServerFromRepository(
   options: {
     sourceEndpointBase?: string;
     workerOrigin?: string;
+    bookshelfHtml?: string;
     readingEndHtml?: string;
   } = {}
 ) {
@@ -28,6 +33,7 @@ export function createMcpServerFromRepository(
   const readingRoomService = new ReadingRoomService(repository);
   const casebookService = new CasebookService(repository);
   registerReadingResource(server, widgetHtml, options.workerOrigin);
+  registerBookshelfResource(server, options.bookshelfHtml ?? bookshelfUnavailableHtml);
   registerReadingEndResource(
     server,
     options.readingEndHtml ?? readingEndUnavailableHtml,
@@ -41,3 +47,6 @@ export function createMcpServerFromRepository(
 
 const readingEndUnavailableHtml =
   "<!doctype html><html><body><main role=\"alert\">Build the isolated reading-end resource first.</main></body></html>";
+
+const bookshelfUnavailableHtml =
+  "<!doctype html><html><body><main role=\"alert\">Build the isolated bookshelf resource first.</main></body></html>";

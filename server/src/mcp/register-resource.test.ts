@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const registerAppResource = vi.fn();
 
 vi.mock("@modelcontextprotocol/ext-apps/server", () => ({
-  RESOURCE_MIME_TYPE: "text/html+skybridge",
+  RESOURCE_MIME_TYPE: "text/html;profile=mcp-app",
   registerAppResource
 }));
 
@@ -11,13 +11,18 @@ describe("registerReadingResource", () => {
   it("serves the current app-v36 template and cached compatibility templates", async () => {
     const {
       READING_NEST_RESOURCE_URIS,
+      registerBookshelfResource,
       registerReadingEndResource,
       registerReadingResource
     } = await import("./register-resource.js");
     const { READING_NEST_URI } = await import("./register-tools.js");
-    const { READING_END_RESOURCE_URI } = await import("@ss/shared");
+    const { BOOKSHELF_RESOURCE_URI, READING_END_RESOURCE_URI } = await import("@ss/shared");
 
     registerReadingResource({} as never, "<html></html>", "https://reading-nest.example.workers.dev");
+    registerBookshelfResource(
+      {} as never,
+      "<html><body>isolated bookshelf</body></html>"
+    );
     registerReadingEndResource(
       {} as never,
       "<html><body>isolated end</body></html>",
@@ -45,7 +50,7 @@ describe("registerReadingResource", () => {
       "ui://ss-reading-nest/app-v20.html",
       "ui://ss-reading-nest/app-v19.html"
     ]);
-    expect(registerAppResource).toHaveBeenCalledTimes(19);
+    expect(registerAppResource).toHaveBeenCalledTimes(20);
 
     for (const [index, expectedUri] of READING_NEST_RESOURCE_URIS.entries()) {
       const [, , uri, descriptor, loader] = registerAppResource.mock.calls[index];
@@ -69,7 +74,18 @@ describe("registerReadingResource", () => {
       );
     }
 
-    const [, , endUri, endDescriptor, endLoader] = registerAppResource.mock.calls[18];
+    const [, , bookshelfUri, bookshelfDescriptor, bookshelfLoader] =
+      registerAppResource.mock.calls[18];
+    expect(bookshelfUri).toBe(BOOKSHELF_RESOURCE_URI);
+    expect(bookshelfDescriptor.description).toContain("最小、预渲染");
+    const bookshelfLoaded = await bookshelfLoader();
+    expect(bookshelfLoaded.contents[0].uri).toBe(BOOKSHELF_RESOURCE_URI);
+    expect(bookshelfLoaded.contents[0].mimeType).toBe("text/html;profile=mcp-app");
+    expect(bookshelfLoaded.contents[0].text).toContain("isolated bookshelf");
+    expect(bookshelfLoaded.contents[0]._meta.ui.csp.connectDomains).toEqual([]);
+    expect(bookshelfLoaded.contents[0]._meta.ui.prefersBorder).toBe(false);
+
+    const [, , endUri, endDescriptor, endLoader] = registerAppResource.mock.calls[19];
     expect(endUri).toBe(READING_END_RESOURCE_URI);
     expect(endDescriptor.description).toContain("最小、预渲染");
     const endLoaded = await endLoader();

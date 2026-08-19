@@ -26,6 +26,7 @@ server/.dev.vars*
 server/dist/
 web/dist/
 web/dist-reading-end/
+web/dist-bookshelf/
 shared/dist/
 server/.wrangler/
 web/.wrangler/

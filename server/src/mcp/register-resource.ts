@@ -1,6 +1,6 @@
 import { registerAppResource, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { READING_END_RESOURCE_URI } from "@ss/shared";
+import { BOOKSHELF_RESOURCE_URI, READING_END_RESOURCE_URI } from "@ss/shared";
 import { READING_NEST_URI } from "./register-tools.js";
 
 export const READING_NEST_RESOURCE_URIS = [
@@ -105,6 +105,42 @@ export function registerReadingEndResource(
           uri: READING_END_RESOURCE_URI,
           mimeType: RESOURCE_MIME_TYPE,
           text: readingEndHtml,
+          _meta: {
+            ui: { csp: resourceCsp, prefersBorder: false },
+            "openai/widgetCSP": openaiWidgetCsp,
+            "openai/widgetDescription": description,
+            "openai/widgetPrefersBorder": false
+          }
+        }
+      ]
+    })
+  );
+}
+
+export function registerBookshelfResource(server: McpServer, bookshelfHtml: string) {
+  const resourceCsp = { connectDomains: [], resourceDomains: [] };
+  const openaiWidgetCsp = { connect_domains: [], resource_domains: [] };
+  const description =
+    "一个最小、预渲染的独立书架，只显示 open_bookshelf 返回的书目与共读进度。";
+
+  registerAppResource(
+    server,
+    "德卡里奥斯家的书房｜书架",
+    BOOKSHELF_RESOURCE_URI,
+    {
+      description,
+      _meta: {
+        ui: { csp: resourceCsp, prefersBorder: false },
+        "openai/widgetCSP": openaiWidgetCsp,
+        "openai/widgetDescription": description
+      }
+    },
+    async () => ({
+      contents: [
+        {
+          uri: BOOKSHELF_RESOURCE_URI,
+          mimeType: RESOURCE_MIME_TYPE,
+          text: bookshelfHtml,
           _meta: {
             ui: { csp: resourceCsp, prefersBorder: false },
             "openai/widgetCSP": openaiWidgetCsp,

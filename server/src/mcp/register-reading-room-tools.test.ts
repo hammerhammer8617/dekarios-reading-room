@@ -4,7 +4,7 @@ const { registerAppTool } = vi.hoisted(() => ({ registerAppTool: vi.fn() }));
 vi.mock("@modelcontextprotocol/ext-apps/server", () => ({ registerAppTool }));
 
 import { READING_NEST_URI } from "./register-tools.js";
-import { READING_END_RESOURCE_URI } from "@ss/shared";
+import { BOOKSHELF_RESOURCE_URI, READING_END_RESOURCE_URI } from "@ss/shared";
 import { registerReadingRoomTools } from "./register-reading-room-tools.js";
 
 describe("registerReadingRoomTools", () => {
@@ -28,11 +28,51 @@ describe("registerReadingRoomTools", () => {
       "render_reading_status",
       "render_reading_end_card_v4"
     ]);
-    expect(registerAppTool.mock.calls[0]?.[2]._meta.ui.resourceUri).toBe(READING_NEST_URI);
+    const bookshelfDescriptor = registerAppTool.mock.calls[0]?.[2];
+    expect(bookshelfDescriptor._meta.ui.resourceUri).toBe(BOOKSHELF_RESOURCE_URI);
+    expect(bookshelfDescriptor._meta["openai/outputTemplate"]).toBe(BOOKSHELF_RESOURCE_URI);
+    expect(bookshelfDescriptor.outputSchema).toBeDefined();
     expect(registerAppTool.mock.calls[1]?.[2]._meta.ui.resourceUri).toBe(READING_NEST_URI);
     const endDescriptor = registerAppTool.mock.calls[2]?.[2];
     expect(endDescriptor._meta.ui.resourceUri).toBe(READING_END_RESOURCE_URI);
     expect(endDescriptor.outputSchema).toBeDefined();
+  });
+
+  it("returns the exact bookshelf output bound to the isolated resource", async () => {
+    const registerTool = vi.fn();
+    const listBookshelf = vi.fn().mockResolvedValue([
+      {
+        bookId: "book-1",
+        title: "侦破我的命案",
+        genre: "mystery",
+        status: "active",
+        tavPosition: { kind: "page", index: 91, label: "第 91 页" },
+        sharedPosition: null,
+        spoilerBoundary: null,
+        lastReadAt: "2026-08-19T12:00:00.000Z",
+        lastNotionSyncedAt: null,
+        openQuestionCount: 1,
+        unsyncedThoughtCount: 0,
+        casebookInProgress: true,
+        casebookItemCount: 4
+      }
+    ]);
+    registerReadingRoomTools({ registerTool } as never, { listBookshelf } as never);
+    const [, , descriptor, handler] = registerAppTool.mock.calls.find(
+      ([, name]) => name === "open_bookshelf"
+    );
+
+    const result = await handler();
+
+    expect(descriptor._meta).toMatchObject({
+      ui: { resourceUri: BOOKSHELF_RESOURCE_URI },
+      "openai/outputTemplate": BOOKSHELF_RESOURCE_URI
+    });
+    expect(result.structuredContent).toEqual({
+      view: "bookshelf",
+      bookshelf: [expect.objectContaining({ bookId: "book-1", title: "侦破我的命案" })]
+    });
+    expect(listBookshelf).toHaveBeenCalledOnce();
   });
 
   it("documents automatic book-page triggers and explicit non-book exclusions", () => {

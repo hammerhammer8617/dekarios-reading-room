@@ -1,5 +1,6 @@
 import { createMcpHandler } from "agents/mcp";
 import widgetHtml from "../../web/dist/index.html";
+import bookshelfHtml from "../../web/dist-bookshelf/bookshelf.html";
 import readingEndHtml from "../../web/dist-reading-end/reading-end.html";
 import { buildHealthPayload } from "./health.js";
 import { createMcpServerFromRepository } from "./mcp/server-factory.js";
@@ -35,6 +36,7 @@ export default {
       const server = createMcpServerFromRepository(repository, widgetHtml, sourceService, {
         sourceEndpointBase: `${url.origin}/source/${env.MCP_PATH_TOKEN}`,
         workerOrigin: url.origin,
+        bookshelfHtml,
         readingEndHtml
       });
       return createMcpHandler(server, {

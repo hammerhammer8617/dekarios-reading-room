@@ -4,13 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build && vite build --config vite.reading-end.config.ts",
+    "build": "vite build && vite build --config vite.reading-end.config.ts && vite build --config vite.bookshelf.config.ts && node scripts/audit-reading-end-build.mjs && node scripts/audit-bookshelf-build.mjs",
+    "audit:bookshelf": "node scripts/audit-bookshelf-build.mjs",
     "audit:reading-end": "node scripts/audit-reading-end-build.mjs",
     "audit:reading-end-fixtures": "node scripts/audit-reading-end-fixtures.mjs",
     "dev": "vite --host 0.0.0.0",
     "test": "vitest run",
+    "test:bookshelf": "vitest run --config vitest.bookshelf.config.ts src/bookshelf",
     "test:reading-end": "vitest run --config vitest.reading-end.config.ts src/reading-end",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:bookshelf": "tsc -p tsconfig.bookshelf.json --noEmit",
     "typecheck:reading-end": "tsc -p tsconfig.reading-end.json --noEmit"
   },
   "dependencies": {
