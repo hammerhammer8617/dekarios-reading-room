@@ -4,7 +4,7 @@ import type {
   MysteryReadingCasebook,
   ReadingPosition
 } from "@ss/shared";
-import { callTool, requestReaderFullscreen, requestReaderInline } from "../bridge/host.js";
+import { callTool, requestReaderInline } from "../bridge/host.js";
 import bookroomBackground from "../assets/reading-room/bookroom-background.webp";
 import endBooksTea from "../assets/reading-room/end-books-tea.webp";
 import endCinemaPopcorn from "../assets/reading-room/end-cinema-popcorn.webp";
@@ -104,7 +104,7 @@ export function ReadingRoomSurface({ initialOutput }: { initialOutput: RoomOutpu
       const result = await callTool("open_bookshelf", {});
       setOutput(result.structuredContent as RoomOutput);
       setDetails(null);
-      await requestReaderFullscreen();
+      await requestReaderInline();
     } catch {
       setError("书架暂时没有打开，再试一次就好。");
     } finally {
@@ -118,7 +118,7 @@ export function ReadingRoomSurface({ initialOutput }: { initialOutput: RoomOutpu
     try {
       const result = await callTool("get_book_details", { bookId });
       setDetails(result.structuredContent as BookDetails);
-      await requestReaderFullscreen();
+      await requestReaderInline();
     } catch {
       setError("这本书的记录暂时没有读出来。");
     } finally {
@@ -263,7 +263,7 @@ function Bookshelf({ books, onOpenBook }: { books: BookSummary[]; onOpenBook: (i
           <div><span className="room-kicker">正在共读</span><h2>手边的书</h2></div>
           <span>{active.length} 本</span>
         </div>
-        <div className="book-grid">
+        <div className="room-book-grid">
           {active.map((book) => <BookCard key={book.bookId} book={book} onOpen={onOpenBook} />)}
           {active.length === 0 ? <p className="empty-shelf">下一次你发来书页时，这里就会多一本书。</p> : null}
         </div>
@@ -271,7 +271,7 @@ function Bookshelf({ books, onOpenBook }: { books: BookSummary[]; onOpenBook: (i
       {completed.length > 0 ? (
         <section className="shelf-section shelf-section--quiet">
           <div className="section-heading"><div><span className="room-kicker">读完了</span><h2>留在架上的书</h2></div><span>{completed.length} 本</span></div>
-          <div className="book-grid">{completed.map((book) => <BookCard key={book.bookId} book={book} onOpen={onOpenBook} />)}</div>
+          <div className="room-book-grid">{completed.map((book) => <BookCard key={book.bookId} book={book} onOpen={onOpenBook} />)}</div>
         </section>
       ) : null}
     </>
@@ -280,10 +280,10 @@ function Bookshelf({ books, onOpenBook }: { books: BookSummary[]; onOpenBook: (i
 
 function BookCard({ book, onOpen }: { book: BookSummary; onOpen: (id: string) => void }) {
   return (
-    <button className="book-card" type="button" onClick={() => onOpen(book.bookId)}>
-      <span className="book-spine" aria-hidden="true" />
-      <span className="book-card__body">
-        <span className="book-card__meta">{genreLabels[book.genre] ?? book.genre} · {formatDate(book.lastReadAt)}</span>
+    <button className="room-book-card" type="button" onClick={() => onOpen(book.bookId)}>
+      <span className="room-book-spine" aria-hidden="true" />
+      <span className="room-book-card__body">
+        <span className="room-book-card__meta">{genreLabels[book.genre] ?? book.genre} · {formatDate(book.lastReadAt)}</span>
         <strong>《{book.title}》</strong>
         {book.author ? <em>{book.author}</em> : null}
         <span className="progress-pair"><b>塔芙</b>{book.tavPosition.label}<i>共同</i>{book.sharedPosition?.label ?? "尚未接上"}</span>
@@ -294,7 +294,7 @@ function BookCard({ book, onOpen }: { book: BookSummary; onOpen: (id: string) =>
           {(book.unsyncedThoughtCount ?? 0) > 0 ? <i>{book.unsyncedThoughtCount} 条待同步</i> : <i>已同步</i>}
         </span>
       </span>
-      <span className="book-card__arrow" aria-hidden="true">›</span>
+      <span className="room-book-card__arrow" aria-hidden="true">›</span>
     </button>
   );
 }

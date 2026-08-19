@@ -1,13 +1,15 @@
 .reading-room,
 .reading-status-card,
 .reading-end-card {
-  --ink: #241a18;
-  --muted: #765f55;
-  --paper: #f8eed8;
-  --paper-deep: #ead8b6;
-  --wine: #6b2d32;
-  --green: #334939;
-  --gold: #b68a42;
+  --ink: #20241f;
+  --muted: #6e675b;
+  --paper: #f3ead6;
+  --paper-deep: #dfcfaa;
+  --wine: #824636;
+  --green: #294235;
+  --green-deep: #162b23;
+  --navy: #263647;
+  --gold: #a97935;
   color: var(--ink);
   font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", Georgia, serif;
 }
@@ -19,25 +21,32 @@
 }
 
 .reading-room {
-  min-height: 100vh;
+  width: min(100%, 720px);
+  max-height: min(680px, 76dvh);
+  overflow: auto;
+  margin: 0 auto;
+  border: 1px solid rgba(41, 66, 53, .22);
+  border-radius: 22px;
   background:
-    linear-gradient(180deg, rgba(250, 244, 226, .88), rgba(246, 236, 215, .97)),
-    radial-gradient(circle at 20% 0, #fff9e8, #e9d6b5);
+    linear-gradient(180deg, rgba(247, 240, 220, .96), rgba(239, 229, 205, .98)),
+    radial-gradient(circle at 20% 0, #fff9e8, #decdab);
+  box-shadow: 0 18px 50px rgba(18, 34, 28, .13);
+  scrollbar-color: rgba(41, 66, 53, .35) transparent;
 }
 
 .room-hero {
   position: relative;
-  min-height: clamp(240px, 42vh, 430px);
+  min-height: clamp(158px, 28vw, 210px);
   overflow: hidden;
   background-image: var(--room-image);
-  background-position: 52% 42%;
+  background-position: 50% 43%;
   background-size: cover;
 }
 
 .room-hero__shade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(2, 15, 10, .08) 20%, rgba(8, 14, 10, .22) 67%, rgba(31, 22, 17, .74));
+  background: linear-gradient(180deg, rgba(2, 15, 10, .04) 16%, rgba(8, 20, 14, .16) 56%, rgba(12, 30, 23, .78));
 }
 
 .room-hero__copy {
@@ -45,21 +54,21 @@
   right: 0;
   bottom: 0;
   left: 0;
-  padding: 22px 22px 20px;
+  padding: 18px 20px 16px;
   color: #fff8e9;
   text-shadow: 0 1px 18px #110d09;
 }
 
 .room-hero__copy h1 {
   margin: 5px 0 5px;
-  font-size: clamp(28px, 8vw, 46px);
+  font-size: clamp(23px, 5.4vw, 34px);
   font-weight: 600;
   letter-spacing: .04em;
 }
 
 .room-hero__copy p {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
   opacity: .84;
 }
 
@@ -75,9 +84,9 @@
 .room-hero .room-kicker { color: #e5c785; }
 
 .room-content {
-  width: min(100%, 880px);
+  width: 100%;
   margin: 0 auto;
-  padding: 20px 15px 44px;
+  padding: 15px 14px 22px;
 }
 
 .shelf-section + .shelf-section,
@@ -97,7 +106,7 @@
 .section-heading h2,
 .section-heading h3 {
   margin: 3px 0 0;
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 600;
 }
 
@@ -107,57 +116,57 @@
   font-size: 12px;
 }
 
-.book-grid { display: grid; gap: 11px; }
+.room-book-grid { display: grid; gap: 9px; }
 
-.book-card {
+.room-book-card {
   position: relative;
   display: grid;
-  grid-template-columns: 7px 1fr 18px;
+  grid-template-columns: 6px 1fr 18px;
   width: 100%;
   overflow: hidden;
   padding: 0;
-  border: 1px solid rgba(95, 62, 42, .22);
-  border-radius: 15px;
-  background: rgba(255, 250, 238, .9);
-  box-shadow: 0 8px 24px rgba(76, 49, 28, .08);
-  color: inherit;
+  border: 1px solid rgba(41, 66, 53, .23);
+  border-radius: 14px;
+  background: rgba(252, 247, 232, .95);
+  box-shadow: 0 7px 19px rgba(29, 46, 38, .07);
+  color: var(--ink);
   text-align: left;
   cursor: pointer;
 }
 
-.book-card:active { transform: translateY(1px); }
-.book-spine { background: linear-gradient(180deg, var(--wine), #9a5b43); }
+.room-book-card:active { transform: translateY(1px); }
+.room-book-spine { background: linear-gradient(180deg, var(--green), var(--navy)); }
 
-.book-card__body {
+.room-book-card__body {
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 5px;
-  padding: 15px 12px 14px 14px;
+  padding: 12px 11px 11px 13px;
 }
 
-.book-card__body > strong {
+.room-book-card__body > strong {
   overflow: hidden;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.book-card__body > em {
+.room-book-card__body > em {
   color: var(--muted);
   font-size: 12px;
   font-style: normal;
 }
 
-.book-card__meta,
+.room-book-card__meta,
 .progress-pair,
 .book-flags,
 .latest-thought {
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
-.book-card__meta { color: var(--muted); font-size: 10px; }
+.room-book-card__meta { color: var(--muted); font-size: 10px; }
 
 .progress-pair {
   display: flex;
@@ -200,7 +209,7 @@
   font-style: normal;
 }
 
-.book-card__arrow { align-self: center; color: #a78b6a; font-size: 25px; }
+.room-book-card__arrow { align-self: center; color: var(--gold); font-size: 23px; }
 
 .empty-shelf {
   margin: 0;
@@ -360,21 +369,21 @@
 button:disabled { opacity: .5; cursor: wait; }
 
 @media (min-width: 640px) {
-  .room-content { padding: 28px 24px 56px; }
-  .book-grid { grid-template-columns: 1fr 1fr; }
+  .room-content { padding: 17px 18px 24px; }
   .casebook-columns { grid-template-columns: 1fr 1fr; }
-  .room-hero__copy { padding: 30px 40px; }
+  .room-hero__copy { padding: 20px 26px 18px; }
 }
 
 @media (max-width: 520px) {
-  .room-hero { min-height: 52vh; background-position: 54% 39%; }
-  .room-hero__copy { padding-bottom: 18px; }
-  .reading-end-card { min-height: 510px; background-position: 62% center; }
-  .end-card__paper { width: 78%; min-height: 510px; padding: 30px 24px; background: linear-gradient(90deg, rgba(251, 240, 211, .97) 76%, rgba(251, 240, 211, .2)); }
+  .reading-room { max-height: min(620px, 72dvh); border-radius: 18px; }
+  .room-hero { min-height: 150px; background-position: 50% 40%; }
+  .room-hero__copy { padding: 16px 16px 14px; }
+  .reading-end-card { min-height: 430px; background-position: 62% center; }
+  .end-card__paper { width: 78%; min-height: 430px; padding: 26px 21px; background: linear-gradient(90deg, rgba(251, 240, 211, .97) 76%, rgba(251, 240, 211, .2)); }
   .end-card__paper footer { right: 22px; bottom: 25px; left: 22px; align-items: flex-start; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .book-card { transition: transform 120ms ease, box-shadow 120ms ease; }
-  .book-card:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(76, 49, 28, .12); }
+  .room-book-card { transition: transform 120ms ease, box-shadow 120ms ease; }
+  .room-book-card:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(29, 46, 38, .12); }
 }
