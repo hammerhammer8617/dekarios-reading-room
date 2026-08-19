@@ -68,9 +68,33 @@ describe("tool descriptors", () => {
       })
     };
 
-    registerReadingTools(server as never, service as never, undefined, {
-      sourceEndpointBase: "https://worker.example.test/source/secret"
-    });
+    registerReadingTools(
+      server as never,
+      service as never,
+      undefined,
+      {
+        sourceEndpointBase: "https://worker.example.test/source/secret"
+      },
+      {
+        listBookshelf: async () => [
+          {
+            bookId: "session-1",
+            title: "云端书",
+            genre: "novel",
+            status: "active",
+            tavPosition: { kind: "paragraph", index: 1, label: "第 1 段" },
+            sharedPosition: null,
+            spoilerBoundary: null,
+            openQuestionCount: 0,
+            unsyncedThoughtCount: 0,
+            casebookInProgress: false,
+            casebookItemCount: 0,
+            updatedAt: "2026-06-24T00:00:00.000Z",
+            lastReadAt: "2026-06-24T00:00:00.000Z"
+          }
+        ]
+      } as never
+    );
     const result = (await handlers.get("open_reading_nest")?.()) as {
       structuredContent?: Record<string, unknown>;
     };
@@ -78,6 +102,10 @@ describe("tool descriptors", () => {
     expect(result.structuredContent?.sourceEndpointBase).toBe(
       "https://worker.example.test/source/secret"
     );
+    expect(result.structuredContent).toMatchObject({
+      view: "bookshelf",
+      bookshelf: [{ bookId: "session-1", title: "云端书" }]
+    });
     expect(JSON.stringify(result)).not.toMatch(/sourceText|bytesBase64|data:image/);
   });
 

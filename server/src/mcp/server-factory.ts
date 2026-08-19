@@ -24,7 +24,7 @@ export function createMcpServerFromRepository(
   const readingRoomService = new ReadingRoomService(repository);
   const casebookService = new CasebookService(repository);
   registerReadingResource(server, widgetHtml, options.workerOrigin);
-  registerReadingTools(server, service, cloudSourceService, options);
+  registerReadingTools(server, service, cloudSourceService, options, readingRoomService);
   registerReadingRoomTools(server, readingRoomService);
   registerCasebookTools(server, casebookService);
   return server;
