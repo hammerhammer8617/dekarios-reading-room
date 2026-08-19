@@ -536,6 +536,47 @@ export const recordReadingTurnInputSchema = z
 
 export const getBookDetailsInputSchema = z.object({ bookId: sessionIdSchema }).strict();
 export const openBookshelfInputSchema = z.object({}).strict();
+const bookshelfThoughtSchema = z
+  .object({
+    id: z.string().min(1).max(200),
+    sessionId: sessionIdSchema,
+    author: thoughtAuthorSchema,
+    kind: thoughtKindSchema,
+    content: z.string().trim().min(1).max(4_000),
+    position: readingPositionSchema.optional(),
+    status: thoughtStatusSchema,
+    relatedThoughtId: z.string().min(1).max(200).optional(),
+    operationId: z.string().min(1).max(200).optional(),
+    notionSyncedAt: z.string().datetime().optional(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime()
+  })
+  .strict();
+export const bookshelfItemSchema = z
+  .object({
+    bookId: sessionIdSchema,
+    title: z.string().trim().min(1).max(200),
+    author: z.string().trim().min(1).max(200).optional(),
+    genre: bookGenreSchema,
+    status: z.enum(["active", "completed"]),
+    tavPosition: readingPositionSchema,
+    sharedPosition: readingPositionSchema.nullable(),
+    spoilerBoundary: readingPositionSchema.nullable(),
+    lastReadAt: z.string().datetime(),
+    lastNotionSyncedAt: z.string().datetime().nullable(),
+    latestThought: bookshelfThoughtSchema.optional(),
+    openQuestionCount: z.number().int().min(0),
+    unsyncedThoughtCount: z.number().int().min(0),
+    casebookInProgress: z.boolean(),
+    casebookItemCount: z.number().int().min(0)
+  })
+  .strict();
+export const openBookshelfOutputSchema = z
+  .object({
+    view: z.literal("bookshelf"),
+    bookshelf: z.array(bookshelfItemSchema)
+  })
+  .strict();
 export const renderReadingStatusInputSchema = z.object({ bookId: sessionIdSchema }).strict();
 export const notionSyncStatusSchema = z.enum(["synced", "pending", "not_requested"]);
 export const readingEndSnapshotSchema = z

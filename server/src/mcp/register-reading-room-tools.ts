@@ -1,11 +1,13 @@
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
+  BOOKSHELF_RESOURCE_URI,
   getBookDetailsInputSchema,
   getCasebookInputSchema,
   getOrStartBookContextInputSchema,
   markNotionSyncedInputSchema,
   openBookshelfInputSchema,
+  openBookshelfOutputSchema,
   prepareNotionSyncInputSchema,
   READING_END_RESOURCE_URI,
   recordCasebookUpdateInputSchema,
@@ -163,10 +165,11 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
       description:
         "Render the mobile-first bookshelf only when the user explicitly asks to open the bookshelf, see what they are reading, inspect book records, or open a casebook. Do not render it for each page photo or ordinary reading turn.",
       inputSchema: openBookshelfInputSchema,
+      outputSchema: openBookshelfOutputSchema,
       annotations: readOnly,
       _meta: {
-        ui: { resourceUri: READING_NEST_URI },
-        "openai/outputTemplate": READING_NEST_URI,
+        ui: { resourceUri: BOOKSHELF_RESOURCE_URI },
+        "openai/outputTemplate": BOOKSHELF_RESOURCE_URI,
         "openai/toolInvocation/invoking": "正在推开书房的门…",
         "openai/toolInvocation/invoked": "德卡里奥斯家的书架已经打开"
       }

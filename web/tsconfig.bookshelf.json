@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/bookshelf/**/*.ts",
+    "src/bookshelf/**/*.tsx",
+    "src/types/openai.d.ts",
+    "vite.bookshelf.config.ts"
+  ],
+  "exclude": ["src/bookshelf/**/*.test.ts", "src/bookshelf/**/*.test.tsx"]
+}

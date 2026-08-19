@@ -12,6 +12,9 @@ console.log(JSON.stringify({
   resourceVersion: health.resourceVersion,
   buildSha: health.buildSha,
   resourceUri: widget.resourceUri,
+  bookshelfResourceUri: widget.bookshelfResourceUri,
+  bookshelfTool: widget.bookshelfTool,
+  bookshelfCount: widget.bookshelfCount,
   readingEndResourceUri: widget.readingEndResourceUri,
   readingEndTool: widget.readingEndTool,
   selectedTextNotes: true,
@@ -84,6 +87,33 @@ async function waitForDeployedWidgets(health) {
         JSON.stringify(readingEndTool.inputSchema?.required) === JSON.stringify(["snapshotId"]),
         "reading-end tool contract is not the authoritative snapshot-only schema"
       );
+      const bookshelfTool = tools.tools.find((tool) => tool.name === "open_bookshelf");
+      assert(bookshelfTool, "open_bookshelf is missing");
+      const bookshelfResourceUri = "ui://ss-reading-nest/bookshelf-static-v1.html";
+      assert(
+        bookshelfTool._meta?.ui?.resourceUri === bookshelfResourceUri,
+        "standard bookshelf resource URI is stale"
+      );
+      assert(
+        bookshelfTool._meta?.["openai/outputTemplate"] === bookshelfResourceUri,
+        "ChatGPT bookshelf resource URI is stale"
+      );
+      assert(
+        Array.isArray(bookshelfTool.outputSchema?.required) &&
+          bookshelfTool.outputSchema.required.includes("view") &&
+          bookshelfTool.outputSchema.required.includes("bookshelf"),
+        "bookshelf tool is missing its complete output schema"
+      );
+
+      const bookshelfResult = await client.callTool({ name: "open_bookshelf", arguments: {} });
+      assert(
+        bookshelfResult.structuredContent?.view === "bookshelf",
+        "open_bookshelf did not return the bookshelf view"
+      );
+      assert(
+        Array.isArray(bookshelfResult.structuredContent?.bookshelf),
+        "open_bookshelf did not return a bookshelf array"
+      );
 
       const resource = await client.readResource({ uri: resourceUri });
       const html = resource.contents.find((content) => content.uri === resourceUri)?.text;
@@ -104,6 +134,32 @@ async function waitForDeployedWidgets(health) {
       assert(
         html.includes("德卡里奥斯家的案件簿"),
         "deployed widget is missing the casebook view"
+      );
+      const bookshelfResource = await client.readResource({ uri: bookshelfResourceUri });
+      const bookshelfContent = bookshelfResource.contents.find(
+        (content) => content.uri === bookshelfResourceUri
+      );
+      const bookshelfHtml = bookshelfContent?.text;
+      assert(typeof bookshelfHtml === "string", "deployed bookshelf resource returned no HTML");
+      assert(
+        bookshelfContent?.mimeType === "text/html;profile=mcp-app",
+        "deployed bookshelf resource has the wrong MCP Apps MIME type"
+      );
+      assert(
+        bookshelfHtml.includes("data-bookshelf-static-v1"),
+        "deployed bookshelf resource is missing its pre-rendered static shell"
+      );
+      assert(
+        bookshelfHtml.includes('data-bookshelf-height-strategy="raw-postmessage-v1"'),
+        "deployed bookshelf resource is missing raw intrinsic-height recovery"
+      );
+      assert(
+        bookshelfHtml.includes("ChatGPT 已经选择并渲染了 open_bookshelf 的 UI resource"),
+        "deployed bookshelf resource is missing the visible binding diagnostic"
+      );
+      assert(
+        bookshelfHtml.length > 4_000 && bookshelfHtml.length < 50_000,
+        "deployed bookshelf resource is outside the stop-loss size budget"
       );
       const readingEndResource = await client.readResource({ uri: readingEndResourceUri });
       const readingEndHtml = readingEndResource.contents.find(
@@ -128,6 +184,9 @@ async function waitForDeployedWidgets(health) {
       );
       return {
         resourceUri,
+        bookshelfResourceUri,
+        bookshelfTool: bookshelfTool.name,
+        bookshelfCount: bookshelfResult.structuredContent.bookshelf.length,
         readingEndResourceUri,
         readingEndTool: readingEndTool.name
       };

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN" data-bookshelf-resource="static-v1">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>德卡里奥斯家的书架</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      }
+
+      * { box-sizing: border-box; }
+
+      html,
+      body {
+        width: 100%;
+        height: auto !important;
+        min-height: 320px !important;
+        margin: 0;
+        overflow: visible;
+        background: transparent;
+      }
+
+      body { padding: 4px; }
+
+      #bookshelf-static-v1 {
+        width: 100%;
+        min-height: 312px;
+        margin: 0;
+      }
+
+      .shelf {
+        width: min(100%, 620px);
+        min-height: 304px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #c8bda8;
+        border-radius: 18px;
+        background: #f6efe1;
+        color: #25231f;
+        box-shadow: 0 8px 24px rgba(42, 35, 27, 0.1);
+      }
+
+      .eyebrow,
+      .meta,
+      .facts,
+      .status {
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .eyebrow {
+        margin: 0 0 5px;
+        color: #805447;
+        font-weight: 750;
+        letter-spacing: 0.06em;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+      }
+
+      h1 { font-size: 23px; line-height: 1.3; }
+      h2 { font-size: 16px; line-height: 1.4; }
+
+      .version {
+        display: inline-block;
+        margin: 8px 0 0;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: #e9ddc8;
+        color: #694d42;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .probe {
+        min-height: 116px;
+        margin-top: 16px;
+        padding: 15px;
+        border: 1px solid #d9cfbd;
+        border-radius: 12px;
+        background: #fffaf0;
+      }
+
+      .probe strong { font-size: 15px; }
+      .probe p { margin: 5px 0 0; font-size: 14px; line-height: 1.65; }
+
+      .books {
+        display: grid;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .book {
+        padding: 13px 14px;
+        border: 1px solid #d9cfbd;
+        border-left: 5px solid #8a5e4b;
+        border-radius: 12px;
+        background: #fffaf0;
+      }
+
+      .book[data-status="completed"] { border-left-color: #6e7c62; }
+      .meta { margin: 3px 0 0; color: #706a61; }
+      .position { margin: 9px 0 0; font-size: 14px; line-height: 1.55; }
+      .thought { margin: 7px 0 0; color: #604f44; font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", Georgia, serif; font-size: 13px; line-height: 1.55; }
+      .facts { margin: 8px 0 0; color: #805447; }
+      .status { margin: 17px 0 0; color: #706a61; }
+      [hidden] { display: none !important; }
+
+      @media (prefers-color-scheme: dark) {
+        .shelf { border-color: #5b5145; background: #28241f; color: #f2eadc; }
+        .eyebrow, .facts { color: #dba995; }
+        .version { background: #443a31; color: #ead9c8; }
+        .probe, .book { border-color: #5b5145; background: #332d27; }
+        .meta, .status { color: #bdb2a4; }
+        .thought { color: #dccabb; }
+      }
+    </style>
+  </head>
+  <body>
+    <main
+      id="bookshelf-static-v1"
+      data-bookshelf-static-v1
+      data-bookshelf-height-strategy="raw-postmessage-v1"
+      data-state="shell"
+    >
+      <article class="shelf" aria-live="polite">
+        <header>
+          <p class="eyebrow">德卡里奥斯家的书房</p>
+          <h1 id="bookshelf-title">静态书架已加载</h1>
+          <p class="version">bookshelf-static-v1 · HTML 可见性探针</p>
+        </header>
+
+        <section id="bookshelf-probe" class="probe" role="status">
+          <strong>如果你看见这张卡，ChatGPT 已经选择并渲染了 open_bookshelf 的 UI resource。</strong>
+          <p>它不依赖 React、图片、网络请求或 SDK 初始化；书架工具结果抵达后，才会替换为真实书目。</p>
+        </section>
+
+        <section id="bookshelf-content" hidden>
+          <div id="bookshelf-list" class="books" aria-label="书架作品"></div>
+        </section>
+
+        <p id="bookshelf-status" class="status">等待书架工具结果；静态外壳已经存在。</p>
+      </article>
+    </main>
+    <script type="module" src="/src/bookshelf/static-main.ts"></script>
+  </body>
+</html>
