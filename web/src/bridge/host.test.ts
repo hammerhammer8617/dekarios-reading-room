@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const bridge = {
   connect: vi.fn().mockResolvedValue(undefined),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
   callServerTool: vi.fn(),
   sendMessage: vi.fn().mockResolvedValue({}),
   updateModelContext: vi.fn().mockResolvedValue({}),
@@ -11,6 +13,8 @@ const bridge = {
 vi.mock("@modelcontextprotocol/ext-apps", () => ({
   App: class {
     connect = bridge.connect;
+    addEventListener = bridge.addEventListener;
+    removeEventListener = bridge.removeEventListener;
     callServerTool = bridge.callServerTool;
     sendMessage = bridge.sendMessage;
     updateModelContext = bridge.updateModelContext;
@@ -38,6 +42,28 @@ describe("host bridge", () => {
         }
       }
     });
+  });
+
+  it("subscribes to the one-shot tool result before connecting", async () => {
+    const listener = vi.fn();
+    const { subscribeToolResult } = await import("./host.js");
+
+    const unsubscribe = subscribeToolResult(listener);
+
+    expect(bridge.addEventListener).toHaveBeenCalledWith("toolresult", expect.any(Function));
+    expect(bridge.addEventListener.mock.invocationCallOrder[0]!).toBeLessThan(
+      bridge.connect.mock.invocationCallOrder[0]!
+    );
+
+    const toolResultHandler = bridge.addEventListener.mock.calls[0]?.[1] as
+      | ((result: { structuredContent: Record<string, unknown> }) => void)
+      | undefined;
+    toolResultHandler?.({ structuredContent: { view: "bookshelf", bookshelf: [] } });
+    expect(listener).toHaveBeenCalledWith({
+      structuredContent: { view: "bookshelf", bookshelf: [] }
+    });
+
+    unsubscribe();
   });
 
   it("updates model-visible context through the MCP Apps bridge", async () => {
