@@ -8,6 +8,8 @@ import {
   BOOKSHELF_RESOURCE_URI,
   BOOKSHELF_TOOL_NAME,
   LEGACY_BOOKSHELF_TOOL_NAME,
+  PREVIOUS_BOOKSHELF_RESOURCE_URI,
+  PREVIOUS_BOOKSHELF_TOOL_NAME,
   READING_END_RESOURCE_URI
 } from "@ss/shared";
 import { registerReadingRoomTools } from "./register-reading-room-tools.js";
@@ -15,7 +17,7 @@ import { registerReadingRoomTools } from "./register-reading-room-tools.js";
 describe("registerReadingRoomTools", () => {
   beforeEach(() => registerAppTool.mockClear());
 
-  it("separates data tools from the three deliberate UI surfaces", () => {
+  it("separates data tools from three UI surfaces and their compatibility entries", () => {
     const registerTool = vi.fn();
     registerReadingRoomTools({ registerTool } as never, {} as never);
 
@@ -30,6 +32,7 @@ describe("registerReadingRoomTools", () => {
     ]);
     expect(registerAppTool.mock.calls.map(([, name]) => name)).toEqual([
       LEGACY_BOOKSHELF_TOOL_NAME,
+      PREVIOUS_BOOKSHELF_TOOL_NAME,
       BOOKSHELF_TOOL_NAME,
       "render_reading_status",
       "render_reading_end_card_v4"
@@ -38,6 +41,13 @@ describe("registerReadingRoomTools", () => {
       ([, name]) => name === LEGACY_BOOKSHELF_TOOL_NAME
     )?.[2];
     expect(legacyBookshelfDescriptor._meta.ui.visibility).toEqual(["app"]);
+    const previousBookshelfDescriptor = registerAppTool.mock.calls.find(
+      ([, name]) => name === PREVIOUS_BOOKSHELF_TOOL_NAME
+    )?.[2];
+    expect(previousBookshelfDescriptor._meta.ui).toEqual({
+      resourceUri: PREVIOUS_BOOKSHELF_RESOURCE_URI,
+      visibility: ["app"]
+    });
     const bookshelfDescriptor = registerAppTool.mock.calls.find(
       ([, name]) => name === BOOKSHELF_TOOL_NAME
     )?.[2];

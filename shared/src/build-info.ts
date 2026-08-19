@@ -7,8 +7,11 @@ export const READING_END_RESOURCE_VERSION = "reading-end-v4";
 export const READING_END_RESOURCE_URI =
   `ui://ss-reading-nest/${READING_END_RESOURCE_VERSION}.html` as const;
 
-export const BOOKSHELF_TOOL_NAME = "open_bookshelf_v2";
+export const BOOKSHELF_TOOL_NAME = "open_bookshelf_v3";
+export const PREVIOUS_BOOKSHELF_TOOL_NAME = "open_bookshelf_v2";
 export const LEGACY_BOOKSHELF_TOOL_NAME = "open_bookshelf";
-export const BOOKSHELF_RESOURCE_VERSION = "bookshelf-static-v2";
+export const BOOKSHELF_RESOURCE_VERSION = "bookshelf-static-v3";
 export const BOOKSHELF_RESOURCE_URI =
   `ui://ss-reading-nest/${BOOKSHELF_RESOURCE_VERSION}.html` as const;
+export const PREVIOUS_BOOKSHELF_RESOURCE_URI =
+  "ui://ss-reading-nest/bookshelf-static-v2.html" as const;

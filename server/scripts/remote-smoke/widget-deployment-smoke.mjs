@@ -93,10 +93,18 @@ async function waitForDeployedWidgets(health) {
         JSON.stringify(legacyBookshelfTool._meta?.ui?.visibility) === JSON.stringify(["app"]),
         "legacy open_bookshelf must remain app-only"
       );
-      const bookshelfToolName = "open_bookshelf_v2";
+      const previousBookshelfTool = tools.tools.find(
+        (tool) => tool.name === "open_bookshelf_v2"
+      );
+      assert(previousBookshelfTool, "previous open_bookshelf_v2 compatibility tool is missing");
+      assert(
+        JSON.stringify(previousBookshelfTool._meta?.ui?.visibility) === JSON.stringify(["app"]),
+        "previous open_bookshelf_v2 must remain app-only"
+      );
+      const bookshelfToolName = "open_bookshelf_v3";
       const bookshelfTool = tools.tools.find((tool) => tool.name === bookshelfToolName);
       assert(bookshelfTool, `${bookshelfToolName} is missing`);
-      const bookshelfResourceUri = "ui://ss-reading-nest/bookshelf-static-v2.html";
+      const bookshelfResourceUri = "ui://ss-reading-nest/bookshelf-static-v3.html";
       assert(
         bookshelfTool._meta?.ui?.resourceUri === bookshelfResourceUri,
         "standard bookshelf resource URI is stale"
@@ -162,20 +170,26 @@ async function waitForDeployedWidgets(health) {
         "deployed bookshelf resource has the wrong MCP Apps MIME type"
       );
       assert(
-        bookshelfHtml.includes("data-bookshelf-static-v2"),
-        "deployed bookshelf resource is missing its pre-rendered static shell"
+        bookshelfHtml.includes("data-bookshelf-static-v3"),
+        "deployed bookshelf resource is missing its interactive static shell"
       );
       assert(
-        bookshelfHtml.includes('data-bookshelf-height-strategy="raw-postmessage-v2"'),
+        bookshelfHtml.includes('data-bookshelf-height-strategy="raw-postmessage-v3"'),
         "deployed bookshelf resource is missing raw intrinsic-height recovery"
       );
       assert(
-        bookshelfHtml.includes("ChatGPT 已经选择并渲染了 open_bookshelf_v2 的 UI resource"),
-        "deployed bookshelf resource is missing the visible binding diagnostic"
+        bookshelfHtml.includes("tools/call") &&
+          bookshelfHtml.includes("get_book_details") &&
+          bookshelfHtml.includes("返回书架"),
+        "deployed bookshelf resource is missing book-detail interaction"
       );
       assert(
-        bookshelfHtml.length > 4_000 && bookshelfHtml.length < 50_000,
-        "deployed bookshelf resource is outside the stop-loss size budget"
+        bookshelfHtml.includes("data:image/webp;base64"),
+        "deployed bookshelf resource is missing its embedded background"
+      );
+      assert(
+        bookshelfHtml.length > 35_000 && bookshelfHtml.length < 110_000,
+        "deployed bookshelf resource is outside the lightweight interaction budget"
       );
       const readingEndResource = await client.readResource({ uri: readingEndResourceUri });
       const readingEndHtml = readingEndResource.contents.find(

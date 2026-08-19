@@ -6,6 +6,8 @@ import {
   BOOKSHELF_TOOL_NAME,
   DEFAULT_SESSION_PREFERENCES,
   LEGACY_BOOKSHELF_TOOL_NAME,
+  PREVIOUS_BOOKSHELF_RESOURCE_URI,
+  PREVIOUS_BOOKSHELF_TOOL_NAME,
   type ReadingDatabase
 } from "@ss/shared";
 import type { ReadingRepository } from "../repositories/reading-repository.js";
@@ -65,7 +67,7 @@ describe("versioned bookshelf MCP Apps contract", () => {
       undefined,
       {
         bookshelfHtml:
-          "<!doctype html><html><body><main data-bookshelf-static-v2>static bookshelf</main></body></html>",
+          "<!doctype html><html><body><main data-bookshelf-static-v3>interactive bookshelf</main></body></html>",
         readingEndHtml: "<!doctype html><html><body>reading end</body></html>"
       }
     );
@@ -76,15 +78,25 @@ describe("versioned bookshelf MCP Apps contract", () => {
     await client.connect(clientTransport);
     try {
       const tools = await client.listTools();
+      const detailsTool = tools.tools.find((candidate) => candidate.name === "get_book_details");
+      expect(detailsTool?._meta?.ui).toMatchObject({ visibility: ["model", "app"] });
       const legacyTool = tools.tools.find(
         (candidate) => candidate.name === LEGACY_BOOKSHELF_TOOL_NAME
       );
       expect(legacyTool?._meta?.ui).toMatchObject({ visibility: ["app"] });
+      const previousTool = tools.tools.find(
+        (candidate) => candidate.name === PREVIOUS_BOOKSHELF_TOOL_NAME
+      );
+      expect(previousTool?._meta).toMatchObject({
+        ui: { resourceUri: PREVIOUS_BOOKSHELF_RESOURCE_URI, visibility: ["app"] },
+        "openai/widgetAccessible": true
+      });
       const tool = tools.tools.find((candidate) => candidate.name === BOOKSHELF_TOOL_NAME);
       expect(tool?._meta).toMatchObject({
         ui: { resourceUri: BOOKSHELF_RESOURCE_URI, visibility: ["model", "app"] },
         "ui/resourceUri": BOOKSHELF_RESOURCE_URI,
-        "openai/outputTemplate": BOOKSHELF_RESOURCE_URI
+        "openai/outputTemplate": BOOKSHELF_RESOURCE_URI,
+        "openai/widgetAccessible": true
       });
       expect(tool?.outputSchema?.required).toEqual(["view", "bookshelf"]);
 
@@ -106,7 +118,17 @@ describe("versioned bookshelf MCP Apps contract", () => {
         expect.objectContaining({
           uri: BOOKSHELF_RESOURCE_URI,
           mimeType: "text/html;profile=mcp-app",
-          text: expect.stringContaining("data-bookshelf-static-v2")
+          text: expect.stringContaining("data-bookshelf-static-v3")
+        })
+      );
+
+      const previousResource = await client.readResource({
+        uri: PREVIOUS_BOOKSHELF_RESOURCE_URI
+      });
+      expect(previousResource.contents).toContainEqual(
+        expect.objectContaining({
+          uri: PREVIOUS_BOOKSHELF_RESOURCE_URI,
+          text: expect.stringContaining("data-bookshelf-static-v3")
         })
       );
     } finally {

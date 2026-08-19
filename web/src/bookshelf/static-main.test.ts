@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createStaticBookshelfApp, parseBookshelfOutput } from "./static-main.js";
+import {
+  createStaticBookshelfApp,
+  parseBookDetailsOutput,
+  parseBookshelfOutput
+} from "./static-main.js";
 
 const bookshelfOutput = {
   view: "bookshelf" as const,
@@ -50,17 +54,70 @@ const bookshelfOutput = {
   ]
 };
 
+const bookDetailsOutput = {
+  session: {
+    id: "book-debris",
+    title: "侦破我的命案",
+    author: "安东尼·霍洛维茨",
+    genre: "mystery",
+    status: "active" as const,
+    userCurrentPosition: { kind: "page" as const, index: 91, label: "第 91 页" },
+    assistantSyncedPosition: { kind: "page" as const, index: 88, label: "第 88 页" },
+    spoilerBoundary: { kind: "page" as const, index: 91, label: "第 91 页" },
+    lastReadAt: "2026-08-19T12:00:00.000Z"
+  },
+  thoughts: [
+    {
+      id: "thought-1",
+      author: "tav" as const,
+      kind: "question",
+      content: "为什么会留下两条进度？",
+      position: { kind: "page" as const, index: 91, label: "第 91 页" },
+      status: "open",
+      updatedAt: "2026-08-19T12:00:00.000Z"
+    }
+  ],
+  openQuestions: [
+    {
+      id: "thought-1",
+      author: "tav" as const,
+      kind: "question",
+      content: "为什么会留下两条进度？",
+      position: { kind: "page" as const, index: 91, label: "第 91 页" },
+      status: "open",
+      updatedAt: "2026-08-19T12:00:00.000Z"
+    }
+  ],
+  unsyncedThoughtCount: 1,
+  quotes: [],
+  bookmarks: [],
+  casebook: { clues: [{ id: "clue-1" }], hypotheses: [] }
+};
+
 function mountShell() {
   document.body.innerHTML = `
-    <main id="bookshelf-static-v2" data-state="shell">
-      <h1 id="bookshelf-title">静态书架已加载</h1>
+    <main id="bookshelf-static-v3" data-state="shell">
       <section id="bookshelf-probe"></section>
-      <section id="bookshelf-content" hidden><div id="bookshelf-list"></div></section>
+      <section id="bookshelf-content" hidden>
+        <h2 id="bookshelf-title">我们的书架</h2>
+        <span id="bookshelf-count"></span>
+        <div id="bookshelf-list"></div>
+      </section>
+      <section id="bookshelf-detail" hidden></section>
       <p id="bookshelf-status"></p>
     </main>`;
 }
 
-function createHarness({ compatibility }: { compatibility?: { toolOutput?: unknown; notifyIntrinsicHeight?: (input: { height: number }) => void | Promise<void> } } = {}) {
+function createHarness({ compatibility }: {
+  compatibility?: {
+    toolOutput?: unknown;
+    callTool?: (name: string, args: Record<string, unknown>) => Promise<{
+      structuredContent?: unknown;
+      isError?: boolean;
+    }>;
+    notifyIntrinsicHeight?: (input: { height: number }) => void | Promise<void>;
+  };
+} = {}) {
   const posted: unknown[] = [];
   const frames: Array<() => void> = [];
   let messageListener: ((message: unknown) => void) | undefined;
@@ -102,14 +159,15 @@ function createHarness({ compatibility }: { compatibility?: { toolOutput?: unkno
   };
 }
 
-describe("bookshelf static stop-loss resource", () => {
+describe("bookshelf static interactive resource", () => {
   beforeEach(mountShell);
 
   it("keeps the pre-rendered 390/768 shell intrinsically sized and scroll-free", () => {
     const html = readFileSync(resolve(process.cwd(), "bookshelf.html"), "utf8");
     expect(html).toContain("width: min(100%, 620px)");
     expect(html).toContain("min-height: 320px !important");
-    expect(html).toContain("data-bookshelf-static-v2");
+    expect(html).toContain("data-bookshelf-static-v3");
+    expect(html).toContain("bookroom-background-static-v3.webp");
     expect(html).not.toMatch(/100(?:d?vh|svh|lvh)/u);
     expect(html).not.toMatch(/overflow\s*:\s*(?:auto|scroll)/u);
     expect(Math.min(390 - 8, 620)).toBe(382);
@@ -132,6 +190,19 @@ describe("bookshelf static stop-loss resource", () => {
     ).toBeUndefined();
   });
 
+  it("validates the complete book-detail result contract", () => {
+    expect(parseBookDetailsOutput(bookDetailsOutput)).toEqual(bookDetailsOutput);
+    expect(
+      parseBookDetailsOutput({
+        ...bookDetailsOutput,
+        session: { ...bookDetailsOutput.session, title: "" }
+      })
+    ).toBeUndefined();
+    expect(
+      parseBookDetailsOutput({ ...bookDetailsOutput, openQuestions: [{}] })
+    ).toBeUndefined();
+  });
+
   it("reports a non-zero raw size before the initialize handshake completes", () => {
     const harness = createHarness();
 
@@ -144,7 +215,7 @@ describe("bookshelf static stop-loss resource", () => {
       expect.objectContaining({
         jsonrpc: "2.0",
         method: "ui/initialize",
-        id: "bookshelf-static-v2-initialize"
+        id: "bookshelf-static-v3-initialize"
       })
     );
   });
@@ -154,7 +225,7 @@ describe("bookshelf static stop-loss resource", () => {
     harness.flushFrame();
     harness.emitMessage({
       jsonrpc: "2.0",
-      id: "bookshelf-static-v2-initialize",
+      id: "bookshelf-static-v3-initialize",
       result: { protocolVersion: "2026-01-26" }
     });
     harness.flushFrame();
@@ -183,13 +254,14 @@ describe("bookshelf static stop-loss resource", () => {
       params: { structuredContent: bookshelfOutput }
     });
 
-    expect(document.getElementById("bookshelf-static-v2")?.dataset.state).toBe("bookshelf");
+    expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("bookshelf");
     expect(document.getElementById("bookshelf-title")?.textContent).toBe("我们的书架");
     expect(document.body.textContent).toContain("《侦破我的命案》");
     expect(document.body.textContent).toContain("塔芙：第 91 页 · 共同进度：第 88 页");
     expect(document.body.textContent).toContain("案件簿 4 项");
     expect(document.body.textContent).toContain("《打怪》");
-    expect(document.body.textContent).toContain("2 本作品 · open_bookshelf_v2 工具结果已抵达");
+    expect(document.body.textContent).toContain("2 本作品 · 点击书名查看完整共读记录");
+    expect(document.querySelectorAll("button.book")).toHaveLength(2);
   });
 
   it("reads already-available compatibility output and reports the same intrinsic height", () => {
@@ -199,7 +271,7 @@ describe("bookshelf static stop-loss resource", () => {
     });
     harness.flushFrame();
 
-    expect(document.getElementById("bookshelf-static-v2")?.dataset.state).toBe("bookshelf");
+    expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("bookshelf");
     expect(notifyIntrinsicHeight).toHaveBeenCalledWith({ height: 320 });
   });
 
@@ -227,12 +299,85 @@ describe("bookshelf static stop-loss resource", () => {
     });
   });
 
+  it("opens one book through the standard tools/call bridge and returns to the shelf", async () => {
+    const callTool = vi.fn();
+    const harness = createHarness({ compatibility: { callTool } });
+    harness.emitMessage({
+      jsonrpc: "2.0",
+      method: "ui/notifications/tool-result",
+      params: { structuredContent: bookshelfOutput }
+    });
+
+    const firstBook = document.querySelector<HTMLButtonElement>("button.book");
+    expect(firstBook).not.toBeNull();
+    firstBook?.click();
+
+    const request = harness.posted.find(
+      (value) =>
+        typeof value === "object" &&
+        value !== null &&
+        "method" in value &&
+        value.method === "tools/call"
+    ) as { id: string; params: unknown };
+    expect(request).toMatchObject({
+      jsonrpc: "2.0",
+      method: "tools/call",
+      params: { name: "get_book_details", arguments: { bookId: "book-debris" } }
+    });
+
+    harness.emitMessage({
+      jsonrpc: "2.0",
+      id: request.id,
+      result: { structuredContent: bookDetailsOutput }
+    });
+    await vi.waitFor(() => {
+      expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("detail");
+    });
+
+    expect(document.body.textContent).toContain("我们把书读厚的地方");
+    expect(document.body.textContent).toContain("为什么会留下两条进度？");
+    expect(callTool).not.toHaveBeenCalled();
+
+    document.querySelector<HTMLButtonElement>("button.back")?.click();
+    expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("bookshelf");
+    expect(document.querySelectorAll("button.book")).toHaveLength(2);
+  });
+
+  it("falls back to the compatibility bridge when the standard request is rejected", async () => {
+    const callTool = vi.fn().mockResolvedValue({ structuredContent: bookDetailsOutput });
+    const harness = createHarness({ compatibility: { callTool } });
+    harness.emitMessage({
+      jsonrpc: "2.0",
+      method: "ui/notifications/tool-result",
+      params: { structuredContent: bookshelfOutput }
+    });
+    document.querySelector<HTMLButtonElement>("button.book")?.click();
+
+    const request = harness.posted.find(
+      (value) =>
+        typeof value === "object" &&
+        value !== null &&
+        "method" in value &&
+        value.method === "tools/call"
+    ) as { id: string };
+    harness.emitMessage({
+      jsonrpc: "2.0",
+      id: request.id,
+      error: { code: -32601, message: "Method not found" }
+    });
+
+    await vi.waitFor(() => {
+      expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("detail");
+    });
+    expect(callTool).toHaveBeenCalledWith("get_book_details", { bookId: "book-debris" });
+  });
+
   it("keeps the visible shell and shows a diagnostic for invalid output", () => {
     const harness = createHarness();
     harness.emitGlobals({ view: "bookshelf", bookshelf: [{}] });
 
-    expect(document.getElementById("bookshelf-static-v2")?.dataset.state).toBe("error");
-    expect(document.getElementById("bookshelf-title")?.textContent).toBe("静态书架已加载");
+    expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("error");
+    expect(document.getElementById("bookshelf-title")?.textContent).toBe("我们的书架");
     expect(document.getElementById("bookshelf-status")?.textContent).toContain("结果不完整");
   });
 });

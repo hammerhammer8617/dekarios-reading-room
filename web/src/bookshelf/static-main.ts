@@ -33,8 +33,49 @@ type BookshelfOutput = {
   bookshelf: BookshelfItem[];
 };
 
+type DetailThought = {
+  id?: string;
+  author: "tav" | "gale" | "shared";
+  kind?: string;
+  content: string;
+  position?: ReadingPosition;
+  status?: string;
+  updatedAt?: string;
+};
+
+type BookDetailsOutput = {
+  session: {
+    id: string;
+    title: string;
+    author?: string;
+    genre: string;
+    status: "active" | "completed";
+    userCurrentPosition: ReadingPosition;
+    assistantSyncedPosition: ReadingPosition | null;
+    spoilerBoundary?: ReadingPosition | null;
+    lastReadAt: string;
+    lastNotionSyncedAt?: string;
+  };
+  thoughts: DetailThought[];
+  openQuestions: DetailThought[];
+  unsyncedThoughtCount: number;
+  quotes?: unknown[];
+  bookmarks?: unknown[];
+  casebook?: Record<string, unknown>;
+};
+
+type ToolCallResult = {
+  structuredContent?: unknown;
+  content?: unknown[];
+  isError?: boolean;
+};
+
 type CompatibilityHost = {
   toolOutput?: unknown;
+  callTool?: (
+    name: string,
+    args: Record<string, unknown>
+  ) => Promise<ToolCallResult>;
   notifyIntrinsicHeight?: (input: { height: number }) => void | Promise<void>;
 };
 
@@ -49,11 +90,14 @@ export type StaticBookshelfDependencies = {
   observeSize: (listener: () => void) => () => void;
   requestFrame: (listener: () => void) => number;
   cancelFrame: (id: number) => void;
+  setTimer: (listener: () => void, delay: number) => number;
+  clearTimer: (id: number) => void;
   measure: () => { width: number; height: number };
 };
 
 const PROTOCOL_VERSION = "2026-01-26";
-const INITIALIZE_ID = "bookshelf-static-v2-initialize";
+const INITIALIZE_ID = "bookshelf-static-v3-initialize";
+const TOOL_REQUEST_TIMEOUT_MS = 4_000;
 const genreLabels: Record<BookshelfItem["genre"], string> = {
   novel: "小说",
   mystery: "推理",
@@ -63,10 +107,25 @@ const genreLabels: Record<BookshelfItem["genre"], string> = {
   manga: "漫画",
   other: "其他"
 };
-const authorLabels: Record<BookshelfThought["author"], string> = {
+const authorLabels: Record<DetailThought["author"], string> = {
   tav: "塔芙",
   gale: "盖尔",
   shared: "共同"
+};
+const kindLabels: Record<string, string> = {
+  reaction: "反应",
+  interpretation: "解释",
+  disagreement: "分歧",
+  question: "问题",
+  prediction: "预测",
+  connection: "连接",
+  clue: "线索"
+};
+const statusLabels: Record<string, string> = {
+  open: "仍保留",
+  revised: "已修正",
+  resolved: "已回答",
+  rejected: "已推翻"
 };
 
 const defaultDependencies: StaticBookshelfDependencies = {
@@ -98,6 +157,8 @@ const defaultDependencies: StaticBookshelfDependencies = {
   },
   requestFrame: (listener) => window.requestAnimationFrame(listener),
   cancelFrame: (id) => window.cancelAnimationFrame(id),
+  setTimer: (listener, delay) => window.setTimeout(listener, delay),
+  clearTimer: (id) => window.clearTimeout(id),
   measure: () => ({
     width: Math.ceil(Math.max(window.innerWidth, document.documentElement.scrollWidth)),
     height: Math.ceil(
@@ -105,7 +166,7 @@ const defaultDependencies: StaticBookshelfDependencies = {
         320,
         document.documentElement.scrollHeight,
         document.body.scrollHeight,
-        document.getElementById("bookshelf-static-v2")?.scrollHeight ?? 0
+        document.getElementById("bookshelf-static-v3")?.scrollHeight ?? 0
       )
     )
   })
@@ -115,13 +176,24 @@ export function createStaticBookshelfApp(
   overrides: Partial<StaticBookshelfDependencies> = {}
 ) {
   const deps = { ...defaultDependencies, ...overrides };
+  const pendingRequests = new Map<
+    string,
+    {
+      resolve: (value: ToolCallResult) => void;
+      reject: (reason: Error) => void;
+      timer: number;
+    }
+  >();
   let frameId: number | undefined;
+  let requestSequence = 0;
   let lastSize = "";
+  let currentBooks: BookshelfItem[] = [];
+  let openingBook = false;
   let disposed = false;
 
   const sendSize = (size: { width: number; height: number }) => {
     if (disposed || size.width <= 0 || size.height <= 0) return;
-    const key = `${size.width}:${size.height}`;
+    const key = String(size.width) + ":" + String(size.height);
     if (key === lastSize) return;
     lastSize = key;
     deps.postToParent({
@@ -134,7 +206,7 @@ export function createStaticBookshelfApp(
         deps.getCompatibilityHost()?.notifyIntrinsicHeight?.({ height: size.height })
       ).catch(() => undefined);
     } catch {
-      // The standards-first raw notification above remains the primary path.
+      // The raw MCP Apps notification above remains the primary path.
     }
   };
 
@@ -146,19 +218,101 @@ export function createStaticBookshelfApp(
     });
   };
 
+  const requestTool = (name: string, args: Record<string, unknown>) =>
+    new Promise<ToolCallResult>((resolve, reject) => {
+      const id = "bookshelf-static-v3-tool-" + String(++requestSequence);
+      const timer = deps.setTimer(() => {
+        pendingRequests.delete(id);
+        reject(new Error("The host did not answer the tool request."));
+      }, TOOL_REQUEST_TIMEOUT_MS);
+      pendingRequests.set(id, { resolve, reject, timer });
+      try {
+        deps.postToParent({
+          jsonrpc: "2.0",
+          id,
+          method: "tools/call",
+          params: { name, arguments: args }
+        });
+      } catch (error) {
+        pendingRequests.delete(id);
+        deps.clearTimer(timer);
+        reject(error instanceof Error ? error : new Error("The tool request could not be sent."));
+      }
+    });
+
+  const callTool = async (name: string, args: Record<string, unknown>) => {
+    try {
+      return await requestTool(name, args);
+    } catch (standardError) {
+      const compatibilityCall = deps.getCompatibilityHost()?.callTool;
+      if (!compatibilityCall) throw standardError;
+      return compatibilityCall(name, args);
+    }
+  };
+
+  const openBook = async (bookId: string) => {
+    if (disposed || openingBook) return;
+    const book = currentBooks.find((candidate) => candidate.bookId === bookId);
+    if (!book) return;
+    openingBook = true;
+    setBooksDisabled(deps.document, true);
+    setRootState(deps.document, "loading");
+    setText(deps.document, "bookshelf-status", "正在翻找《" + book.title + "》的共读记录……");
+    reportSize();
+
+    try {
+      const result = await callTool("get_book_details", { bookId });
+      if (result.isError) throw new Error("get_book_details returned an error");
+      const details = parseBookDetailsOutput(result.structuredContent);
+      if (!details) throw new Error("get_book_details returned an incomplete record");
+      renderBookDetails(deps.document, details, () => {
+        renderBookshelf(deps.document, currentBooks, openBook);
+        reportSize();
+      });
+    } catch {
+      showError(deps.document, "这本书的记录暂时没有读出来；书架仍然可以继续使用。");
+    } finally {
+      openingBook = false;
+      setBooksDisabled(deps.document, false);
+      reportSize();
+    }
+  };
+
   const publishOutput = (value: unknown) => {
     const output = parseBookshelfOutput(value);
     if (!output) {
-      showError(deps.document, "书架工具结果不完整；静态外壳仍保持可见。");
+      showError(deps.document, "书架工具结果不完整；轻量外壳仍保持可见。");
       reportSize();
       return;
     }
-    renderBookshelf(deps.document, output.bookshelf);
+    currentBooks = output.bookshelf;
+    renderBookshelf(deps.document, currentBooks, openBook);
     reportSize();
   };
 
   const removeMessageListener = deps.addMessageListener((value) => {
     if (!isRecord(value) || value.jsonrpc !== "2.0") return;
+
+    if ("id" in value) {
+      const pending = pendingRequests.get(String(value.id));
+      if (pending) {
+        pendingRequests.delete(String(value.id));
+        deps.clearTimer(pending.timer);
+        if (isRecord(value.error)) {
+          pending.reject(
+            new Error(
+              typeof value.error.message === "string"
+                ? value.error.message
+                : "The host rejected the tool request."
+            )
+          );
+        } else {
+          pending.resolve(isRecord(value.result) ? (value.result as ToolCallResult) : {});
+        }
+        return;
+      }
+    }
+
     if (value.id === INITIALIZE_ID && "result" in value) {
       deps.postToParent({
         jsonrpc: "2.0",
@@ -169,8 +323,10 @@ export function createStaticBookshelfApp(
       reportSize();
       return;
     }
+
     if (value.method === "ui/notifications/tool-result" && isRecord(value.params)) {
-      publishOutput(value.params.structuredContent);
+      const output = parseBookshelfOutput(value.params.structuredContent);
+      if (output) publishOutput(output);
     }
   });
   const removeGlobalsListener = deps.addGlobalsListener(publishOutput);
@@ -185,7 +341,7 @@ export function createStaticBookshelfApp(
     id: INITIALIZE_ID,
     method: "ui/initialize",
     params: {
-      appInfo: { name: "德卡里奥斯家的书房｜静态书架", version: "0.3.0" },
+      appInfo: { name: "德卡里奥斯家的书房｜轻量书架", version: "0.3.0" },
       appCapabilities: {},
       protocolVersion: PROTOCOL_VERSION
     }
@@ -197,6 +353,11 @@ export function createStaticBookshelfApp(
     dispose() {
       disposed = true;
       if (frameId !== undefined) deps.cancelFrame(frameId);
+      for (const pending of pendingRequests.values()) {
+        deps.clearTimer(pending.timer);
+        pending.reject(new Error("The bookshelf app was closed."));
+      }
+      pendingRequests.clear();
       removeMessageListener();
       removeGlobalsListener();
       removeSizeObserver();
@@ -212,60 +373,285 @@ export function parseBookshelfOutput(value: unknown): BookshelfOutput | undefine
   return value as BookshelfOutput;
 }
 
-export function renderBookshelf(doc: Document, books: BookshelfItem[]) {
+export function parseBookDetailsOutput(value: unknown): BookDetailsOutput | undefined {
+  if (!isRecord(value) || !isRecord(value.session)) return undefined;
+  const session = value.session;
+  if (
+    !isNonEmptyString(session.id) ||
+    !isNonEmptyString(session.title) ||
+    (session.author !== undefined && !isNonEmptyString(session.author)) ||
+    !isNonEmptyString(session.genre) ||
+    !["active", "completed"].includes(String(session.status)) ||
+    !isReadingPosition(session.userCurrentPosition) ||
+    (session.assistantSyncedPosition !== null &&
+      !isReadingPosition(session.assistantSyncedPosition)) ||
+    (session.spoilerBoundary !== undefined &&
+      session.spoilerBoundary !== null &&
+      !isReadingPosition(session.spoilerBoundary)) ||
+    !isNonEmptyString(session.lastReadAt) ||
+    (session.lastNotionSyncedAt !== undefined &&
+      !isNonEmptyString(session.lastNotionSyncedAt)) ||
+    !Array.isArray(value.thoughts) ||
+    value.thoughts.some((thought) => !isDetailThought(thought)) ||
+    !Array.isArray(value.openQuestions) ||
+    value.openQuestions.some((thought) => !isDetailThought(thought)) ||
+    !isNonNegativeInteger(value.unsyncedThoughtCount) ||
+    (value.quotes !== undefined && !Array.isArray(value.quotes)) ||
+    (value.bookmarks !== undefined && !Array.isArray(value.bookmarks)) ||
+    (value.casebook !== undefined && !isRecord(value.casebook))
+  ) {
+    return undefined;
+  }
+  return value as BookDetailsOutput;
+}
+
+export function renderBookshelf(
+  doc: Document,
+  books: BookshelfItem[],
+  onOpenBook: (bookId: string) => void = () => undefined
+) {
   const list = doc.getElementById("bookshelf-list");
   if (!list) return;
   list.replaceChildren();
 
   if (books.length === 0) {
     const empty = doc.createElement("p");
-    empty.className = "position";
+    empty.className = "empty";
     empty.textContent = "书架还是空的。选一本故事，我们一起开始吧。";
     list.append(empty);
   } else {
-    for (const book of books) list.append(createBookCard(doc, book));
+    for (const book of books) list.append(createBookCard(doc, book, onOpenBook));
   }
 
   setText(doc, "bookshelf-title", "我们的书架");
+  setText(doc, "bookshelf-count", String(books.length) + " 本");
   doc.getElementById("bookshelf-probe")?.setAttribute("hidden", "");
+  doc.getElementById("bookshelf-detail")?.setAttribute("hidden", "");
   doc.getElementById("bookshelf-content")?.removeAttribute("hidden");
-  setText(doc, "bookshelf-status", `${books.length} 本作品 · open_bookshelf_v2 工具结果已抵达`);
-  const root = doc.getElementById("bookshelf-static-v2");
-  if (root) root.dataset.state = "bookshelf";
+  setText(
+    doc,
+    "bookshelf-status",
+    String(books.length) + " 本作品 · 点击书名查看完整共读记录"
+  );
+  setRootState(doc, "bookshelf");
 }
 
-function createBookCard(doc: Document, book: BookshelfItem) {
-  const article = doc.createElement("article");
-  article.className = "book";
-  article.dataset.status = book.status;
+export function renderBookDetails(
+  doc: Document,
+  details: BookDetailsOutput,
+  onBack: () => void
+) {
+  const target = doc.getElementById("bookshelf-detail");
+  if (!target) return;
+  target.replaceChildren();
 
+  const back = doc.createElement("button");
+  back.type = "button";
+  back.className = "back";
+  back.textContent = "← 返回书架";
+  back.addEventListener("click", onBack);
+
+  const header = doc.createElement("header");
+  header.className = "detail-header";
   const title = doc.createElement("h2");
-  title.textContent = `《${book.title}》`;
+  title.textContent = "《" + details.session.title + "》";
+  header.append(title);
+  if (details.session.author) {
+    const author = doc.createElement("p");
+    author.textContent = details.session.author;
+    header.append(author);
+  }
+
+  const grid = doc.createElement("div");
+  grid.className = "detail-grid";
+  appendDetailItem(doc, grid, "塔芙读到", details.session.userCurrentPosition.label);
+  appendDetailItem(
+    doc,
+    grid,
+    "我们读到",
+    details.session.assistantSyncedPosition?.label ?? "尚未接上"
+  );
+  appendDetailItem(
+    doc,
+    grid,
+    "剧透边界",
+    details.session.spoilerBoundary?.label ?? details.session.userCurrentPosition.label
+  );
+  appendDetailItem(
+    doc,
+    grid,
+    "书页边缘",
+    details.unsyncedThoughtCount > 0
+      ? String(details.unsyncedThoughtCount) + " 条待同步"
+      : "已经同步"
+  );
+  header.append(grid);
+
+  const counts = doc.createElement("p");
+  counts.className = "facts";
+  const countParts = [
+    String(details.thoughts.length) + " 条思考",
+    String(details.quotes?.length ?? 0) + " 个摘录",
+    String(details.bookmarks?.length ?? 0) + " 个书签"
+  ];
+  const casebookCount = countCasebookItems(details.casebook);
+  if (casebookCount > 0) countParts.push("案件簿 " + String(casebookCount) + " 项");
+  counts.textContent = countParts.join(" · ");
+  header.append(counts);
+
+  target.append(back, header);
+  appendThoughtSection(doc, target, details.thoughts);
+  appendQuestionSection(doc, target, details.openQuestions);
+
+  doc.getElementById("bookshelf-probe")?.setAttribute("hidden", "");
+  doc.getElementById("bookshelf-content")?.setAttribute("hidden", "");
+  target.removeAttribute("hidden");
+  setText(doc, "bookshelf-status", "已打开《" + details.session.title + "》的共读记录。");
+  setRootState(doc, "detail");
+}
+
+function createBookCard(
+  doc: Document,
+  book: BookshelfItem,
+  onOpenBook: (bookId: string) => void
+) {
+  const button = doc.createElement("button");
+  button.type = "button";
+  button.className = "book";
+  button.dataset.status = book.status;
+  button.setAttribute("aria-label", "打开《" + book.title + "》的共读记录");
+  button.addEventListener("click", () => onOpenBook(book.bookId));
+
+  const title = doc.createElement("h3");
+  title.textContent = "《" + book.title + "》";
   const meta = doc.createElement("p");
   meta.className = "meta";
-  meta.textContent = [book.author, genreLabels[book.genre], book.status === "active" ? "阅读中" : "已完成"]
+  meta.textContent = [
+    book.author,
+    genreLabels[book.genre],
+    book.status === "active" ? "阅读中" : "已完成"
+  ]
     .filter(Boolean)
     .join(" · ");
   const position = doc.createElement("p");
   position.className = "position";
-  position.textContent = `塔芙：${book.tavPosition.label} · 共同进度：${book.sharedPosition?.label ?? "尚未同步"}`;
-  article.append(title, meta, position);
+  position.textContent =
+    "塔芙：" +
+    book.tavPosition.label +
+    " · 共同进度：" +
+    (book.sharedPosition?.label ?? "尚未同步");
+  button.append(title, meta, position);
 
   if (book.latestThought) {
     const thought = doc.createElement("p");
     thought.className = "thought";
-    thought.textContent = `${authorLabels[book.latestThought.author]}：${book.latestThought.content}`;
-    article.append(thought);
+    thought.textContent =
+      authorLabels[book.latestThought.author] + "：" + book.latestThought.content;
+    button.append(thought);
   }
 
   const facts = doc.createElement("p");
   facts.className = "facts";
-  const parts = [`${book.openQuestionCount} 个开放问题`];
-  if (book.casebookInProgress) parts.push(`案件簿 ${book.casebookItemCount} 项`);
-  if (book.unsyncedThoughtCount > 0) parts.push(`${book.unsyncedThoughtCount} 条待同步`);
+  const parts = [String(book.openQuestionCount) + " 个开放问题"];
+  if (book.casebookInProgress) parts.push("案件簿 " + String(book.casebookItemCount) + " 项");
+  if (book.unsyncedThoughtCount > 0) {
+    parts.push(String(book.unsyncedThoughtCount) + " 条待同步");
+  }
   facts.textContent = parts.join(" · ");
-  article.append(facts);
-  return article;
+  button.append(facts);
+  return button;
+}
+
+function appendThoughtSection(doc: Document, target: Element, thoughts: DetailThought[]) {
+  const section = doc.createElement("section");
+  section.className = "detail-section";
+  section.append(createSectionHeading(doc, "我们把书读厚的地方", String(thoughts.length)));
+  const list = doc.createElement("div");
+  list.className = "thought-list";
+  for (const thought of thoughts.slice(0, 16)) {
+    const row = doc.createElement("article");
+    row.className = "thought-row";
+    row.dataset.author = thought.author;
+    const meta = doc.createElement("div");
+    meta.className = "thought-meta";
+    const author = doc.createElement("b");
+    author.textContent = authorLabels[thought.author];
+    const kind = doc.createElement("span");
+    kind.textContent = thought.kind ? kindLabels[thought.kind] ?? thought.kind : "思考";
+    const position = doc.createElement("span");
+    position.textContent =
+      thought.position?.label ??
+      (thought.updatedAt ? formatDate(thought.updatedAt) : statusLabels[thought.status ?? ""] ?? "");
+    meta.append(author, kind, position);
+    const content = doc.createElement("p");
+    content.textContent = thought.content;
+    row.append(meta, content);
+    list.append(row);
+  }
+  if (thoughts.length === 0) {
+    const empty = doc.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "还没有需要钉在书页边缘的想法。";
+    list.append(empty);
+  }
+  section.append(list);
+  target.append(section);
+}
+
+function appendQuestionSection(
+  doc: Document,
+  target: Element,
+  questions: DetailThought[]
+) {
+  if (questions.length === 0) return;
+  const section = doc.createElement("section");
+  section.className = "detail-section";
+  section.append(createSectionHeading(doc, "还没合上的问题", String(questions.length)));
+  const list = doc.createElement("ol");
+  list.className = "question-list";
+  for (const question of questions) {
+    const item = doc.createElement("li");
+    item.textContent =
+      question.content + (question.position?.label ? " · " + question.position.label : "");
+    list.append(item);
+  }
+  section.append(list);
+  target.append(section);
+}
+
+function createSectionHeading(doc: Document, label: string, count: string) {
+  const heading = doc.createElement("div");
+  heading.className = "section-heading";
+  const title = doc.createElement("h3");
+  title.textContent = label;
+  const amount = doc.createElement("span");
+  amount.textContent = count;
+  heading.append(title, amount);
+  return heading;
+}
+
+function appendDetailItem(doc: Document, grid: Element, label: string, value: string) {
+  const item = doc.createElement("div");
+  const key = doc.createElement("span");
+  key.className = "detail-label";
+  key.textContent = label;
+  const content = doc.createElement("strong");
+  content.textContent = value;
+  item.append(key, content);
+  grid.append(item);
+}
+
+function countCasebookItems(value: Record<string, unknown> | undefined) {
+  if (!value) return 0;
+  return ["entities", "relations", "clues", "hypotheses", "timeline", "observationTasks"]
+    .map((key) => (Array.isArray(value[key]) ? value[key].length : 0))
+    .reduce((total, count) => total + count, 0);
+}
+
+function setBooksDisabled(doc: Document, disabled: boolean) {
+  for (const element of doc.querySelectorAll<HTMLButtonElement>("button.book")) {
+    element.disabled = disabled;
+  }
 }
 
 function isBookshelfItem(value: unknown): value is BookshelfItem {
@@ -286,6 +672,19 @@ function isBookshelfItem(value: unknown): value is BookshelfItem {
     isNonNegativeInteger(value.unsyncedThoughtCount) &&
     typeof value.casebookInProgress === "boolean" &&
     isNonNegativeInteger(value.casebookItemCount)
+  );
+}
+
+function isDetailThought(value: unknown): value is DetailThought {
+  return (
+    isRecord(value) &&
+    ["tav", "gale", "shared"].includes(String(value.author)) &&
+    isNonEmptyString(value.content) &&
+    (value.id === undefined || isNonEmptyString(value.id)) &&
+    (value.kind === undefined || isNonEmptyString(value.kind)) &&
+    (value.status === undefined || isNonEmptyString(value.status)) &&
+    (value.updatedAt === undefined || isNonEmptyString(value.updatedAt)) &&
+    (value.position === undefined || isReadingPosition(value.position))
   );
 }
 
@@ -318,10 +717,26 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function formatDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      month: "long",
+      day: "numeric"
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
 function showError(doc: Document, message: string) {
   setText(doc, "bookshelf-status", message);
-  const root = doc.getElementById("bookshelf-static-v2");
-  if (root) root.dataset.state = "error";
+  setRootState(doc, "error");
+}
+
+function setRootState(doc: Document, state: string) {
+  const root = doc.getElementById("bookshelf-static-v3");
+  if (root) root.dataset.state = state;
 }
 
 function setText(doc: Document, id: string, value: string) {
@@ -336,7 +751,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 if (
   typeof window !== "undefined" &&
   typeof document !== "undefined" &&
-  document.getElementById("bookshelf-static-v2")
+  document.getElementById("bookshelf-static-v3")
 ) {
   createStaticBookshelfApp();
 }

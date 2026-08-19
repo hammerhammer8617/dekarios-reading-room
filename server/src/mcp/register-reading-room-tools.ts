@@ -10,6 +10,8 @@ import {
   markNotionSyncedInputSchema,
   openBookshelfInputSchema,
   openBookshelfOutputSchema,
+  PREVIOUS_BOOKSHELF_RESOURCE_URI,
+  PREVIOUS_BOOKSHELF_TOOL_NAME,
   prepareNotionSyncInputSchema,
   READING_END_RESOURCE_URI,
   recordCasebookUpdateInputSchema,
@@ -88,7 +90,8 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
       description:
         "Use when the user asks what has been recorded for one book, or before reviewing how earlier interpretations changed. Returns progress, attributed thought history, open questions, bookmarks, quotes, and casebook data without rendering UI.",
       inputSchema: getBookDetailsInputSchema,
-      annotations: readOnly
+      annotations: readOnly,
+      _meta: { ui: { visibility: ["model", "app"] } }
     },
     async ({ bookId }) =>
       toolResult(await service.getBookDetails(bookId), "已读取这本书的完整共读记录。")
@@ -171,13 +174,33 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     {
       title: "打开德卡里奥斯家的书架（兼容入口）",
       description:
-        "Legacy app-only bookshelf entry retained for already-mounted reading-room components. Models must use open_bookshelf_v2 instead.",
+        "Legacy app-only bookshelf entry retained for already-mounted reading-room components. Models must use open_bookshelf_v3 instead.",
       inputSchema: openBookshelfInputSchema,
       outputSchema: openBookshelfOutputSchema,
       annotations: readOnly,
       _meta: {
         ui: { resourceUri: BOOKSHELF_RESOURCE_URI, visibility: ["app"] },
-        "openai/outputTemplate": BOOKSHELF_RESOURCE_URI
+        "openai/outputTemplate": BOOKSHELF_RESOURCE_URI,
+        "openai/widgetAccessible": true
+      }
+    },
+    renderBookshelf
+  );
+
+  registerAppTool(
+    server,
+    PREVIOUS_BOOKSHELF_TOOL_NAME,
+    {
+      title: "打开德卡里奥斯家的书架（v2 兼容入口）",
+      description:
+        "Previous app-only bookshelf entry retained for cached v2 components. Models must use open_bookshelf_v3 instead.",
+      inputSchema: openBookshelfInputSchema,
+      outputSchema: openBookshelfOutputSchema,
+      annotations: readOnly,
+      _meta: {
+        ui: { resourceUri: PREVIOUS_BOOKSHELF_RESOURCE_URI, visibility: ["app"] },
+        "openai/outputTemplate": PREVIOUS_BOOKSHELF_RESOURCE_URI,
+        "openai/widgetAccessible": true
       }
     },
     renderBookshelf
@@ -189,13 +212,14 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     {
       title: "打开德卡里奥斯家的书架",
       description:
-        "Use this versioned render tool when the user explicitly asks to open the bookshelf, see what they are reading, inspect book records, or open a casebook. It replaces the legacy open_bookshelf descriptor. Do not render it for each page photo or ordinary reading turn.",
+        "Use this versioned render tool when the user explicitly asks to open the bookshelf, see what they are reading, inspect book records, or open a casebook. It replaces the cached open_bookshelf_v2 descriptor. Do not render it for each page photo or ordinary reading turn.",
       inputSchema: openBookshelfInputSchema,
       outputSchema: openBookshelfOutputSchema,
       annotations: readOnly,
       _meta: {
         ui: { resourceUri: BOOKSHELF_RESOURCE_URI, visibility: ["model", "app"] },
         "openai/outputTemplate": BOOKSHELF_RESOURCE_URI,
+        "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "正在推开书房的门…",
         "openai/toolInvocation/invoked": "德卡里奥斯家的书架已经打开"
       }
