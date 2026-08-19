@@ -68,10 +68,10 @@ async function waitForDeployedWidgets(health) {
         "ChatGPT resource URI does not match deployed health"
       );
       const readingEndTool = tools.tools.find(
-        (tool) => tool.name === "render_reading_end_card_v2"
+        (tool) => tool.name === "render_reading_end_card_v3"
       );
-      assert(readingEndTool, "render_reading_end_card_v2 is missing");
-      const readingEndResourceUri = "ui://ss-reading-nest/reading-end-v2.html";
+      assert(readingEndTool, "render_reading_end_card_v3 is missing");
+      const readingEndResourceUri = "ui://ss-reading-nest/reading-end-v3.html";
       assert(
         readingEndTool._meta?.ui?.resourceUri === readingEndResourceUri,
         "standard reading-end resource URI is stale"
@@ -113,6 +113,10 @@ async function waitForDeployedWidgets(health) {
       assert(
         readingEndHtml.includes("data-reading-end-startup-fallback"),
         "deployed reading-end resource is missing its startup diagnostic"
+      );
+      assert(
+        readingEndHtml.includes('data-reading-end-height-strategy="eager-compat-v3"'),
+        "deployed reading-end resource is missing eager intrinsic-height recovery"
       );
       assert(
         readingEndHtml.includes("今天读到这里"),

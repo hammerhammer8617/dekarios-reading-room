@@ -76,7 +76,8 @@ const defaultDependencies: ReadingEndHostDependencies = {
   addGlobalsListener: (listener) => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ globals?: { toolOutput?: unknown } }>).detail;
-      listener(detail?.globals?.toolOutput ?? window.openai?.toolOutput);
+      const output = detail?.globals?.toolOutput ?? window.openai?.toolOutput;
+      if (output !== undefined) listener(output);
     };
     window.addEventListener("openai:set_globals", handler);
     return () => window.removeEventListener("openai:set_globals", handler);
@@ -103,7 +104,14 @@ export function createReadingEndHost(
 
   const attachCompatibilityOutput = () => {
     compatibilityHost = deps.getCompatibilityHost();
-    removeGlobalsListener ??= deps.addGlobalsListener(publishOutput);
+    removeGlobalsListener ??= deps.addGlobalsListener((output) => {
+      compatibilityHost = deps.getCompatibilityHost();
+      publishOutput(output);
+      if (status.mode !== "standard" && compatibilityHost?.notifyIntrinsicHeight) {
+        publishStatus({ mode: "compatibility", ...(outputError ? { error: outputError } : {}) });
+        attachHeightObserver();
+      }
+    });
     if (compatibilityHost?.toolOutput !== undefined) publishOutput(compatibilityHost.toolOutput);
   };
 
@@ -184,7 +192,7 @@ export function createReadingEndHost(
       });
       return;
     }
-    publishStatus({ mode: "compatibility" });
+    publishStatus({ mode: "compatibility", ...(outputError ? { error: outputError } : {}) });
     attachHeightObserver();
   };
 
@@ -193,8 +201,13 @@ export function createReadingEndHost(
     publishStatus({ mode: "connecting" });
     startPromise = (async () => {
       attachCompatibilityOutput();
+      // ChatGPT may expose its compatibility bridge immediately while the
+      // standard MCP Apps initialize handshake is still pending. Start
+      // intrinsic sizing now so rendered content cannot remain trapped in the
+      // host's collapsed placeholder for the handshake timeout.
+      if (compatibilityHost?.notifyIntrinsicHeight) startCompatibility();
       if (!deps.isEmbedded()) {
-        startCompatibility();
+        if (!compatibilityHost?.notifyIntrinsicHeight) startCompatibility();
         return;
       }
       try {

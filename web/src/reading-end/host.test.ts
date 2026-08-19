@@ -116,6 +116,22 @@ describe("isolated reading-end host", () => {
     expect(harness.received).toEqual([output]);
   });
 
+  it("reports compatibility height while the standard handshake is still pending", async () => {
+    const notifyIntrinsicHeight = vi.fn();
+    const harness = createHarness({
+      connect: vi.fn(() => new Promise<void>(() => undefined)),
+      compatibility: { toolOutput: output, notifyIntrinsicHeight }
+    });
+    harness.host.setRoot(document.createElement("main"));
+    await settle();
+    harness.flushFrame();
+
+    expect(harness.statuses.at(-1)).toEqual({ mode: "compatibility" });
+    expect(harness.received).toEqual([output]);
+    expect(notifyIntrinsicHeight).toHaveBeenCalledWith({ height: 220 });
+    expect(harness.sendSizeChanged).not.toHaveBeenCalled();
+  });
+
   it("falls back after standard initialization fails and reports ChatGPT intrinsic height", async () => {
     const notifyIntrinsicHeight = vi.fn();
     const harness = createHarness({
