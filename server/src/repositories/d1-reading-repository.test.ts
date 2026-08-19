@@ -42,9 +42,11 @@ describe("D1ReadingRepository", () => {
 
     const state = await repository.read();
 
-    expect(state.schemaVersion).toBe(4);
+    expect(state.schemaVersion).toBe(5);
     expect(state.sessions).toEqual([]);
     expect(state.companionComments).toEqual([]);
+    expect(state.thoughts).toEqual([]);
+    expect(state.casebooks).toEqual([]);
     expect(db.state?.version).toBe(1);
   });
 
@@ -77,7 +79,7 @@ describe("D1ReadingRepository", () => {
 
     const state = await repository.read();
 
-    expect(state.schemaVersion).toBe(4);
+    expect(state.schemaVersion).toBe(5);
     expect(state.sessions[0].userCurrentPosition.index).toBe(12);
     expect(state.sessions[0].assistantSyncedPosition).toBeNull();
     expect(state.sessions[0].sessionPreferences.autoSaveCompanionComments).toBe(false);
@@ -86,6 +88,9 @@ describe("D1ReadingRepository", () => {
     expect(state.reactions).toEqual([reaction]);
     expect(state.bookmarks).toEqual([bookmark]);
     expect(state.companionComments).toEqual([]);
+    expect(state.thoughts).toContainEqual(
+      expect.objectContaining({ author: "tav", content: "旧反应" })
+    );
     expect(JSON.parse(db.state.data)).toEqual(state);
     expect(db.state.data).not.toContain("绝不能写回");
     expect(db.state.version).toBe(8);
@@ -198,7 +203,7 @@ describe("D1ReadingRepository", () => {
     });
 
     expect((await repository.read()).sessions).toHaveLength(1);
-    expect(db.state?.version).toBe(2);
+    expect(db.state?.version).toBe(3);
   });
 });
 

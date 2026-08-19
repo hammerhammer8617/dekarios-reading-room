@@ -1,6 +1,9 @@
 import {
   DEFAULT_SESSION_PREFERENCES,
   type Bookmark,
+  type BookGenre,
+  type DurableThought,
+  type MysteryCasebook,
   type Quote,
   type Reaction,
   type ReadingDatabase,
@@ -33,7 +36,9 @@ interface V1Database {
   bookmarks: Bookmark[];
 }
 
-type V2Session = Omit<ReadingSession, "sessionPreferences" | "sourceManifest">;
+type V2Session = Omit<ReadingSession, "sessionPreferences" | "sourceManifest" | "genre"> & {
+  genre?: BookGenre;
+};
 
 interface V2Database {
   schemaVersion: 2;
@@ -61,6 +66,12 @@ interface RepairableV4Database extends Omit<RepairableV3Database, "schemaVersion
   schemaVersion: 4;
 }
 
+interface RepairableV5Database extends Omit<RepairableV4Database, "schemaVersion"> {
+  schemaVersion: 5;
+  thoughts?: DurableThought[];
+  casebooks?: MysteryCasebook[];
+}
+
 type RepairableSourceManifest = Omit<SourceManifest, "cloudSync"> & {
   cloudSync?: SourceManifest["cloudSync"];
 };
@@ -73,10 +84,17 @@ const DISABLED_R2_CLOUD_SYNC: SourceManifest["cloudSync"] = {
 export function migrateReadingDatabase(input: unknown): ReadingDatabase {
   assertDatabaseCollections(input);
   const version = (input as { schemaVersion?: unknown }).schemaVersion;
-  if (version === 1) return migrateV3ToV4(migrateV2ToV3(migrateV1ToV2(input as V1Database)));
-  if (version === 2) return migrateV3ToV4(migrateV2ToV3(input as V2Database));
-  if (version === 3) return migrateV3ToV4(normalizeV3(input as RepairableV3Database));
-  if (version === 4) return normalizeV4(input as RepairableV4Database);
+  if (version === 1) {
+    return migrateV4ToV5(
+      migrateV3ToV4(migrateV2ToV3(migrateV1ToV2(input as V1Database)))
+    );
+  }
+  if (version === 2) return migrateV4ToV5(migrateV3ToV4(migrateV2ToV3(input as V2Database)));
+  if (version === 3) {
+    return migrateV4ToV5(migrateV3ToV4(normalizeV3(input as RepairableV3Database)));
+  }
+  if (version === 4) return migrateV4ToV5(normalizeV4(input as RepairableV4Database));
+  if (version === 5) return normalizeV5(input as RepairableV5Database);
   throw new Error("Unsupported schemaVersion");
 }
 
@@ -129,14 +147,14 @@ function normalizeV3(database: RepairableV3Database): RepairableV3Database {
   };
 }
 
-function migrateV3ToV4(database: RepairableV3Database): ReadingDatabase {
+function migrateV3ToV4(database: RepairableV3Database): RepairableV4Database {
   return normalizeV4({
     ...database,
     schemaVersion: 4
   });
 }
 
-function normalizeV4(database: RepairableV4Database): ReadingDatabase {
+function normalizeV4(database: RepairableV4Database): RepairableV4Database {
   assertV2Sessions(database.sessions);
   return {
     schemaVersion: 4,
@@ -152,11 +170,64 @@ function normalizeV4(database: RepairableV4Database): ReadingDatabase {
   };
 }
 
+function migrateV4ToV5(database: RepairableV4Database): ReadingDatabase {
+  const normalized = normalizeV4(database);
+  return normalizeV5({
+    ...normalized,
+    schemaVersion: 5,
+    thoughts: [
+      ...normalized.reactions.map((reaction) => ({
+        id: `legacy-reaction:${reaction.id}`,
+        sessionId: reaction.sessionId,
+        author: "tav" as const,
+        kind: "reaction" as const,
+        content: reaction.content,
+        position: structuredClone(reaction.position),
+        status: "open" as const,
+        ...(reaction.operationId ? { operationId: reaction.operationId } : {}),
+        createdAt: reaction.createdAt,
+        updatedAt: reaction.createdAt
+      })),
+      ...(normalized.companionComments ?? []).map((comment) => ({
+        id: `legacy-comment:${comment.id}`,
+        sessionId: comment.sessionId,
+        author: "gale" as const,
+        kind: "reaction" as const,
+        content: comment.text,
+        position: structuredClone(comment.position),
+        status: "open" as const,
+        ...(comment.operationId ? { operationId: comment.operationId } : {}),
+        createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt ?? comment.createdAt
+      }))
+    ],
+    casebooks: []
+  });
+}
+
+function normalizeV5(database: RepairableV5Database): ReadingDatabase {
+  const v4 = normalizeV4({ ...database, schemaVersion: 4 });
+  return {
+    ...v4,
+    schemaVersion: 5,
+    sessions: v4.sessions.map((session) => ({
+      ...session,
+      genre: normalizeGenre(session.genre, session.type),
+      sessionPreferences: normalizePreferences(session.sessionPreferences),
+      sourceManifest: normalizeSourceManifest(session.sourceManifest)
+    })),
+    companionComments: structuredClone(v4.companionComments ?? []),
+    thoughts: structuredClone(database.thoughts ?? []),
+    casebooks: structuredClone(database.casebooks ?? [])
+  };
+}
+
 function assertDatabaseCollections(input: unknown): asserts input is
   | V1Database
   | V2Database
   | RepairableV3Database
-  | RepairableV4Database {
+  | RepairableV4Database
+  | RepairableV5Database {
   if (!input || typeof input !== "object") throw new Error("Unsupported data shape");
   const value = input as Record<string, unknown>;
   if (
@@ -167,6 +238,16 @@ function assertDatabaseCollections(input: unknown): asserts input is
   ) {
     throw new Error("Unsupported data shape");
   }
+}
+
+function normalizeGenre(input: unknown, type: ReadingType): BookGenre {
+  if (
+    typeof input === "string" &&
+    ["novel", "mystery", "nonfiction", "essay", "poetry", "manga", "other"].includes(input)
+  ) {
+    return input as BookGenre;
+  }
+  return type === "manga" ? "manga" : "novel";
 }
 
 function normalizeSourceManifest(

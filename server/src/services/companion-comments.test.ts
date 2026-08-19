@@ -9,12 +9,14 @@ import { ReadingService } from "./reading-service.js";
 
 class MemoryRepository implements ReadingRepository {
   database: ReadingDatabase = {
-    schemaVersion: 3,
+    schemaVersion: 5,
     sessions: [],
     quotes: [],
     reactions: [],
     bookmarks: [],
-    companionComments: []
+    companionComments: [],
+    thoughts: [],
+    casebooks: []
   };
 
   async read() {

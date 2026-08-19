@@ -184,10 +184,10 @@ describe("privacy boundary", () => {
     );
   });
 
-  it("documents the v0.2.2 cloud-first privacy model in README", async () => {
+  it("documents the v0.3.0 cloud-first privacy model in README", async () => {
     const readme = await readFile(new URL("../../README.md", import.meta.url), "utf8");
 
-    expect(readme).toContain("v0.2.2");
+    expect(readme).toContain("v0.3.0");
     expect(readme).toMatch(/R2[\s\S]*正文/);
     expect(readme).toMatch(/D1[\s\S]*metadata/);
     expect(readme).toMatch(/IndexedDB[\s\S]*加速缓存/);
@@ -223,7 +223,7 @@ function assertNoForbidden(serialized: string) {
 
 class MemoryReadingRepository implements ReadingRepository {
   private database: ReadingDatabase = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     sessions: [
       {
         id: "session-1",
@@ -243,7 +243,9 @@ class MemoryReadingRepository implements ReadingRepository {
     quotes: [],
     reactions: [],
     bookmarks: [],
-    companionComments: []
+    companionComments: [],
+    thoughts: [],
+    casebooks: []
   };
 
   async read(): Promise<ReadingDatabase> {

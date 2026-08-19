@@ -33,8 +33,8 @@ const disabledCloudSync = {
   provider: "r2"
 };
 
-describe("migrateReadingDatabase v4", () => {
-  it("migrates v1 directly to v4 and preserves all records", () => {
+describe("migrateReadingDatabase v5", () => {
+  it("migrates v1 directly to v5 and preserves all records", () => {
     const migrated = migrateReadingDatabase({
       schemaVersion: 1,
       sessions: [
@@ -54,11 +54,12 @@ describe("migrateReadingDatabase v4", () => {
       bookmarks: [bookmark]
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.sessions[0]).toMatchObject({
       userCurrentPosition: { index: 12 },
       assistantSyncedPosition: null,
       liveReadingEnabled: false,
+      genre: "novel",
       sessionPreferences: DEFAULT_SESSION_PREFERENCES,
       sourceManifest: null
     });
@@ -66,9 +67,18 @@ describe("migrateReadingDatabase v4", () => {
     expect(migrated.quotes).toEqual([quote]);
     expect(migrated.reactions).toEqual([reaction]);
     expect(migrated.bookmarks).toEqual([bookmark]);
+    expect(migrated.thoughts).toContainEqual(
+      expect.objectContaining({
+        id: "legacy-reaction:r1",
+        author: "tav",
+        kind: "reaction",
+        content: "旧反应"
+      })
+    );
+    expect(migrated.casebooks).toEqual([]);
   });
 
-  it("migrates v2 to v4 without losing dual positions or status", () => {
+  it("migrates v2 to v5 without losing dual positions or status", () => {
     const migrated = migrateReadingDatabase({
       schemaVersion: 2,
       sessions: [
@@ -91,7 +101,7 @@ describe("migrateReadingDatabase v4", () => {
       bookmarks: [bookmark]
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.sessions[0]).toMatchObject({
       status: "completed",
       userCurrentPosition: { index: 20 },
@@ -131,7 +141,7 @@ describe("migrateReadingDatabase v4", () => {
     expect(migrated.companionComments).toEqual([]);
   });
 
-  it("migrates v3 source metadata to v4 disabled cloud sync without object keys", () => {
+  it("migrates v3 source metadata to v5 disabled cloud sync without object keys", () => {
     const sourceManifest = {
       sourceId: "source-1",
       sourceKind: "pasted_text" as const,
@@ -183,7 +193,7 @@ describe("migrateReadingDatabase v4", () => {
       companionComments: [companionComment]
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.sessions[0].sessionPreferences).toEqual({
       readingCommentMode: "cp_talk",
       commentLength: "normal",
@@ -200,6 +210,13 @@ describe("migrateReadingDatabase v4", () => {
       "cloudSync.manifestObjectKey"
     );
     expect(migrated.companionComments).toEqual([companionComment]);
+    expect(migrated.thoughts).toContainEqual(
+      expect.objectContaining({
+        id: "legacy-comment:c1",
+        author: "gale",
+        content: "这个对视很难说只是普通朋友。"
+      })
+    );
   });
 
   it("preserves complete v3 preferences without replacing explicit auto-save choice", () => {
@@ -272,7 +289,7 @@ describe("migrateReadingDatabase v4", () => {
       companionComments: []
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.sessions[0].sourceManifest?.cloudSync).toEqual(disabledCloudSync);
     expect(migrated.quotes).toEqual([quote]);
     expect(migrated.reactions).toEqual([reaction]);

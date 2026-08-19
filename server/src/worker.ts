@@ -13,7 +13,7 @@ export default {
     const route = getWorkerRoute(url, env.MCP_PATH_TOKEN);
 
     if (route === "health") {
-      return Response.json({ ok: true, app: "S×S 小窝共读", version: "0.2.1" });
+      return Response.json({ ok: true, app: "德卡里奥斯家的书房", version: "0.3.0" });
     }
     if (route === "misconfigured") {
       console.error(JSON.stringify({ message: "MCP_PATH_TOKEN is not configured" }));
