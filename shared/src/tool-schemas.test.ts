@@ -13,6 +13,7 @@ import {
   listCompanionCommentsInputSchema,
   publishCompanionCommentInputSchema,
   renameReadingSessionInputSchema,
+  renderReadingEndCardInputSchema,
   sendCurrentContextInputSchema,
   setReadingSessionStatusInputSchema,
   setSourceManifestInputSchema,
@@ -21,6 +22,29 @@ import {
   updateReadingPositionInputSchema,
   upsertCaseObservationTaskInputSchema
 } from "./tool-schemas.js";
+
+describe("reading end card schema", () => {
+  it("requires meaning beyond the saved page number", () => {
+    expect(() =>
+      renderReadingEndCardInputSchema.parse({ bookId: "book-1" })
+    ).toThrow();
+
+    expect(
+      renderReadingEndCardInputSchema.parse({
+        bookId: "book-1",
+        operationId: "turn-18",
+        progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
+        readingSummary: "今天的章节让三份证词互相冲突，并把叙述中的时间断层推到台前。",
+        tavThought: "真正的交换发生在证词之外。",
+        galeThought: "叙述节奏正在替某个人遮掩时间。",
+        openQuestion: "缺失的十分钟是谁制造的？"
+      })
+    ).toMatchObject({
+      progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
+      readingSummary: "今天的章节让三份证词互相冲突，并把叙述中的时间断层推到台前。"
+    });
+  });
+});
 
 describe("casebook schemas", () => {
   it("accepts the supported mystery sources and preserves a clue as one bounded entry", () => {
