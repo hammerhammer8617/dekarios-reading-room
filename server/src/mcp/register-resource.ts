@@ -14,10 +14,10 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
   };
   registerAppResource(
     server,
-    "S×S 小窝共读",
+    "德卡里奥斯家的书房",
     READING_NEST_URI,
     {
-      description: "移动端优先的小说与漫画共读小窝",
+      description: "移动端优先的共读书架、思考时间线与推理案件簿",
       _meta: {
         ui: {
           csp: resourceCsp,
@@ -25,7 +25,7 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
         },
         "openai/widgetCSP": openaiWidgetCsp,
         "openai/widgetDescription":
-          "一个温暖的移动端共读小窝，用于阅读用户自己粘贴的小说文本或导入的漫画图片。"
+          "德卡里奥斯家的移动端共读书房：查看书架、双方思考、开放问题、推理案件簿，以及今天读到这里的收尾卡。"
       }
     },
     async () => {
@@ -42,7 +42,7 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
               },
               "openai/widgetCSP": openaiWidgetCsp,
               "openai/widgetDescription":
-                "一个温暖的移动端共读小窝，用于阅读用户自己粘贴的小说文本或导入的漫画图片。",
+                "德卡里奥斯家的移动端共读书房：查看书架、双方思考、开放问题、推理案件簿，以及今天读到这里的收尾卡。",
               "openai/widgetPrefersBorder": true
             }
           }

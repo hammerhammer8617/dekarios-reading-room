@@ -7,8 +7,8 @@ import {
   useState
 } from "react";
 
-const RESOURCE_VERSION = "app-v19";
-const APP_VERSION = "0.2.2";
+const RESOURCE_VERSION = "bookshelf-v1";
+const APP_VERSION = "0.3.0";
 
 type AppModule = {
   App: ComponentType;
@@ -103,7 +103,7 @@ class BootErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   }
 
   componentDidCatch(error: unknown, _info: ErrorInfo) {
-    console.error("SxS reading nest boot failed", sanitizeErrorMessage(error));
+    console.error("Dekarios reading room boot failed", sanitizeErrorMessage(error));
   }
 
   render() {
@@ -134,8 +134,8 @@ export function BootDiagnostics({
 
   return (
     <main className="boot-diagnostics" role="alert" aria-live="polite">
-      <strong>SxS 小窝加载诊断</strong>
-      <p>组件还没有正常显示。请刷新小窝；如果仍是空白，把这块信息截图给 Codex。</p>
+      <strong>书房加载诊断</strong>
+      <p>组件还没有正常显示。请刷新书房；如果仍是空白，把这块信息截图给 Codex。</p>
       <dl>
         <div>
           <dt>resourceVersion</dt>

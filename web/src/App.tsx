@@ -33,6 +33,7 @@ import { DiaryPreview } from "./components/DiaryPreview.js";
 import { MoreActions } from "./components/MoreActions.js";
 import { SyncChoiceSheet } from "./components/SyncChoiceSheet.js";
 import { SyncProgressSheet } from "./components/SyncProgressSheet.js";
+import { ReadingRoomSurface } from "./components/ReadingRoomSurface.js";
 import type { PendingCompanionCommentDraft } from "./components/CompanionDock.js";
 import { prepareCurrentPageContext } from "./features/manga/image-sync.js";
 import { splitNovelText, splitNovelTextForVersion } from "./features/novel/split-text.js";
@@ -111,6 +112,18 @@ const LARGE_NOVEL_TEXTAREA_PREVIEW_BYTES = 2 * 1024 * 1024;
 const LARGE_NOVEL_TEXTAREA_PREVIEW_CHARS = 1200;
 
 export function App() {
+  const output = initialToolOutput<{ view?: string }>();
+  if (
+    output?.view === "bookshelf" ||
+    output?.view === "reading_status" ||
+    output?.view === "reading_end"
+  ) {
+    return <ReadingRoomSurface initialOutput={output as Parameters<typeof ReadingRoomSurface>[0]["initialOutput"]} />;
+  }
+  return <LegacyReadingApp />;
+}
+
+function LegacyReadingApp() {
   const initial = initialToolOutput<OpenOutput>();
   const sourceEndpointBase = initial?.sourceEndpointBase ?? deriveSourceEndpointBase();
   const cloudSourceClient = useMemo(

@@ -12,12 +12,14 @@ import {
 export function normalizeReadingDatabase(input: unknown): ReadingDatabase {
   const database = migrateReadingDatabase(input);
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     sessions: database.sessions.map(copySession),
     quotes: database.quotes.map(copyQuote),
     reactions: database.reactions.map(copyReaction),
     bookmarks: database.bookmarks.map(copyBookmark),
-    companionComments: database.companionComments.map(copyCompanionComment)
+    companionComments: database.companionComments.map(copyCompanionComment),
+    thoughts: structuredClone(database.thoughts),
+    casebooks: structuredClone(database.casebooks)
   };
 }
 
@@ -41,6 +43,14 @@ function copySession(session: ReadingSession): ReadingSession {
     liveReadingEnabled: session.liveReadingEnabled,
     sessionPreferences: structuredClone(session.sessionPreferences),
     sourceManifest: copySourceManifest(session.sourceManifest),
+    ...(session.author ? { author: session.author } : {}),
+    genre: session.genre,
+    ...(session.spoilerBoundary
+      ? { spoilerBoundary: structuredClone(session.spoilerBoundary) }
+      : {}),
+    ...(session.lastNotionSyncedAt
+      ? { lastNotionSyncedAt: session.lastNotionSyncedAt }
+      : {}),
     ...(session.lastAssistantConfirmation
       ? { lastAssistantConfirmation: structuredClone(session.lastAssistantConfirmation) }
       : {}),

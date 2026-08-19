@@ -30,7 +30,7 @@ import { ReadingService } from "../services/reading-service.js";
 import type { CloudSourceService } from "../services/cloud-source-service.js";
 import { toolResult } from "./tool-result.js";
 
-export const READING_NEST_URI = "ui://ss-reading-nest/app-v19.html";
+export const READING_NEST_URI = "ui://dekarios-reading-room/bookshelf-v1.html";
 
 const readOnly = {
   readOnlyHint: true,
@@ -45,15 +45,16 @@ const mutation = {
 
 export const TOOL_CONFIGS = {
   open_reading_nest: {
-    title: "打开 S×S 小窝共读",
-    description: "Use this when the user wants to open the reading nest or continue recent reading.",
+    title: "旧版阅读器入口",
+    description:
+      "Legacy app bridge retained for the original imported-text and manga reader. For normal shared reading use get_or_start_book_context; for visible history use open_bookshelf.",
     inputSchema: openReadingNestInputSchema,
     annotations: readOnly,
     _meta: {
-      ui: { resourceUri: READING_NEST_URI },
+      ui: { resourceUri: READING_NEST_URI, visibility: ["app"] },
       "openai/outputTemplate": READING_NEST_URI,
-      "openai/toolInvocation/invoking": "正在点亮小窝…",
-      "openai/toolInvocation/invoked": "小窝已经准备好"
+      "openai/toolInvocation/invoking": "正在打开旧版阅读器…",
+      "openai/toolInvocation/invoked": "旧版阅读器已经准备好"
     }
   },
   start_reading_session: {

@@ -24,7 +24,7 @@ export interface ReadingHostContext {
 function connectApp() {
   if (typeof window === "undefined" || window.parent === window) return undefined;
   if (!app) {
-    app = new McpApp({ name: "S×S 小窝共读", version: "0.2.1" });
+    app = new McpApp({ name: "德卡里奥斯家的书房", version: "0.3.0" });
     appReady = app.connect().catch(() => undefined);
   }
   return app;

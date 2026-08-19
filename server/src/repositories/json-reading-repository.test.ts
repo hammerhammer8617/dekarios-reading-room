@@ -13,9 +13,11 @@ describe("JsonReadingRepository", () => {
 
     const database = await repo.read();
 
-    expect(database.schemaVersion).toBe(4);
+    expect(database.schemaVersion).toBe(5);
     expect(database.sessions).toEqual([]);
     expect(database.companionComments).toEqual([]);
+    expect(database.thoughts).toEqual([]);
+    expect(database.casebooks).toEqual([]);
     expect(JSON.parse(await readFile(file, "utf8"))).toEqual(database);
   });
 
@@ -51,7 +53,7 @@ describe("JsonReadingRepository", () => {
     const database = await repo.read();
     const persisted = JSON.parse(await readFile(file, "utf8"));
 
-    expect(database.schemaVersion).toBe(4);
+    expect(database.schemaVersion).toBe(5);
     expect(database.sessions[0].userCurrentPosition.index).toBe(12);
     expect(database.sessions[0].assistantSyncedPosition).toBeNull();
     expect(database.sessions[0].sessionPreferences.autoSaveCompanionComments).toBe(false);
@@ -60,6 +62,9 @@ describe("JsonReadingRepository", () => {
     expect(database.reactions).toEqual([reaction]);
     expect(database.bookmarks).toEqual([bookmark]);
     expect(database.companionComments).toEqual([]);
+    expect(database.thoughts).toContainEqual(
+      expect.objectContaining({ author: "tav", content: "旧反应" })
+    );
     expect(persisted).toEqual(database);
     expect(JSON.stringify(persisted)).not.toContain("绝不能写回");
   });
@@ -73,7 +78,7 @@ describe("JsonReadingRepository", () => {
     const database = await repo.read();
     const persisted = JSON.parse(await readFile(file, "utf8"));
 
-    expect(database.schemaVersion).toBe(4);
+    expect(database.schemaVersion).toBe(5);
     expect(database.sessions[0]).toMatchObject({
       status: "completed",
       userCurrentPosition: { index: 20 },
