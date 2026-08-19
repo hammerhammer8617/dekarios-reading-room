@@ -24,7 +24,8 @@ const required = [
   "盖尔留下",
   "留到下次",
   "ui/notifications/size-changed",
-  "notifyIntrinsicHeight"
+  "notifyIntrinsicHeight",
+  'data-reading-end-height-strategy="eager-compat-v3"'
 ];
 for (const value of required) {
   if (!html.includes(value)) throw new Error(`Reading-end build is missing: ${value}`);
