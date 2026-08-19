@@ -1,6 +1,7 @@
 .reading-room,
 .reading-status-card,
-.reading-end-card {
+.reading-end-card,
+.reading-room-bootstrap {
   --ink: #20241f;
   --muted: #6e675b;
   --paper: #f3ead6;
@@ -16,9 +17,37 @@
 
 .reading-room * ,
 .reading-status-card *,
-.reading-end-card * {
+.reading-end-card *,
+.reading-room-bootstrap * {
   box-sizing: border-box;
 }
+
+.reading-room-bootstrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  padding: 16px 18px;
+  border: 1px solid rgba(41, 66, 53, .2);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 250, 236, .98), rgba(237, 222, 193, .96));
+  box-shadow: 0 10px 28px rgba(34, 50, 40, .1);
+}
+
+.reading-room-bootstrap > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green);
+  color: #f5d99a;
+}
+
+.reading-room-bootstrap strong { font-size: 14px; font-weight: 650; }
+.reading-room-bootstrap p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
 
 .reading-room {
   width: min(100%, 720px);

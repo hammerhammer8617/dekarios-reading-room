@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   DurableThought,
   MysteryReadingCasebook,
@@ -96,6 +96,11 @@ export function ReadingRoomSurface({ initialOutput }: { initialOutput: RoomOutpu
   const [details, setDetails] = useState<BookDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setOutput(initialOutput);
+    setDetails(null);
+  }, [initialOutput]);
 
   async function openBookshelf() {
     setLoading(true);
