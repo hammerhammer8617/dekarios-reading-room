@@ -98,7 +98,14 @@ export function createReadingEndHost(
   let frameId: number | undefined;
   let lastSize = "";
   let outputError: string | undefined;
+  let latestOutput: RenderReadingEndCardOutput | undefined;
   let removeGlobalsListener: (() => void) | undefined;
+
+  const attachCompatibilityOutput = () => {
+    compatibilityHost = deps.getCompatibilityHost();
+    removeGlobalsListener ??= deps.addGlobalsListener(publishOutput);
+    if (compatibilityHost?.toolOutput !== undefined) publishOutput(compatibilityHost.toolOutput);
+  };
 
   const publishStatus = (next: ReadingEndHostStatus) => {
     status = next;
@@ -116,8 +123,9 @@ export function createReadingEndHost(
       return;
     }
     outputError = undefined;
+    latestOutput = parsed.data;
     if (status.error) publishStatus({ mode: status.mode });
-    for (const listener of outputListeners) listener(parsed.data);
+    for (const listener of outputListeners) listener(latestOutput);
   };
 
   const toolResultListener = (result: ToolResult) => publishOutput(result.structuredContent);
@@ -169,7 +177,6 @@ export function createReadingEndHost(
   };
 
   const startCompatibility = () => {
-    compatibilityHost = deps.getCompatibilityHost();
     if (!compatibilityHost?.notifyIntrinsicHeight) {
       publishStatus({
         mode: "unavailable",
@@ -178,8 +185,6 @@ export function createReadingEndHost(
       return;
     }
     publishStatus({ mode: "compatibility" });
-    removeGlobalsListener = deps.addGlobalsListener(publishOutput);
-    if (compatibilityHost.toolOutput !== undefined) publishOutput(compatibilityHost.toolOutput);
     attachHeightObserver();
   };
 
@@ -187,6 +192,7 @@ export function createReadingEndHost(
     if (startPromise) return startPromise;
     publishStatus({ mode: "connecting" });
     startPromise = (async () => {
+      attachCompatibilityOutput();
       if (!deps.isEmbedded()) {
         startCompatibility();
         return;
@@ -214,6 +220,7 @@ export function createReadingEndHost(
   return {
     subscribeOutput(listener: (output: RenderReadingEndCardOutput) => void) {
       outputListeners.add(listener);
+      if (latestOutput) listener(latestOutput);
       void start();
       return () => {
         outputListeners.delete(listener);

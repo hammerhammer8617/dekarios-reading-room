@@ -10,7 +10,7 @@ const forbidden = [
   "正在打开书架",
   "手边的书",
   "案件簿",
-  "app-v35"
+  "app-v36"
 ];
 for (const value of forbidden) {
   if (html.includes(value)) throw new Error(`Legacy reading shell leaked into reading-end build: ${value}`);
