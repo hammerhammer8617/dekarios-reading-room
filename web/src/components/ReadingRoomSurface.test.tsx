@@ -40,6 +40,8 @@ describe("ReadingRoomSurface", () => {
     expect(html).toContain("共同");
     expect(html).toContain("2 个问题");
     expect(html).toContain("案件簿 9");
+    expect(html).toContain("room-book-card");
+    expect(html).not.toContain("class=\"book-card\"");
   });
 
   it("renders today's closing card with a stable built-in background", () => {

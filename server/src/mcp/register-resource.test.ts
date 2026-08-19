@@ -8,7 +8,7 @@ vi.mock("@modelcontextprotocol/ext-apps/server", () => ({
 }));
 
 describe("registerReadingResource", () => {
-  it("serves the current app-v32 template and cached compatibility templates", async () => {
+  it("serves the current app-v33 template and cached compatibility templates", async () => {
     const {
       READING_NEST_RESOURCE_URIS,
       registerReadingResource
@@ -17,8 +17,9 @@ describe("registerReadingResource", () => {
 
     registerReadingResource({} as never, "<html></html>", "https://reading-nest.example.workers.dev");
 
-    expect(READING_NEST_URI).toBe("ui://ss-reading-nest/app-v32.html");
+    expect(READING_NEST_URI).toBe("ui://ss-reading-nest/app-v33.html");
     expect(READING_NEST_RESOURCE_URIS).toEqual([
+      "ui://ss-reading-nest/app-v33.html",
       "ui://ss-reading-nest/app-v32.html",
       "ui://ss-reading-nest/app-v31.html",
       "ui://ss-reading-nest/app-v30.html",
@@ -34,7 +35,7 @@ describe("registerReadingResource", () => {
       "ui://ss-reading-nest/app-v20.html",
       "ui://ss-reading-nest/app-v19.html"
     ]);
-    expect(registerAppResource).toHaveBeenCalledTimes(14);
+    expect(registerAppResource).toHaveBeenCalledTimes(15);
 
     for (const [index, expectedUri] of READING_NEST_RESOURCE_URIS.entries()) {
       const [, , uri, descriptor, loader] = registerAppResource.mock.calls[index];
