@@ -1,6 +1,10 @@
 import { registerAppResource, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { BOOKSHELF_RESOURCE_URI, READING_END_RESOURCE_URI } from "@ss/shared";
+import {
+  BOOKSHELF_RESOURCE_URI,
+  PREVIOUS_BOOKSHELF_RESOURCE_URI,
+  READING_END_RESOURCE_URI
+} from "@ss/shared";
 import { READING_NEST_URI } from "./register-tools.js";
 
 export const READING_NEST_RESOURCE_URIS = [
@@ -121,34 +125,41 @@ export function registerBookshelfResource(server: McpServer, bookshelfHtml: stri
   const resourceCsp = { connectDomains: [], resourceDomains: [] };
   const openaiWidgetCsp = { connect_domains: [], resource_domains: [] };
   const description =
-    "一个最小、预渲染的独立书架，只显示 open_bookshelf_v2 返回的书目与共读进度。";
+    "一个轻量、可交互的独立书架，可从书卡进入完整共读记录，并以内嵌底图避免额外网络依赖。";
 
-  registerAppResource(
-    server,
-    "德卡里奥斯家的书房｜书架",
+  for (const [index, resourceUri] of [
     BOOKSHELF_RESOURCE_URI,
-    {
-      description,
-      _meta: {
-        ui: { csp: resourceCsp, prefersBorder: false },
-        "openai/widgetCSP": openaiWidgetCsp,
-        "openai/widgetDescription": description
-      }
-    },
-    async () => ({
-      contents: [
-        {
-          uri: BOOKSHELF_RESOURCE_URI,
-          mimeType: RESOURCE_MIME_TYPE,
-          text: bookshelfHtml,
-          _meta: {
-            ui: { csp: resourceCsp, prefersBorder: false },
-            "openai/widgetCSP": openaiWidgetCsp,
-            "openai/widgetDescription": description,
-            "openai/widgetPrefersBorder": false
-          }
+    PREVIOUS_BOOKSHELF_RESOURCE_URI
+  ].entries()) {
+    registerAppResource(
+      server,
+      index === 0
+        ? "德卡里奥斯家的书房｜书架"
+        : "德卡里奥斯家的书房｜书架兼容资源",
+      resourceUri,
+      {
+        description,
+        _meta: {
+          ui: { csp: resourceCsp, prefersBorder: false },
+          "openai/widgetCSP": openaiWidgetCsp,
+          "openai/widgetDescription": description
         }
-      ]
-    })
-  );
+      },
+      async () => ({
+        contents: [
+          {
+            uri: resourceUri,
+            mimeType: RESOURCE_MIME_TYPE,
+            text: bookshelfHtml,
+            _meta: {
+              ui: { csp: resourceCsp, prefersBorder: false },
+              "openai/widgetCSP": openaiWidgetCsp,
+              "openai/widgetDescription": description,
+              "openai/widgetPrefersBorder": false
+            }
+          }
+        ]
+      })
+    );
+  }
 }

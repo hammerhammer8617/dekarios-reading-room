@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-bookshelf-resource="static-v1">
+<html lang="zh-CN" data-bookshelf-resource="static-v3">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -24,7 +24,7 @@
 
       body { padding: 4px; }
 
-      #bookshelf-static-v2 {
+      #bookshelf-static-v3 {
         width: 100%;
         min-height: 312px;
         margin: 0;
@@ -34,117 +34,218 @@
         width: min(100%, 620px);
         min-height: 304px;
         margin: 0 auto;
-        padding: 20px;
-        border: 1px solid #c8bda8;
+        overflow: hidden;
+        border: 1px solid #bbaa8e;
         border-radius: 18px;
-        background: #f6efe1;
+        background: #f4ead6;
         color: #25231f;
         box-shadow: 0 8px 24px rgba(42, 35, 27, 0.1);
       }
 
+      .hero {
+        position: relative;
+        min-height: 142px;
+        overflow: hidden;
+        background-image: url("/src/assets/reading-room/bookroom-background-static-v3.webp");
+        background-position: 50% 43%;
+        background-size: cover;
+      }
+
+      .hero::before {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(2, 12, 8, 0.03) 10%, rgba(5, 16, 11, 0.14) 48%, rgba(7, 20, 14, 0.84));
+        content: "";
+      }
+
+      .hero-copy {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding: 18px 20px 16px;
+        color: #fff8e9;
+        text-shadow: 0 1px 18px #110d09;
+      }
+
+      .hero-copy p { margin: 5px 0 0; font-size: 12px; opacity: 0.88; }
+      .body { padding: 18px 20px 20px; }
+
       .eyebrow,
       .meta,
       .facts,
-      .status {
+      .status,
+      .detail-label,
+      .thought-meta {
         font-size: 12px;
         line-height: 1.5;
       }
 
       .eyebrow {
         margin: 0 0 5px;
-        color: #805447;
+        color: #e7c887;
         font-weight: 750;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
       }
 
       h1,
-      h2 {
+      h2,
+      h3 {
         margin: 0;
         font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", Georgia, serif;
       }
 
-      h1 { font-size: 23px; line-height: 1.3; }
-      h2 { font-size: 16px; line-height: 1.4; }
+      h1 { font-size: 24px; line-height: 1.3; }
+      h2 { font-size: 17px; line-height: 1.4; }
+      h3 { font-size: 15px; line-height: 1.4; }
 
-      .version {
-        display: inline-block;
-        margin: 8px 0 0;
-        padding: 4px 9px;
-        border-radius: 999px;
-        background: #e9ddc8;
-        color: #694d42;
-        font-size: 12px;
-        font-weight: 650;
+      .section-heading {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
       }
 
+      .section-heading > span { color: #706a61; font-size: 12px; }
+
       .probe {
-        min-height: 116px;
-        margin-top: 16px;
-        padding: 15px;
+        min-height: 92px;
+        padding: 17px;
         border: 1px solid #d9cfbd;
-        border-radius: 12px;
+        border-radius: 13px;
         background: #fffaf0;
       }
 
       .probe strong { font-size: 15px; }
-      .probe p { margin: 5px 0 0; font-size: 14px; line-height: 1.65; }
+      .probe p { margin: 5px 0 0; color: #706a61; font-size: 13px; line-height: 1.6; }
 
       .books {
         display: grid;
         gap: 10px;
-        margin-top: 16px;
+        margin-top: 14px;
       }
 
       .book {
-        padding: 13px 14px;
+        position: relative;
+        width: 100%;
+        padding: 13px 42px 13px 14px;
         border: 1px solid #d9cfbd;
         border-left: 5px solid #8a5e4b;
         border-radius: 12px;
         background: #fffaf0;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
       }
 
+      .book::after {
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        color: #9a6a45;
+        content: "›";
+        font-size: 26px;
+        line-height: 1;
+        transform: translateY(-50%);
+      }
+
+      .book:hover { border-color: #b99c78; background: #fffdf7; }
+      .book:active { transform: translateY(1px); }
+      .book:focus-visible, .back:focus-visible { outline: 3px solid rgba(138, 94, 75, 0.35); outline-offset: 2px; }
+      .book:disabled { cursor: wait; opacity: 0.62; }
       .book[data-status="completed"] { border-left-color: #6e7c62; }
       .meta { margin: 3px 0 0; color: #706a61; }
       .position { margin: 9px 0 0; font-size: 14px; line-height: 1.55; }
       .thought { margin: 7px 0 0; color: #604f44; font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", Georgia, serif; font-size: 13px; line-height: 1.55; }
       .facts { margin: 8px 0 0; color: #805447; }
-      .status { margin: 17px 0 0; color: #706a61; }
+      .status { margin: 16px 0 0; color: #706a61; }
+
+      .back {
+        margin: 0 0 12px;
+        padding: 5px 0;
+        border: 0;
+        background: transparent;
+        color: #805447;
+        font: 750 13px var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+        cursor: pointer;
+      }
+
+      .detail-header {
+        padding: 16px;
+        border: 1px solid #d9cfbd;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #fffaf0, #eadbc1);
+      }
+
+      .detail-header > p { margin: 4px 0 0; color: #706a61; font-size: 13px; }
+      .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 13px; overflow: hidden; border: 1px solid #d9cfbd; border-radius: 11px; background: #d9cfbd; }
+      .detail-grid > div { display: flex; min-height: 55px; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 10px; background: rgba(255, 250, 240, 0.94); }
+      .detail-label { color: #706a61; }
+      .detail-grid strong { font-size: 13px; font-weight: 650; }
+      .detail-section { margin-top: 19px; }
+      .thought-list { display: grid; gap: 8px; margin-top: 9px; }
+      .thought-row { padding: 10px 11px; border-left: 3px solid #8a5e4b; border-radius: 5px 11px 11px 5px; background: #fffaf0; }
+      .thought-row[data-author="gale"] { border-left-color: #4e705e; }
+      .thought-row[data-author="shared"] { border-left-color: #ae813c; }
+      .thought-row p { margin: 5px 0 0; font-size: 13px; line-height: 1.55; }
+      .thought-meta { display: flex; gap: 7px; color: #706a61; }
+      .thought-meta b { color: #805447; }
+      .thought-meta span:last-child { margin-left: auto; }
+      .question-list { display: grid; gap: 8px; margin: 9px 0 0; padding: 0; list-style: none; }
+      .question-list li { padding: 10px 12px; border-radius: 11px; background: rgba(128, 84, 71, 0.09); font-size: 13px; line-height: 1.55; }
+      .empty { margin: 9px 0 0; color: #706a61; font-size: 13px; }
       [hidden] { display: none !important; }
 
       @media (prefers-color-scheme: dark) {
         .shelf { border-color: #5b5145; background: #28241f; color: #f2eadc; }
-        .eyebrow, .facts { color: #dba995; }
-        .version { background: #443a31; color: #ead9c8; }
-        .probe, .book { border-color: #5b5145; background: #332d27; }
-        .meta, .status { color: #bdb2a4; }
+        .body { background: #28241f; }
+        .probe, .book, .thought-row { border-color: #5b5145; background: #332d27; }
+        .book:hover { border-color: #866f59; background: #3a332c; }
+        .meta, .status, .section-heading > span, .detail-header > p, .detail-label, .thought-meta, .empty { color: #bdb2a4; }
+        .facts, .back { color: #dba995; }
         .thought { color: #dccabb; }
+        .detail-header { border-color: #5b5145; background: linear-gradient(135deg, #332d27, #453a30); }
+        .detail-grid { border-color: #5b5145; background: #5b5145; }
+        .detail-grid > div { background: #332d27; }
+        .question-list li { background: rgba(219, 169, 149, 0.09); }
       }
     </style>
   </head>
   <body>
     <main
-      id="bookshelf-static-v2"
-      data-bookshelf-static-v2
-      data-bookshelf-height-strategy="raw-postmessage-v2"
+      id="bookshelf-static-v3"
+      data-bookshelf-static-v3
+      data-bookshelf-height-strategy="raw-postmessage-v3"
       data-state="shell"
     >
       <article class="shelf" aria-live="polite">
-        <header>
-          <p class="eyebrow">德卡里奥斯家的书房</p>
-          <h1 id="bookshelf-title">静态书架已加载</h1>
-          <p class="version">bookshelf-static-v2 · 工具身份缓存失效探针</p>
+        <header class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Dekarios Reading Room</p>
+            <h1>德卡里奥斯家的书房</h1>
+            <p>我们共同读过的地方，都留在这里。</p>
+          </div>
         </header>
 
-        <section id="bookshelf-probe" class="probe" role="status">
-          <strong>如果你看见这张卡，ChatGPT 已经选择并渲染了 open_bookshelf_v2 的 UI resource。</strong>
-          <p>它不依赖 React、图片、网络请求或 SDK 初始化；书架工具结果抵达后，才会替换为真实书目。</p>
-        </section>
+        <div class="body">
+          <section id="bookshelf-probe" class="probe" role="status">
+            <strong>正在从书架上取书……</strong>
+            <p>轻量书架已经抵达，正在接住共读记录。</p>
+          </section>
 
-        <section id="bookshelf-content" hidden>
-          <div id="bookshelf-list" class="books" aria-label="书架作品"></div>
-        </section>
+          <section id="bookshelf-content" hidden>
+            <div class="section-heading">
+              <h2 id="bookshelf-title">我们的书架</h2>
+              <span id="bookshelf-count"></span>
+            </div>
+            <div id="bookshelf-list" class="books" aria-label="书架作品"></div>
+          </section>
 
-        <p id="bookshelf-status" class="status">等待书架工具结果；静态外壳已经存在。</p>
+          <section id="bookshelf-detail" hidden></section>
+          <p id="bookshelf-status" class="status" aria-live="polite">等待书架工具结果。</p>
+        </div>
       </article>
     </main>
     <script type="module" src="/src/bookshelf/static-main.ts"></script>

@@ -9,32 +9,42 @@ const forbidden = [
   "render_reading_end_card",
   "reader-jump-toolbar",
   "app-v36",
-  "react",
+  "react-dom",
+  "jsx-runtime",
+  "__REACT",
   "McpApp",
-  "data:image/webp;base64",
-  "fetch("
+  "fetch(",
+  "工具身份缓存失效探针"
 ];
 for (const value of forbidden) {
   if (html.includes(value)) throw new Error(`Legacy reading shell leaked into bookshelf build: ${value}`);
 }
 
 const required = [
-  "静态书架已加载",
+  "正在从书架上取书",
   "我们的书架",
+  "返回书架",
+  "get_book_details",
+  "tools/call",
   "ui/notifications/tool-result",
   "ui/notifications/size-changed",
   "ui/initialize",
   "notifyIntrinsicHeight",
-  "如果你看见这张卡，ChatGPT 已经选择并渲染了 open_bookshelf_v2 的 UI resource。",
-  'data-bookshelf-height-strategy="raw-postmessage-v2"'
+  "data:image/webp;base64",
+  'data-bookshelf-height-strategy="raw-postmessage-v3"'
 ];
 for (const value of required) {
   if (!html.includes(value)) throw new Error(`Bookshelf build is missing: ${value}`);
 }
 
 const bytes = Buffer.byteLength(html);
-if (bytes < 4_000 || bytes > 50_000) {
-  throw new Error(`Expected a 4-50 KB stop-loss artifact, found ${bytes} bytes`);
+if (bytes < 35_000 || bytes > 110_000) {
+  throw new Error(`Expected a 35-110 KB interactive artifact, found ${bytes} bytes`);
+}
+
+const embeddedWebpCount = html.match(/data:image\/webp;base64/g)?.length ?? 0;
+if (embeddedWebpCount !== 1) {
+  throw new Error(`Expected exactly one embedded WebP, found ${embeddedWebpCount}`);
 }
 
 console.log(
@@ -42,7 +52,7 @@ console.log(
     {
       artifact: "web/dist-bookshelf/bookshelf.html",
       bytes,
-      embeddedWebpCount: 0,
+      embeddedWebpCount,
       forbiddenLegacyTokens: 0,
       status: "passed"
     },
