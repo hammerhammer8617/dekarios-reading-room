@@ -12,6 +12,7 @@ import type {
   ReadingRoomCaseEntity,
   RecordCasebookUpdateInput,
   RecordReadingTurnInput,
+  RenderReadingEndCardInput,
   ThoughtAuthor
 } from "@ss/shared";
 import { AppError } from "../errors/app-error.js";
@@ -449,31 +450,40 @@ export class ReadingRoomService {
     };
   }
 
-  async getEndCard(bookId: string, operationId?: string) {
+  async getEndCard(input: RenderReadingEndCardInput) {
     const database = await this.repository.read();
-    const session = this.requireSession(database, bookId);
+    const session = this.requireSession(database, input.bookId);
     const allThoughts = this.sortThoughts(
-      database.thoughts.filter((thought) => thought.sessionId === bookId)
+      database.thoughts.filter((thought) => thought.sessionId === input.bookId)
     );
-    const thoughts = operationId
-      ? allThoughts.filter((thought) => thought.operationId === operationId)
+    const thoughts = input.operationId
+      ? allThoughts.filter((thought) => thought.operationId === input.operationId)
       : allThoughts.slice(0, 12);
+    const latestTavThought = thoughts.find((thought) => thought.author === "tav");
+    const latestGaleThought = thoughts.find((thought) => thought.author === "gale");
+    const latestSharedThought = thoughts.find((thought) => thought.author === "shared");
+    const latestQuestion = thoughts.find(
+      (thought) => thought.kind === "question" && thought.status === "open"
+    );
     return {
       view: "reading_end" as const,
       book: this.summarizeSession(session),
-      operationId,
+      operationId: input.operationId,
+      progressSummary: input.progressSummary,
+      readingSummary: input.readingSummary,
+      tavThought: input.tavThought ?? latestTavThought?.content,
+      galeThought: input.galeThought ?? latestGaleThought?.content,
+      openQuestion: input.openQuestion ?? latestQuestion?.content,
       tavThoughtCount: thoughts.filter((thought) => thought.author === "tav").length,
       galeThoughtCount: thoughts.filter((thought) => thought.author === "gale").length,
       sharedThoughtCount: thoughts.filter((thought) => thought.author === "shared").length,
       newQuestionCount: thoughts.filter(
         (thought) => thought.kind === "question" && thought.status === "open"
       ).length,
-      latestTavThought: thoughts.find((thought) => thought.author === "tav"),
-      latestGaleThought: thoughts.find((thought) => thought.author === "gale"),
-      latestSharedThought: thoughts.find((thought) => thought.author === "shared"),
-      latestQuestion: thoughts.find(
-        (thought) => thought.kind === "question" && thought.status === "open"
-      ),
+      latestTavThought,
+      latestGaleThought,
+      latestSharedThought,
+      latestQuestion,
       unsyncedThoughtCount: allThoughts.filter((thought) => !thought.notionSyncedAt).length
     };
   }

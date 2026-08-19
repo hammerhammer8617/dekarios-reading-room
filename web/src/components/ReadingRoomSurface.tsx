@@ -49,6 +49,11 @@ export type RoomOutput = {
   latestGaleThought?: DurableThought;
   latestSharedThought?: DurableThought;
   latestQuestion?: DurableThought;
+  progressSummary?: string;
+  readingSummary?: string;
+  tavThought?: string;
+  galeThought?: string;
+  openQuestion?: string;
   unsyncedThoughtCount?: number;
 };
 
@@ -228,22 +233,35 @@ function ReadingEndCard({
 }) {
   const seed = `${output.book.bookId}:${output.operationId ?? output.book.lastReadAt}`;
   const image = endBackgrounds[hash(seed) % endBackgrounds.length];
-  const featured = output.latestSharedThought ?? output.latestTavThought ?? output.latestGaleThought;
+  const tavThought = output.tavThought ?? output.latestTavThought?.content;
+  const galeThought = output.galeThought ?? output.latestGaleThought?.content;
+  const openQuestion = output.openQuestion ?? output.latestQuestion?.content;
+  const readingSummary = output.readingSummary ?? output.latestSharedThought?.content;
   return (
     <article className="reading-end-card" style={{ "--end-image": `url(${image})` } as React.CSSProperties}>
       <div className="end-card__paper">
         <span className="room-kicker">{formatDate(output.book.lastReadAt)}</span>
         <h1>今天读到这里</h1>
         <h2>《{output.book.title}》</h2>
-        <p className="end-position">{output.book.tavPosition.label}</p>
-        {featured ? (
-          <blockquote>
-            <b>{authorLabels[featured.author]}</b>
-            <span>{featured.content}</span>
-          </blockquote>
+        <p className="end-position">
+          <b>读到</b>
+          <span>{output.book.tavPosition.label}</span>
+          {output.progressSummary ? <i>{output.progressSummary}</i> : null}
+        </p>
+        {readingSummary ? (
+          <section className="end-summary">
+            <b>今天读了什么</b>
+            <p>{readingSummary}</p>
+          </section>
         ) : null}
-        {output.latestQuestion ? (
-          <p className="end-question"><span>留下的问题</span>{output.latestQuestion.content}</p>
+        {tavThought || galeThought ? (
+          <div className="end-thoughts">
+            {tavThought ? <p><b>塔芙留下</b><span>{tavThought}</span></p> : null}
+            {galeThought ? <p><b>盖尔留下</b><span>{galeThought}</span></p> : null}
+          </div>
+        ) : null}
+        {openQuestion ? (
+          <p className="end-question"><span>留到下次</span>{openQuestion}</p>
         ) : null}
         <footer>
           <div>

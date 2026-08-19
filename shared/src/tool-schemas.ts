@@ -526,7 +526,40 @@ export const renderReadingStatusInputSchema = z.object({ bookId: sessionIdSchema
 export const renderReadingEndCardInputSchema = z
   .object({
     bookId: sessionIdSchema,
-    operationId: z.string().min(1).max(200).optional()
+    operationId: z.string().min(1).max(200).optional(),
+    progressSummary: z
+      .string()
+      .trim()
+      .min(1)
+      .max(240)
+      .describe("Where today's reading arrived in the plot or argument; add meaning beyond a bare page number."),
+    readingSummary: z
+      .string()
+      .trim()
+      .min(1)
+      .max(600)
+      .describe("A spoiler-safe summary of what was actually read today, based only on pages the user supplied."),
+    tavThought: z
+      .string()
+      .trim()
+      .min(1)
+      .max(400)
+      .optional()
+      .describe("Tav's latest thought in her own meaning; omit if she did not express one."),
+    galeThought: z
+      .string()
+      .trim()
+      .min(1)
+      .max(400)
+      .optional()
+      .describe("Gale's latest thought from the shared-reading discussion; omit if none was formed."),
+    openQuestion: z
+      .string()
+      .trim()
+      .min(1)
+      .max(400)
+      .optional()
+      .describe("One unresolved question worth carrying into the next reading session.")
   })
   .strict();
 export const prepareNotionSyncInputSchema = z
@@ -645,4 +678,5 @@ export type SendCurrentContextInput = z.infer<typeof sendCurrentContextInputSche
 export type UploadCloudSourceInput = z.infer<typeof uploadCloudSourceInputSchema>;
 export type GetOrStartBookContextInput = z.infer<typeof getOrStartBookContextInputSchema>;
 export type RecordReadingTurnInput = z.infer<typeof recordReadingTurnInputSchema>;
+export type RenderReadingEndCardInput = z.infer<typeof renderReadingEndCardInputSchema>;
 export type RecordCasebookUpdateInput = z.infer<typeof recordCasebookUpdateInputSchema>;

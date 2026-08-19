@@ -93,6 +93,45 @@ describe("ReadingRoomService", () => {
     expect(second.progress.tav.label).toBe("第 88 页");
   });
 
+  it("builds an end card with progress, summary and both readers' final thoughts", async () => {
+    const { service } = createService();
+    const started = await service.getOrStartBookContext({
+      title: "长夜难明",
+      genre: "mystery",
+      createIfMissing: true
+    });
+    if (started.needsSelection) throw new Error("unexpected selection");
+    const bookId = started.context.session.id;
+    await service.recordReadingTurn({
+      bookId,
+      operationId: "turn-18",
+      progress: {
+        tav: { kind: "page", index: 88, label: "第 88 页" },
+        shared: { kind: "page", index: 88, label: "第 88 页" }
+      },
+      thoughts: [
+        { author: "tav", kind: "prediction", content: "真正的交换发生在证词之外。", status: "open" },
+        { author: "gale", kind: "interpretation", content: "叙述节奏正在替某个人遮掩时间。", status: "open" },
+        { author: "shared", kind: "question", content: "缺失的十分钟是谁制造的？", status: "open" }
+      ]
+    });
+
+    const card = await service.getEndCard({
+      bookId,
+      operationId: "turn-18",
+      progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
+      readingSummary: "三份证词互相冲突，叙述中的时间断层浮到台前。"
+    });
+
+    expect(card).toMatchObject({
+      progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
+      readingSummary: "三份证词互相冲突，叙述中的时间断层浮到台前。",
+      tavThought: "真正的交换发生在证词之外。",
+      galeThought: "叙述节奏正在替某个人遮掩时间。",
+      openQuestion: "缺失的十分钟是谁制造的？"
+    });
+  });
+
   it("prepares Notion increments without claiming success, then marks exact thoughts", async () => {
     const { service } = createService();
     const started = await service.getOrStartBookContext({ title: "小径分岔的花园", createIfMissing: true });

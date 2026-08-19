@@ -11,6 +11,7 @@ const host = vi.hoisted(() => ({
 vi.mock("./bridge/host.js", () => ({
   callTool: vi.fn(),
   initialToolResult: vi.fn(() => undefined),
+  requestReaderInline: vi.fn().mockResolvedValue(true),
   subscribeToolResult: vi.fn(
     (listener: (result: { structuredContent?: Record<string, unknown> }) => void) => {
       host.listener = listener;
@@ -64,6 +65,7 @@ describe("ReadingRoomEntry", () => {
 
     expect(screen.getByText("新版界面：bookshelf")).toBeInTheDocument();
     expect(screen.queryByText("旧版界面")).not.toBeInTheDocument();
+    expect(document.documentElement).toHaveClass("reading-room-document");
   });
 
   it("renders the new bookshelf immediately when output already exists", () => {

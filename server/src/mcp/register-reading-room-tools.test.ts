@@ -47,5 +47,10 @@ describe("registerReadingRoomTools", () => {
     expect(contextDescriptor.description).toContain("film frames");
     expect(bookshelfDescriptor.description).toContain("explicitly asks");
     expect(bookshelfDescriptor.description).toContain("Do not render it for each page photo");
+    const endCardDescriptor = registerAppTool.mock.calls.find(
+      ([, name]) => name === "render_reading_end_card"
+    )?.[2];
+    expect(endCardDescriptor.description).toContain("bare page number is not enough");
+    expect(endCardDescriptor.description).toContain("Tav's latest thought");
   });
 });

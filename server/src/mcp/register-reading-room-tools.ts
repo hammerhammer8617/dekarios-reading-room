@@ -202,7 +202,7 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     {
       title: "显示今天读到这里",
       description:
-        "Render the compact ‘今天读到这里’ card after the reading turn has been recorded and any requested Notion sync has completed. Use one of the six built-in backgrounds; do not ask the user to operate the card.",
+        "Render the compact ‘今天读到这里’ card after the reading turn has been recorded and any requested Notion sync has completed. Always supply a meaningful progressSummary and a spoiler-safe readingSummary based only on pages the user supplied; a bare page number is not enough. Include Tav's latest thought, Gale's latest thought, and one open question whenever they occurred in the conversation. Use one of the six built-in backgrounds; do not ask the user to operate the card.",
       inputSchema: renderReadingEndCardInputSchema,
       annotations: readOnly,
       _meta: {
@@ -212,9 +212,9 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
         "openai/toolInvocation/invoked": "今天读到这里"
       }
     },
-    async ({ bookId, operationId }) =>
+    async (input) =>
       toolResult(
-        await service.getEndCard(bookId, operationId),
+        await service.getEndCard(input),
         "收尾卡已经显示；不要在卡片外机械复述统计。"
       )
   );

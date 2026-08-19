@@ -9,6 +9,7 @@ import type { OpenOutput } from "./App.js";
 import {
   callTool,
   initialToolResult,
+  requestReaderInline,
   subscribeToolResult
 } from "./bridge/host.js";
 import { EpubImportBridge } from "./features/book-import/EpubImportBridge.js";
@@ -48,6 +49,21 @@ export function ReadingRoomEntry({
       window.clearTimeout(fallbackTimer);
     };
   }, []);
+
+  const compactRoomEnabled =
+    !smokeLabEnabled &&
+    !casebookEnabled &&
+    (isRoomOutput(toolOutput) || !resultSettled);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("reading-room-document", compactRoomEnabled);
+    document.body.classList.toggle("reading-room-document", compactRoomEnabled);
+    if (compactRoomEnabled) void requestReaderInline();
+    return () => {
+      document.documentElement.classList.remove("reading-room-document");
+      document.body.classList.remove("reading-room-document");
+    };
+  }, [compactRoomEnabled]);
 
   if (smokeLabEnabled) return <EpubSmokeLab />;
 

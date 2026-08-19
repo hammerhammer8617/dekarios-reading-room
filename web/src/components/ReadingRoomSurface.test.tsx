@@ -54,6 +54,11 @@ describe("ReadingRoomSurface", () => {
           tavThoughtCount: 1,
           galeThoughtCount: 1,
           sharedThoughtCount: 1,
+          progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
+          readingSummary: "三份证词互相冲突，叙述中的时间断层浮到台前。",
+          tavThought: "真正的交换发生在证词之外。",
+          galeThought: "叙述节奏正在替某个人遮掩时间。",
+          openQuestion: "缺失的十分钟是谁制造的？",
           unsyncedThoughtCount: 0
         }}
       />
@@ -61,6 +66,11 @@ describe("ReadingRoomSurface", () => {
     expect(html).toContain("今天读到这里");
     expect(html).toContain("3 个新想法");
     expect(html).toContain("已收进书页边缘");
+    expect(html).toContain("今天读了什么");
+    expect(html).toContain("三份证词互相冲突");
+    expect(html).toContain("塔芙留下");
+    expect(html).toContain("盖尔留下");
+    expect(html).toContain("留到下次");
     expect(html).toContain("--end-image:url(");
   });
 });
