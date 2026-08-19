@@ -108,6 +108,14 @@ describe("isolated reading-end host", () => {
     expect(harness.observers[0]?.observe).toHaveBeenCalledWith(root);
   });
 
+  it("seeds the standard bridge from ChatGPT's already-available tool output", async () => {
+    const harness = createHarness({ compatibility: { toolOutput: output } });
+    await settle();
+
+    expect(harness.statuses.at(-1)).toEqual({ mode: "standard" });
+    expect(harness.received).toEqual([output]);
+  });
+
   it("falls back after standard initialization fails and reports ChatGPT intrinsic height", async () => {
     const notifyIntrinsicHeight = vi.fn();
     const harness = createHarness({
@@ -163,7 +171,7 @@ describe("isolated reading-end host", () => {
 
     expect(harness.statuses.at(-1)?.mode).toBe("unavailable");
     expect(harness.statuses.at(-1)?.error).toContain("没有提供高度上报能力");
-    expect(harness.received).toEqual([]);
+    expect(harness.received).toEqual([output]);
   });
 
   it("does not resend an unchanged height", async () => {

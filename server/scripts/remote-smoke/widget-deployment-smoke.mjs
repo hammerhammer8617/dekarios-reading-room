@@ -5,13 +5,15 @@ const workerUrl = new URL(requireEnv("WORKER_URL"));
 const token = requireEnv("MCP_PATH_TOKEN");
 const expectedBuildSha = requireEnv("EXPECTED_BUILD_SHA");
 const health = await waitForDeployedHealth();
-const widget = await waitForDeployedWidget(health);
+const widget = await waitForDeployedWidgets(health);
 
 console.log(JSON.stringify({
   ok: true,
   resourceVersion: health.resourceVersion,
   buildSha: health.buildSha,
   resourceUri: widget.resourceUri,
+  readingEndResourceUri: widget.readingEndResourceUri,
+  readingEndTool: widget.readingEndTool,
   selectedTextNotes: true,
   inFlowJumpToolbar: true,
   casebookEntrance: true,
@@ -41,7 +43,7 @@ async function waitForDeployedHealth() {
   throw new Error(`deployed health did not converge: ${JSON.stringify(lastHealth)}`);
 }
 
-async function waitForDeployedWidget(health) {
+async function waitForDeployedWidgets(health) {
   const deadline = Date.now() + 60_000;
   const resourceUri = `ui://ss-reading-nest/${health.resourceVersion}.html`;
   let lastError;
@@ -65,6 +67,23 @@ async function waitForDeployedWidget(health) {
         openTool._meta?.["openai/outputTemplate"] === resourceUri,
         "ChatGPT resource URI does not match deployed health"
       );
+      const readingEndTool = tools.tools.find(
+        (tool) => tool.name === "render_reading_end_card_v2"
+      );
+      assert(readingEndTool, "render_reading_end_card_v2 is missing");
+      const readingEndResourceUri = "ui://ss-reading-nest/reading-end-v2.html";
+      assert(
+        readingEndTool._meta?.ui?.resourceUri === readingEndResourceUri,
+        "standard reading-end resource URI is stale"
+      );
+      assert(
+        readingEndTool._meta?.["openai/outputTemplate"] === readingEndResourceUri,
+        "ChatGPT reading-end resource URI is stale"
+      );
+      assert(
+        JSON.stringify(readingEndTool.inputSchema?.required) === JSON.stringify(["snapshotId"]),
+        "reading-end tool contract is not the authoritative snapshot-only schema"
+      );
 
       const resource = await client.readResource({ uri: resourceUri });
       const html = resource.contents.find((content) => content.uri === resourceUri)?.text;
@@ -86,7 +105,28 @@ async function waitForDeployedWidget(health) {
         html.includes("德卡里奥斯家的案件簿"),
         "deployed widget is missing the casebook view"
       );
-      return { resourceUri };
+      const readingEndResource = await client.readResource({ uri: readingEndResourceUri });
+      const readingEndHtml = readingEndResource.contents.find(
+        (content) => content.uri === readingEndResourceUri
+      )?.text;
+      assert(typeof readingEndHtml === "string", "deployed reading-end resource returned no HTML");
+      assert(
+        readingEndHtml.includes("data-reading-end-startup-fallback"),
+        "deployed reading-end resource is missing its startup diagnostic"
+      );
+      assert(
+        readingEndHtml.includes("今天读到这里"),
+        "deployed reading-end resource is missing the card UI"
+      );
+      assert(
+        readingEndHtml.length > 1_000_000,
+        "deployed reading-end resource appears truncated"
+      );
+      return {
+        resourceUri,
+        readingEndResourceUri,
+        readingEndTool: readingEndTool.name
+      };
     } catch (error) {
       lastError = error;
     } finally {

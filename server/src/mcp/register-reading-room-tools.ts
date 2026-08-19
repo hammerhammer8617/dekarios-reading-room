@@ -200,7 +200,7 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
 
   registerAppTool(
     server,
-    "render_reading_end_card",
+    "render_reading_end_card_v2",
     {
       title: "显示今天读到这里",
       description:
