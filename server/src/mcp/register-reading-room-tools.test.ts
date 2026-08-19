@@ -26,7 +26,7 @@ describe("registerReadingRoomTools", () => {
     expect(registerAppTool.mock.calls.map(([, name]) => name)).toEqual([
       "open_bookshelf",
       "render_reading_status",
-      "render_reading_end_card_v3"
+      "render_reading_end_card_v4"
     ]);
     expect(registerAppTool.mock.calls[0]?.[2]._meta.ui.resourceUri).toBe(READING_NEST_URI);
     expect(registerAppTool.mock.calls[1]?.[2]._meta.ui.resourceUri).toBe(READING_NEST_URI);
@@ -51,7 +51,7 @@ describe("registerReadingRoomTools", () => {
     expect(bookshelfDescriptor.description).toContain("explicitly asks");
     expect(bookshelfDescriptor.description).toContain("Do not render it for each page photo");
     const endCardDescriptor = registerAppTool.mock.calls.find(
-      ([, name]) => name === "render_reading_end_card_v3"
+      ([, name]) => name === "render_reading_end_card_v4"
     )?.[2];
     expect(endCardDescriptor.description).toContain("snapshotId");
     expect(endCardDescriptor.description).toContain("Do not pass or invent render-time summary text");

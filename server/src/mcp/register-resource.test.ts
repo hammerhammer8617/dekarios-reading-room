@@ -71,9 +71,11 @@ describe("registerReadingResource", () => {
 
     const [, , endUri, endDescriptor, endLoader] = registerAppResource.mock.calls[18];
     expect(endUri).toBe(READING_END_RESOURCE_URI);
-    expect(endDescriptor.description).toContain("完全隔离");
+    expect(endDescriptor.description).toContain("最小、预渲染");
     const endLoaded = await endLoader();
     expect(endLoaded.contents[0].uri).toBe(READING_END_RESOURCE_URI);
     expect(endLoaded.contents[0].text).toContain("isolated end");
+    expect(endLoaded.contents[0]._meta.ui.csp.connectDomains).toEqual([]);
+    expect(endLoaded.contents[0]._meta.ui.prefersBorder).toBe(false);
   });
 });

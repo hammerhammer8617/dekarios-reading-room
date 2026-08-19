@@ -68,10 +68,10 @@ async function waitForDeployedWidgets(health) {
         "ChatGPT resource URI does not match deployed health"
       );
       const readingEndTool = tools.tools.find(
-        (tool) => tool.name === "render_reading_end_card_v3"
+        (tool) => tool.name === "render_reading_end_card_v4"
       );
-      assert(readingEndTool, "render_reading_end_card_v3 is missing");
-      const readingEndResourceUri = "ui://ss-reading-nest/reading-end-v3.html";
+      assert(readingEndTool, "render_reading_end_card_v4 is missing");
+      const readingEndResourceUri = "ui://ss-reading-nest/reading-end-v4.html";
       assert(
         readingEndTool._meta?.ui?.resourceUri === readingEndResourceUri,
         "standard reading-end resource URI is stale"
@@ -111,20 +111,20 @@ async function waitForDeployedWidgets(health) {
       )?.text;
       assert(typeof readingEndHtml === "string", "deployed reading-end resource returned no HTML");
       assert(
-        readingEndHtml.includes("data-reading-end-startup-fallback"),
-        "deployed reading-end resource is missing its startup diagnostic"
+        readingEndHtml.includes("data-reading-end-static-v4"),
+        "deployed reading-end resource is missing its pre-rendered static shell"
       );
       assert(
-        readingEndHtml.includes('data-reading-end-height-strategy="eager-compat-v3"'),
-        "deployed reading-end resource is missing eager intrinsic-height recovery"
+        readingEndHtml.includes('data-reading-end-height-strategy="raw-postmessage-v4"'),
+        "deployed reading-end resource is missing raw intrinsic-height recovery"
       );
       assert(
         readingEndHtml.includes("今天读到这里"),
         "deployed reading-end resource is missing the card UI"
       );
       assert(
-        readingEndHtml.length > 1_000_000,
-        "deployed reading-end resource appears truncated"
+        readingEndHtml.length > 4_000 && readingEndHtml.length < 50_000,
+        "deployed reading-end resource is outside the stop-loss size budget"
       );
       return {
         resourceUri,

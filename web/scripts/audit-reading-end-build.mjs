@@ -10,7 +10,10 @@ const forbidden = [
   "正在打开书架",
   "手边的书",
   "案件簿",
-  "app-v36"
+  "app-v36",
+  "react",
+  "McpApp",
+  "data:image/webp;base64"
 ];
 for (const value of forbidden) {
   if (html.includes(value)) throw new Error(`Legacy reading shell leaked into reading-end build: ${value}`);
@@ -24,24 +27,26 @@ const required = [
   "盖尔留下",
   "留到下次",
   "ui/notifications/size-changed",
+  "ui/initialize",
   "notifyIntrinsicHeight",
-  'data-reading-end-height-strategy="eager-compat-v3"'
+  "如果你看见这张卡，ChatGPT 已经渲染了普通 HTML。",
+  'data-reading-end-height-strategy="raw-postmessage-v4"'
 ];
 for (const value of required) {
   if (!html.includes(value)) throw new Error(`Reading-end build is missing: ${value}`);
 }
 
-const embeddedWebpCount = html.match(/data:image\/webp;base64,/gu)?.length ?? 0;
-if (embeddedWebpCount < 6) {
-  throw new Error(`Expected all six closing backgrounds, found ${embeddedWebpCount}`);
+const bytes = Buffer.byteLength(html);
+if (bytes < 4_000 || bytes > 50_000) {
+  throw new Error(`Expected a 4-50 KB stop-loss artifact, found ${bytes} bytes`);
 }
 
 console.log(
   JSON.stringify(
     {
       artifact: "web/dist-reading-end/reading-end.html",
-      bytes: Buffer.byteLength(html),
-      embeddedWebpCount,
+      bytes,
+      embeddedWebpCount: 0,
       forbiddenLegacyTokens: 0,
       status: "passed"
     },

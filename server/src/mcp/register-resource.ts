@@ -80,13 +80,12 @@ export function registerReadingResource(server: McpServer, widgetHtml: string, w
 export function registerReadingEndResource(
   server: McpServer,
   readingEndHtml: string,
-  workerOrigin?: string
+  _workerOrigin?: string
 ) {
-  const connectDomains = [workerOrigin ?? "http://localhost:8787"];
-  const resourceCsp = { connectDomains, resourceDomains: [] };
-  const openaiWidgetCsp = { connect_domains: connectDomains, resource_domains: [] };
+  const resourceCsp = { connectDomains: [], resourceDomains: [] };
+  const openaiWidgetCsp = { connect_domains: [], resource_domains: [] };
   const description =
-    "一个完全隔离的‘今天读到这里’收尾卡，只显示已保存的权威阅读快照。";
+    "一个最小、预渲染的‘今天读到这里’收尾卡，只显示已保存的权威阅读快照。";
 
   registerAppResource(
     server,
@@ -95,7 +94,7 @@ export function registerReadingEndResource(
     {
       description,
       _meta: {
-        ui: { csp: resourceCsp, prefersBorder: true },
+        ui: { csp: resourceCsp, prefersBorder: false },
         "openai/widgetCSP": openaiWidgetCsp,
         "openai/widgetDescription": description
       }
@@ -107,10 +106,10 @@ export function registerReadingEndResource(
           mimeType: RESOURCE_MIME_TYPE,
           text: readingEndHtml,
           _meta: {
-            ui: { csp: resourceCsp, prefersBorder: true },
+            ui: { csp: resourceCsp, prefersBorder: false },
             "openai/widgetCSP": openaiWidgetCsp,
             "openai/widgetDescription": description,
-            "openai/widgetPrefersBorder": true
+            "openai/widgetPrefersBorder": false
           }
         }
       ]
