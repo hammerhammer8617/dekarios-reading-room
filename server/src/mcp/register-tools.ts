@@ -28,6 +28,7 @@ import {
 import type { ReadingSession, SendCurrentContextInput, SourceManifest } from "@ss/shared";
 import { READING_NEST_RESOURCE_URI } from "@ss/shared";
 import { ReadingService } from "../services/reading-service.js";
+import type { ReadingRoomService } from "../services/reading-room-service.js";
 import type { CloudSourceService } from "../services/cloud-source-service.js";
 import { toolResult } from "./tool-result.js";
 
@@ -219,7 +220,8 @@ export function registerReadingTools(
   server: McpServer,
   service: ReadingService,
   cloudSourceService?: CloudSourceService,
-  options: { sourceEndpointBase?: string } = {}
+  options: { sourceEndpointBase?: string } = {},
+  readingRoomService?: Pick<ReadingRoomService, "listBookshelf">
 ) {
   registerAppTool(server, "open_reading_nest", TOOL_CONFIGS.open_reading_nest, async () => {
     const sessions = await service.listAllSessions();
@@ -229,8 +231,12 @@ export function registerReadingTools(
         cacheState: "unknown" as const
       }))
     );
+    const bookshelf = readingRoomService
+      ? await readingRoomService.listBookshelf()
+      : undefined;
     return toolResult(
       {
+        ...(bookshelf ? { view: "bookshelf" as const, bookshelf } : {}),
         bookshelfSessions,
         recentSessions: bookshelfSessions.slice(0, 10),
         ...(options.sourceEndpointBase ? { sourceEndpointBase: options.sourceEndpointBase } : {})
