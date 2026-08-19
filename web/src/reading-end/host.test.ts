@@ -23,10 +23,10 @@ const output: RenderReadingEndCardOutput = {
 };
 
 function createHarness({
-  connect = vi.fn().mockResolvedValue(undefined),
+  connect = vi.fn(async () => undefined),
   compatibility
 }: {
-  connect?: ReturnType<typeof vi.fn>;
+  connect?: StandardReadingEndBridge["connect"];
   compatibility?: ReadingEndHostDependencies["getCompatibilityHost"] extends () => infer T
     ? T
     : never;
@@ -111,7 +111,9 @@ describe("isolated reading-end host", () => {
   it("falls back after standard initialization fails and reports ChatGPT intrinsic height", async () => {
     const notifyIntrinsicHeight = vi.fn();
     const harness = createHarness({
-      connect: vi.fn().mockRejectedValue(new Error("initialize rejected")),
+      connect: vi.fn(async () => {
+        throw new Error("initialize rejected");
+      }),
       compatibility: { toolOutput: output, notifyIntrinsicHeight }
     });
     harness.host.setRoot(document.createElement("main"));
@@ -152,7 +154,9 @@ describe("isolated reading-end host", () => {
 
   it("shows a diagnosable unavailable state when neither path can report height", async () => {
     const harness = createHarness({
-      connect: vi.fn().mockRejectedValue(new Error("initialize rejected")),
+      connect: vi.fn(async () => {
+        throw new Error("initialize rejected");
+      }),
       compatibility: { toolOutput: output }
     });
     await settle();
