@@ -152,6 +152,24 @@ export interface DurableThought {
   updatedAt: string;
 }
 
+export type NotionSyncStatus = "synced" | "pending" | "not_requested";
+
+export interface ReadingEndSnapshot {
+  id: string;
+  bookId: string;
+  operationId: string;
+  createdAt: string;
+  title: string;
+  positionLabel: string;
+  progressSummary: string;
+  readingSummary: string;
+  tavThought?: string;
+  galeThought?: string;
+  openQuestion?: string;
+  notionSyncStatus: NotionSyncStatus;
+  thoughtCount: number;
+}
+
 export type ReadingRoomCaseItemStatus =
   | "suspected"
   | "confirmed"
@@ -416,6 +434,11 @@ export interface ReadingDatabase {
   caseSyncOperations: CaseSyncOperation[];
   thoughts: DurableThought[];
   readingRoomCasebooks: MysteryReadingCasebook[];
+  /**
+   * Additive v7 collection. Older v7 payloads omit it; normalization writes
+   * back an empty collection without forcing a destructive schema migration.
+   */
+  readingEndSnapshots?: ReadingEndSnapshot[];
 }
 
 export type ReadingSyncMode =

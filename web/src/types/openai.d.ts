@@ -25,6 +25,7 @@ declare global {
         content: Array<{ type: "text"; text: string }>;
       }) => Promise<void>;
       requestDisplayMode?: (input: { mode: "inline" | "pip" | "fullscreen" }) => Promise<void>;
+      notifyIntrinsicHeight?: (input: { height: number }) => void | Promise<void>;
       hostContext?: {
         displayMode?: "inline" | "pip" | "fullscreen";
         availableDisplayModes?: Array<"inline" | "pip" | "fullscreen">;

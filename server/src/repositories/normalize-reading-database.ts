@@ -26,7 +26,8 @@ export function normalizeReadingDatabase(input: unknown): ReadingDatabase {
     caseObservationTasks: structuredClone(database.caseObservationTasks),
     caseSyncOperations: structuredClone(database.caseSyncOperations),
     thoughts: structuredClone(database.thoughts),
-    readingRoomCasebooks: structuredClone(database.readingRoomCasebooks)
+    readingRoomCasebooks: structuredClone(database.readingRoomCasebooks),
+    readingEndSnapshots: structuredClone(database.readingEndSnapshots ?? [])
   };
 }
 

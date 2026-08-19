@@ -4,6 +4,7 @@ const { registerAppTool } = vi.hoisted(() => ({ registerAppTool: vi.fn() }));
 vi.mock("@modelcontextprotocol/ext-apps/server", () => ({ registerAppTool }));
 
 import { READING_NEST_URI } from "./register-tools.js";
+import { READING_END_RESOURCE_URI } from "@ss/shared";
 import { registerReadingRoomTools } from "./register-reading-room-tools.js";
 
 describe("registerReadingRoomTools", () => {
@@ -27,9 +28,11 @@ describe("registerReadingRoomTools", () => {
       "render_reading_status",
       "render_reading_end_card"
     ]);
-    for (const [, , descriptor] of registerAppTool.mock.calls) {
-      expect(descriptor._meta.ui.resourceUri).toBe(READING_NEST_URI);
-    }
+    expect(registerAppTool.mock.calls[0]?.[2]._meta.ui.resourceUri).toBe(READING_NEST_URI);
+    expect(registerAppTool.mock.calls[1]?.[2]._meta.ui.resourceUri).toBe(READING_NEST_URI);
+    const endDescriptor = registerAppTool.mock.calls[2]?.[2];
+    expect(endDescriptor._meta.ui.resourceUri).toBe(READING_END_RESOURCE_URI);
+    expect(endDescriptor.outputSchema).toBeDefined();
   });
 
   it("documents automatic book-page triggers and explicit non-book exclusions", () => {
@@ -50,7 +53,7 @@ describe("registerReadingRoomTools", () => {
     const endCardDescriptor = registerAppTool.mock.calls.find(
       ([, name]) => name === "render_reading_end_card"
     )?.[2];
-    expect(endCardDescriptor.description).toContain("bare page number is not enough");
-    expect(endCardDescriptor.description).toContain("Tav's latest thought");
+    expect(endCardDescriptor.description).toContain("snapshotId");
+    expect(endCardDescriptor.description).toContain("Do not pass or invent render-time summary text");
   });
 });

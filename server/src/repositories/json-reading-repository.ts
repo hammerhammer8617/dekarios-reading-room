@@ -23,7 +23,8 @@ const emptyDatabase = (): ReadingDatabase => ({
   caseObservationTasks: [],
   caseSyncOperations: [],
   thoughts: [],
-  readingRoomCasebooks: []
+  readingRoomCasebooks: [],
+  readingEndSnapshots: []
 });
 
 export class JsonReadingRepository implements ReadingRepository {

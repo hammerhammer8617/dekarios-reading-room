@@ -4,6 +4,7 @@ import {
   type BookGenre,
   type DurableThought,
   type MysteryReadingCasebook,
+  type ReadingEndSnapshot,
   type Quote,
   type Reaction,
   type ReadingDatabase,
@@ -106,6 +107,7 @@ interface RepairableV7Database extends Omit<RepairableV6Database, "schemaVersion
   schemaVersion: 7;
   thoughts?: DurableThought[];
   readingRoomCasebooks?: MysteryReadingCasebook[];
+  readingEndSnapshots?: ReadingEndSnapshot[];
 }
 
 type RepairableSourceManifest = Omit<SourceManifest, "cloudSync"> & {
@@ -315,7 +317,8 @@ function normalizeV7(database: RepairableV7Database): ReadingDatabase {
       };
     }),
     thoughts: structuredClone(database.thoughts ?? []),
-    readingRoomCasebooks: structuredClone(database.readingRoomCasebooks ?? [])
+    readingRoomCasebooks: structuredClone(database.readingRoomCasebooks ?? []),
+    readingEndSnapshots: structuredClone(database.readingEndSnapshots ?? [])
   };
 }
 

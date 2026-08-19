@@ -451,6 +451,44 @@ describe("migrateReadingDatabase v7", () => {
     }
   });
 
+  it("repairs older v7 payloads with an additive reading-end snapshot collection", () => {
+    const baseV7 = {
+      schemaVersion: 7 as const,
+      sessions: [],
+      quotes: [],
+      reactions: [],
+      bookmarks: [],
+      companionComments: [],
+      cases: [],
+      caseEntries: [],
+      caseEntities: [],
+      caseRelations: [],
+      caseHypotheses: [],
+      caseObservationTasks: [],
+      caseSyncOperations: [],
+      thoughts: [],
+      readingRoomCasebooks: []
+    };
+    expect(migrateReadingDatabase(baseV7).readingEndSnapshots).toEqual([]);
+
+    const snapshot = {
+      id: "snapshot-1",
+      bookId: "book-1",
+      operationId: "turn-1",
+      createdAt: NOW,
+      title: "打怪",
+      positionLabel: "第 19 页",
+      progressSummary: "进入受遏制的怪物性。",
+      readingSummary: "怪物被秩序重新命名。",
+      notionSyncStatus: "pending" as const,
+      thoughtCount: 0
+    };
+    expect(
+      migrateReadingDatabase({ ...baseV7, readingEndSnapshots: [snapshot] })
+        .readingEndSnapshots
+    ).toEqual([snapshot]);
+  });
+
   it("rejects unsupported or malformed data", () => {
     expect(() => migrateReadingDatabase({ schemaVersion: 99 })).toThrow();
     expect(() =>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ReadingDatabase } from "@ss/shared";
+import type { ReadingDatabase, RecordReadingTurnInput } from "@ss/shared";
+import { AppError } from "../errors/app-error.js";
 import type { ReadingRepository } from "../repositories/reading-repository.js";
 import { ReadingRoomService } from "./reading-room-service.js";
 
@@ -19,7 +20,8 @@ class MemoryRepository implements ReadingRepository {
     caseObservationTasks: [],
     caseSyncOperations: [],
     thoughts: [],
-    readingRoomCasebooks: []
+    readingRoomCasebooks: [],
+    readingEndSnapshots: []
   };
 
   async read() {
@@ -69,7 +71,7 @@ describe("ReadingRoomService", () => {
     });
     if (started.needsSelection) throw new Error("unexpected selection");
 
-    const input = {
+    const input: RecordReadingTurnInput = {
       bookId: started.context.session.id,
       operationId: "turn-18",
       progress: {
@@ -93,8 +95,8 @@ describe("ReadingRoomService", () => {
     expect(second.progress.tav.label).toBe("第 88 页");
   });
 
-  it("builds an end card with progress, summary and both readers' final thoughts", async () => {
-    const { service } = createService();
+  it("persists one idempotent end snapshot and renders only that exact identity", async () => {
+    const { service, repository } = createService();
     const started = await service.getOrStartBookContext({
       title: "长夜难明",
       genre: "mystery",
@@ -102,7 +104,7 @@ describe("ReadingRoomService", () => {
     });
     if (started.needsSelection) throw new Error("unexpected selection");
     const bookId = started.context.session.id;
-    await service.recordReadingTurn({
+    const input = {
       bookId,
       operationId: "turn-18",
       progress: {
@@ -113,22 +115,83 @@ describe("ReadingRoomService", () => {
         { author: "tav", kind: "prediction", content: "真正的交换发生在证词之外。", status: "open" },
         { author: "gale", kind: "interpretation", content: "叙述节奏正在替某个人遮掩时间。", status: "open" },
         { author: "shared", kind: "question", content: "缺失的十分钟是谁制造的？", status: "open" }
-      ]
+      ],
+      endSnapshot: {
+        progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
+        readingSummary: "三份证词互相冲突，叙述中的时间断层浮到台前。"
+      }
+    };
+    const first = await service.recordReadingTurn(input);
+    const second = await service.recordReadingTurn({
+      ...input,
+      endSnapshot: {
+        progressSummary: "这次重试不应改写原快照。",
+        readingSummary: "这段新文案也不应进入快照。"
+      }
     });
 
-    const card = await service.getEndCard({
-      bookId,
-      operationId: "turn-18",
-      progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
-      readingSummary: "三份证词互相冲突，叙述中的时间断层浮到台前。"
-    });
+    expect(first.endSnapshot).toEqual(second.endSnapshot);
+    expect(repository.database.readingEndSnapshots).toHaveLength(1);
+    const card = await service.getEndCard({ snapshotId: first.endSnapshot!.id });
 
     expect(card).toMatchObject({
-      progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
-      readingSummary: "三份证词互相冲突，叙述中的时间断层浮到台前。",
-      tavThought: "真正的交换发生在证词之外。",
-      galeThought: "叙述节奏正在替某个人遮掩时间。",
-      openQuestion: "缺失的十分钟是谁制造的？"
+      view: "reading_end",
+      snapshot: {
+        progressSummary: "读完时间证词，进入对缺失十分钟的追查。",
+        readingSummary: "三份证词互相冲突，叙述中的时间断层浮到台前。",
+        tavThought: "真正的交换发生在证词之外。",
+        galeThought: "叙述节奏正在替某个人遮掩时间。",
+        openQuestion: "缺失的十分钟是谁制造的？",
+        notionSyncStatus: "pending",
+        thoughtCount: 3
+      }
+    });
+  });
+
+  it("omits absent optional sections and rejects bare-page or missing snapshots", async () => {
+    const { service, repository } = createService();
+    const started = await service.getOrStartBookContext({ title: "打怪", createIfMissing: true });
+    if (started.needsSelection) throw new Error("unexpected selection");
+
+    await expect(
+      service.recordReadingTurn({
+        bookId: started.context.session.id,
+        operationId: "turn-bare-page",
+        endSnapshot: {
+          progressSummary: "第 19 页",
+          readingSummary: "本次只读了塔芙提供的页面。"
+        }
+      })
+    ).rejects.toMatchObject({ code: "INVALID_OPERATION" });
+
+    const recorded = await service.recordReadingTurn({
+      bookId: started.context.session.id,
+      operationId: "turn-19",
+      progress: {
+        tav: { kind: "page", index: 19, label: "第 19 页" },
+        shared: { kind: "page", index: 19, label: "第 19 页" }
+      },
+      endSnapshot: {
+        progressSummary: "读完“崇高的怪物性”，进入“受遏制的怪物性”。",
+        readingSummary: "怪物从崇高的边界经验转向被社会秩序约束与命名的对象。"
+      }
+    });
+    expect(recorded.endSnapshot).not.toHaveProperty("tavThought");
+    expect(recorded.endSnapshot).not.toHaveProperty("galeThought");
+    expect(recorded.endSnapshot).not.toHaveProperty("openQuestion");
+    expect(recorded.endSnapshot?.notionSyncStatus).toBe("not_requested");
+
+    await expect(service.getEndCard({ snapshotId: "missing" })).rejects.toBeInstanceOf(
+      AppError
+    );
+
+    repository.database.readingEndSnapshots!.push({
+      ...recorded.endSnapshot!,
+      id: "corrupt",
+      readingSummary: ""
+    });
+    await expect(service.getEndCard({ snapshotId: "corrupt" })).rejects.toMatchObject({
+      code: "DATA_STORE_CORRUPTED"
     });
   });
 
@@ -136,10 +199,14 @@ describe("ReadingRoomService", () => {
     const { service } = createService();
     const started = await service.getOrStartBookContext({ title: "小径分岔的花园", createIfMissing: true });
     if (started.needsSelection) throw new Error("unexpected selection");
-    await service.recordReadingTurn({
+    const recorded = await service.recordReadingTurn({
       bookId: started.context.session.id,
       operationId: "turn-1",
-      thoughts: [{ author: "tav", kind: "connection", content: "迷宫既是空间，也是阅读顺序。", status: "open" }]
+      thoughts: [{ author: "tav", kind: "connection", content: "迷宫既是空间，也是阅读顺序。", status: "open" }],
+      endSnapshot: {
+        progressSummary: "把迷宫从空间推进到阅读顺序的隐喻。",
+        readingSummary: "本次围绕迷宫与阅读次序的重合继续向前。"
+      }
     });
 
     const prepared = await service.prepareNotionSync(started.context.session.id, 50);
@@ -149,6 +216,10 @@ describe("ReadingRoomService", () => {
 
     await service.markNotionSynced(started.context.session.id, prepared.thoughtIds);
     expect((await service.getBookContext(started.context.session.id)).unsyncedThoughtCount).toBe(0);
+    expect(
+      (await service.getEndCard({ snapshotId: recorded.endSnapshot!.id })).snapshot
+        .notionSyncStatus
+    ).toBe("synced");
   });
 
   it("builds a spoiler-safe mystery casebook with people, relations and hypotheses", async () => {
