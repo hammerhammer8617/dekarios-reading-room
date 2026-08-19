@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.15.1",
   "scripts": {
     "build": "pnpm --filter @ss/shared build && pnpm --filter @ss/web build && pnpm --filter @ss/bindery build && pnpm --filter @ss/server build",
-    "deploy:cloudflare": "pnpm build && pnpm --filter @ss/server deploy",
+    "deploy:cloudflare": "pnpm build && pnpm --filter @ss/server audit:worker-size && pnpm --filter @ss/server deploy",
     "dev": "pnpm --filter @ss/shared build && pnpm --parallel --filter @ss/web --filter @ss/server dev",
     "test": "pnpm --filter @ss/shared build && pnpm -r test",
     "typecheck": "pnpm --filter @ss/shared build && pnpm -r typecheck"

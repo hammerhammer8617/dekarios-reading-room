@@ -21,7 +21,7 @@ type ReadingRoomEntryProps = {
   initialOutput?: Record<string, unknown>;
 };
 
-const roomViews = new Set(["bookshelf", "reading_status", "reading_end"]);
+const roomViews = new Set(["bookshelf", "reading_status"]);
 
 export function ReadingRoomEntry({
   smokeLabEnabled,
