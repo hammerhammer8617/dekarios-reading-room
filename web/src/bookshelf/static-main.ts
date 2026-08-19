@@ -92,12 +92,14 @@ export type StaticBookshelfDependencies = {
   cancelFrame: (id: number) => void;
   setTimer: (listener: () => void, delay: number) => number;
   clearTimer: (id: number) => void;
+  createOperationId: () => string;
   measure: () => { width: number; height: number };
 };
 
 const PROTOCOL_VERSION = "2026-01-26";
-const INITIALIZE_ID = "bookshelf-static-v3-initialize";
+const INITIALIZE_ID = "bookshelf-static-v4-initialize";
 const TOOL_REQUEST_TIMEOUT_MS = 4_000;
+export const BOOKS_PER_PAGE = 3;
 const genreLabels: Record<BookshelfItem["genre"], string> = {
   novel: "小说",
   mystery: "推理",
@@ -159,6 +161,9 @@ const defaultDependencies: StaticBookshelfDependencies = {
   cancelFrame: (id) => window.cancelAnimationFrame(id),
   setTimer: (listener, delay) => window.setTimeout(listener, delay),
   clearTimer: (id) => window.clearTimeout(id),
+  createOperationId: () =>
+    globalThis.crypto?.randomUUID?.() ??
+    `delete-${Date.now()}-${Math.random().toString(16).slice(2)}`,
   measure: () => ({
     width: Math.ceil(Math.max(window.innerWidth, document.documentElement.scrollWidth)),
     height: Math.ceil(
@@ -166,7 +171,7 @@ const defaultDependencies: StaticBookshelfDependencies = {
         320,
         document.documentElement.scrollHeight,
         document.body.scrollHeight,
-        document.getElementById("bookshelf-static-v3")?.scrollHeight ?? 0
+        document.getElementById("bookshelf-static-v4")?.scrollHeight ?? 0
       )
     )
   })
@@ -188,7 +193,10 @@ export function createStaticBookshelfApp(
   let requestSequence = 0;
   let lastSize = "";
   let currentBooks: BookshelfItem[] = [];
+  const locallyDeletedBookIds = new Set<string>();
+  let currentPage = 0;
   let openingBook = false;
+  let deletingBook = false;
   let disposed = false;
 
   const sendSize = (size: { width: number; height: number }) => {
@@ -220,7 +228,7 @@ export function createStaticBookshelfApp(
 
   const requestTool = (name: string, args: Record<string, unknown>) =>
     new Promise<ToolCallResult>((resolve, reject) => {
-      const id = "bookshelf-static-v3-tool-" + String(++requestSequence);
+      const id = "bookshelf-static-v4-tool-" + String(++requestSequence);
       const timer = deps.setTimer(() => {
         pendingRequests.delete(id);
         reject(new Error("The host did not answer the tool request."));
@@ -250,7 +258,63 @@ export function createStaticBookshelfApp(
     }
   };
 
-  const openBook = async (bookId: string) => {
+  const renderCurrentShelf = () => {
+    currentPage = clampShelfPage(currentBooks.length, currentPage);
+    renderBookshelf(deps.document, currentBooks, openBook, currentPage, (page) => {
+      currentPage = page;
+      renderCurrentShelf();
+      reportSize();
+    });
+  };
+
+  const deleteBook = async (details: BookDetailsOutput) => {
+    if (disposed || deletingBook) throw new Error("A deletion is already in progress.");
+    deletingBook = true;
+    setRootState(deps.document, "deleting");
+    setText(
+      deps.document,
+      "bookshelf-status",
+      "正在从书架移除《" + details.session.title + "》；正文副本会保留……"
+    );
+    reportSize();
+
+    try {
+      const result = await callTool("delete_reading_session", {
+        sessionId: details.session.id,
+        operationId: deps.createOperationId()
+      });
+      if (result.isError) throw new Error("delete_reading_session returned an error");
+      if (
+        !isRecord(result.structuredContent) ||
+        typeof result.structuredContent.deleted !== "boolean"
+      ) {
+        throw new Error("delete_reading_session returned an incomplete result");
+      }
+      locallyDeletedBookIds.add(details.session.id);
+      currentBooks = currentBooks.filter((book) => book.bookId !== details.session.id);
+      currentPage = clampShelfPage(currentBooks.length, currentPage);
+      renderCurrentShelf();
+      setText(
+        deps.document,
+        "bookshelf-status",
+        "《" + details.session.title + "》已从书架删除；正文副本仍保留。"
+      );
+      reportSize();
+    } catch (error) {
+      setRootState(deps.document, "detail");
+      setText(
+        deps.document,
+        "bookshelf-status",
+        "《" + details.session.title + "》没有删除成功；原记录仍然保留。"
+      );
+      reportSize();
+      throw error;
+    } finally {
+      deletingBook = false;
+    }
+  };
+
+  async function openBook(bookId: string) {
     if (disposed || openingBook) return;
     const book = currentBooks.find((candidate) => candidate.bookId === bookId);
     if (!book) return;
@@ -265,10 +329,15 @@ export function createStaticBookshelfApp(
       if (result.isError) throw new Error("get_book_details returned an error");
       const details = parseBookDetailsOutput(result.structuredContent);
       if (!details) throw new Error("get_book_details returned an incomplete record");
-      renderBookDetails(deps.document, details, () => {
-        renderBookshelf(deps.document, currentBooks, openBook);
-        reportSize();
-      });
+      renderBookDetails(
+        deps.document,
+        details,
+        () => {
+          renderCurrentShelf();
+          reportSize();
+        },
+        () => deleteBook(details)
+      );
     } catch {
       showError(deps.document, "这本书的记录暂时没有读出来；书架仍然可以继续使用。");
     } finally {
@@ -276,7 +345,7 @@ export function createStaticBookshelfApp(
       setBooksDisabled(deps.document, false);
       reportSize();
     }
-  };
+  }
 
   const publishOutput = (value: unknown) => {
     const output = parseBookshelfOutput(value);
@@ -285,8 +354,9 @@ export function createStaticBookshelfApp(
       reportSize();
       return;
     }
-    currentBooks = output.bookshelf;
-    renderBookshelf(deps.document, currentBooks, openBook);
+    currentBooks = output.bookshelf.filter((book) => !locallyDeletedBookIds.has(book.bookId));
+    currentPage = clampShelfPage(currentBooks.length, currentPage);
+    renderCurrentShelf();
     reportSize();
   };
 
@@ -408,11 +478,15 @@ export function parseBookDetailsOutput(value: unknown): BookDetailsOutput | unde
 export function renderBookshelf(
   doc: Document,
   books: BookshelfItem[],
-  onOpenBook: (bookId: string) => void = () => undefined
+  onOpenBook: (bookId: string) => void = () => undefined,
+  page = 0,
+  onPageChange: (page: number) => void = () => undefined
 ) {
   const list = doc.getElementById("bookshelf-list");
   if (!list) return;
   list.replaceChildren();
+  const safePage = clampShelfPage(books.length, page);
+  const pageCount = Math.max(1, Math.ceil(books.length / BOOKS_PER_PAGE));
 
   if (books.length === 0) {
     const empty = doc.createElement("p");
@@ -420,26 +494,59 @@ export function renderBookshelf(
     empty.textContent = "书架还是空的。选一本故事，我们一起开始吧。";
     list.append(empty);
   } else {
-    for (const book of books) list.append(createBookCard(doc, book, onOpenBook));
+    const pageStart = safePage * BOOKS_PER_PAGE;
+    for (const book of books.slice(pageStart, pageStart + BOOKS_PER_PAGE)) {
+      list.append(createBookCard(doc, book, onOpenBook));
+    }
+  }
+
+  const pagination = doc.getElementById("bookshelf-pagination");
+  const previous = doc.getElementById("bookshelf-previous") as HTMLButtonElement | null;
+  const next = doc.getElementById("bookshelf-next") as HTMLButtonElement | null;
+  if (books.length > BOOKS_PER_PAGE) {
+    pagination?.removeAttribute("hidden");
+    setText(doc, "bookshelf-page", `第 ${safePage + 1} / ${pageCount} 页`);
+    if (previous) {
+      previous.disabled = safePage === 0;
+      previous.onclick = () => onPageChange(safePage - 1);
+    }
+    if (next) {
+      next.disabled = safePage === pageCount - 1;
+      next.onclick = () => onPageChange(safePage + 1);
+    }
+  } else {
+    pagination?.setAttribute("hidden", "");
+    if (previous) previous.onclick = null;
+    if (next) next.onclick = null;
   }
 
   setText(doc, "bookshelf-title", "我们的书架");
   setText(doc, "bookshelf-count", String(books.length) + " 本");
   doc.getElementById("bookshelf-probe")?.setAttribute("hidden", "");
-  doc.getElementById("bookshelf-detail")?.setAttribute("hidden", "");
+  const detail = doc.getElementById("bookshelf-detail");
+  detail?.replaceChildren();
+  detail?.setAttribute("hidden", "");
   doc.getElementById("bookshelf-content")?.removeAttribute("hidden");
   setText(
     doc,
     "bookshelf-status",
-    String(books.length) + " 本作品 · 点击书名查看完整共读记录"
+    books.length > BOOKS_PER_PAGE
+      ? `${books.length} 本作品 · 第 ${safePage + 1} / ${pageCount} 页 · 点击书名查看完整共读记录`
+      : String(books.length) + " 本作品 · 点击书名查看完整共读记录"
   );
   setRootState(doc, "bookshelf");
+}
+
+function clampShelfPage(bookCount: number, page: number) {
+  const lastPage = Math.max(0, Math.ceil(bookCount / BOOKS_PER_PAGE) - 1);
+  return Math.max(0, Math.min(lastPage, Number.isInteger(page) ? page : 0));
 }
 
 export function renderBookDetails(
   doc: Document,
   details: BookDetailsOutput,
-  onBack: () => void
+  onBack: () => void,
+  onDelete: () => Promise<void>
 ) {
   const target = doc.getElementById("bookshelf-detail");
   if (!target) return;
@@ -502,12 +609,85 @@ export function renderBookDetails(
   target.append(back, header);
   appendThoughtSection(doc, target, details.thoughts);
   appendQuestionSection(doc, target, details.openQuestions);
+  appendDeleteControls(doc, target, details.session.title, onDelete);
 
   doc.getElementById("bookshelf-probe")?.setAttribute("hidden", "");
   doc.getElementById("bookshelf-content")?.setAttribute("hidden", "");
   target.removeAttribute("hidden");
   setText(doc, "bookshelf-status", "已打开《" + details.session.title + "》的共读记录。");
   setRootState(doc, "detail");
+}
+
+function appendDeleteControls(
+  doc: Document,
+  target: Element,
+  title: string,
+  onDelete: () => Promise<void>
+) {
+  const section = doc.createElement("section");
+  section.className = "danger-zone";
+
+  const trigger = doc.createElement("button");
+  trigger.type = "button";
+  trigger.className = "delete-trigger";
+  trigger.textContent = "删除这本书";
+
+  const confirmation = doc.createElement("div");
+  confirmation.className = "delete-confirmation";
+  confirmation.setAttribute("hidden", "");
+
+  const warning = doc.createElement("p");
+  warning.textContent =
+    "这会删除《" +
+    title +
+    "》在书架中的共读进度、思考与案件记录；正文副本不会删除。";
+
+  const actions = doc.createElement("div");
+  actions.className = "delete-actions";
+  const cancel = doc.createElement("button");
+  cancel.type = "button";
+  cancel.className = "delete-cancel";
+  cancel.textContent = "取消";
+  const confirm = doc.createElement("button");
+  confirm.type = "button";
+  confirm.className = "delete-confirm";
+  confirm.textContent = "确认删除";
+  const error = doc.createElement("p");
+  error.className = "delete-error";
+  error.setAttribute("role", "status");
+  error.setAttribute("hidden", "");
+  error.textContent = "没有删除成功，请稍后再试。";
+  actions.append(cancel, confirm);
+  confirmation.append(warning, actions, error);
+
+  trigger.addEventListener("click", () => {
+    trigger.disabled = true;
+    confirmation.removeAttribute("hidden");
+    confirm.focus();
+  });
+  cancel.addEventListener("click", () => {
+    confirmation.setAttribute("hidden", "");
+    error.setAttribute("hidden", "");
+    trigger.disabled = false;
+    trigger.focus();
+  });
+  confirm.addEventListener("click", async () => {
+    confirm.disabled = true;
+    cancel.disabled = true;
+    confirm.textContent = "正在删除…";
+    error.setAttribute("hidden", "");
+    try {
+      await onDelete();
+    } catch {
+      confirm.disabled = false;
+      cancel.disabled = false;
+      confirm.textContent = "确认删除";
+      error.removeAttribute("hidden");
+    }
+  });
+
+  section.append(trigger, confirmation);
+  target.append(section);
 }
 
 function createBookCard(
@@ -735,7 +915,7 @@ function showError(doc: Document, message: string) {
 }
 
 function setRootState(doc: Document, state: string) {
-  const root = doc.getElementById("bookshelf-static-v3");
+  const root = doc.getElementById("bookshelf-static-v4");
   if (root) root.dataset.state = state;
 }
 
@@ -751,7 +931,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 if (
   typeof window !== "undefined" &&
   typeof document !== "undefined" &&
-  document.getElementById("bookshelf-static-v3")
+  document.getElementById("bookshelf-static-v4")
 ) {
   createStaticBookshelfApp();
 }

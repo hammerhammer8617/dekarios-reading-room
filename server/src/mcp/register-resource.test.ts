@@ -8,7 +8,7 @@ vi.mock("@modelcontextprotocol/ext-apps/server", () => ({
 }));
 
 describe("registerReadingResource", () => {
-  it("serves the current app-v36 template and cached compatibility templates", async () => {
+  it("serves the current app-v37 template and cached compatibility templates", async () => {
     const {
       READING_NEST_RESOURCE_URIS,
       registerBookshelfResource,
@@ -18,7 +18,9 @@ describe("registerReadingResource", () => {
     const { READING_NEST_URI } = await import("./register-tools.js");
     const {
       BOOKSHELF_RESOURCE_URI,
+      OLDEST_BOOKSHELF_RESOURCE_URI,
       PREVIOUS_BOOKSHELF_RESOURCE_URI,
+      PREVIOUS_READING_END_RESOURCE_URI,
       READING_END_RESOURCE_URI
     } = await import("@ss/shared");
 
@@ -33,8 +35,9 @@ describe("registerReadingResource", () => {
       "https://reading-nest.example.workers.dev"
     );
 
-    expect(READING_NEST_URI).toBe("ui://ss-reading-nest/app-v36.html");
+    expect(READING_NEST_URI).toBe("ui://ss-reading-nest/app-v37.html");
     expect(READING_NEST_RESOURCE_URIS).toEqual([
+      "ui://ss-reading-nest/app-v37.html",
       "ui://ss-reading-nest/app-v36.html",
       "ui://ss-reading-nest/app-v35.html",
       "ui://ss-reading-nest/app-v34.html",
@@ -54,7 +57,7 @@ describe("registerReadingResource", () => {
       "ui://ss-reading-nest/app-v20.html",
       "ui://ss-reading-nest/app-v19.html"
     ]);
-    expect(registerAppResource).toHaveBeenCalledTimes(21);
+    expect(registerAppResource).toHaveBeenCalledTimes(24);
 
     for (const [index, expectedUri] of READING_NEST_RESOURCE_URIS.entries()) {
       const [, , uri, descriptor, loader] = registerAppResource.mock.calls[index];
@@ -79,7 +82,7 @@ describe("registerReadingResource", () => {
     }
 
     const [, , bookshelfUri, bookshelfDescriptor, bookshelfLoader] =
-      registerAppResource.mock.calls[18];
+      registerAppResource.mock.calls[19];
     expect(bookshelfUri).toBe(BOOKSHELF_RESOURCE_URI);
     expect(bookshelfDescriptor.description).toContain("轻量、可交互");
     const bookshelfLoaded = await bookshelfLoader();
@@ -90,19 +93,32 @@ describe("registerReadingResource", () => {
     expect(bookshelfLoaded.contents[0]._meta.ui.prefersBorder).toBe(false);
 
     const [, , previousBookshelfUri, , previousBookshelfLoader] =
-      registerAppResource.mock.calls[19];
+      registerAppResource.mock.calls[20];
     expect(previousBookshelfUri).toBe(PREVIOUS_BOOKSHELF_RESOURCE_URI);
     const previousBookshelfLoaded = await previousBookshelfLoader();
     expect(previousBookshelfLoaded.contents[0].uri).toBe(PREVIOUS_BOOKSHELF_RESOURCE_URI);
     expect(previousBookshelfLoaded.contents[0].text).toContain("isolated bookshelf");
 
-    const [, , endUri, endDescriptor, endLoader] = registerAppResource.mock.calls[20];
+    const [, , oldestBookshelfUri, , oldestBookshelfLoader] =
+      registerAppResource.mock.calls[21];
+    expect(oldestBookshelfUri).toBe(OLDEST_BOOKSHELF_RESOURCE_URI);
+    const oldestBookshelfLoaded = await oldestBookshelfLoader();
+    expect(oldestBookshelfLoaded.contents[0].uri).toBe(OLDEST_BOOKSHELF_RESOURCE_URI);
+    expect(oldestBookshelfLoaded.contents[0].text).toContain("isolated bookshelf");
+
+    const [, , endUri, endDescriptor, endLoader] = registerAppResource.mock.calls[22];
     expect(endUri).toBe(READING_END_RESOURCE_URI);
-    expect(endDescriptor.description).toContain("最小、预渲染");
+    expect(endDescriptor.description).toContain("预渲染并内嵌底图");
     const endLoaded = await endLoader();
     expect(endLoaded.contents[0].uri).toBe(READING_END_RESOURCE_URI);
     expect(endLoaded.contents[0].text).toContain("isolated end");
     expect(endLoaded.contents[0]._meta.ui.csp.connectDomains).toEqual([]);
     expect(endLoaded.contents[0]._meta.ui.prefersBorder).toBe(false);
+
+    const [, , previousEndUri, , previousEndLoader] = registerAppResource.mock.calls[23];
+    expect(previousEndUri).toBe(PREVIOUS_READING_END_RESOURCE_URI);
+    const previousEndLoaded = await previousEndLoader();
+    expect(previousEndLoaded.contents[0].uri).toBe(PREVIOUS_READING_END_RESOURCE_URI);
+    expect(previousEndLoaded.contents[0].text).toContain("isolated end");
   });
 });

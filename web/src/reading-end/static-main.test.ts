@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createStaticReadingEndApp, parseReadingEndOutput } from "./static-main.js";
+import {
+  createStaticReadingEndApp,
+  parseReadingEndOutput,
+  selectReadingEndBackground
+} from "./static-main.js";
 
 const output = {
   view: "reading_end" as const,
@@ -25,7 +29,8 @@ const output = {
 
 function mountShell() {
   document.body.innerHTML = `
-    <main id="reading-end-static-v4" data-state="shell">
+    <main id="reading-end-static-v5" data-state="shell">
+      <div id="reading-end-art"></div>
       <h1 id="reading-end-title">静态收尾卡已加载</h1>
       <p id="reading-end-position"></p>
       <section id="reading-end-probe"></section>
@@ -87,11 +92,15 @@ describe("reading-end static stop-loss resource", () => {
 
   it("keeps the pre-rendered 390/768 shell intrinsically sized and scroll-free", () => {
     const html = readFileSync(resolve(process.cwd(), "reading-end.html"), "utf8");
+    const source = readFileSync(resolve(process.cwd(), "src/reading-end/static-main.ts"), "utf8");
     expect(html).toContain("width: min(100%, 620px)");
     expect(html).toContain("min-height: 320px !important");
-    expect(html).toContain("data-reading-end-static-v4");
+    expect(html).toContain("data-reading-end-static-v5");
+    expect(html).toContain("class=\"card-art\"");
+    expect(html).toContain("var(--reading-end-image)");
     expect(html).not.toMatch(/100(?:d?vh|svh|lvh)/u);
     expect(html).not.toMatch(/overflow\s*:\s*(?:auto|scroll)/u);
+    expect(source.match(/static-v5\/end-[a-z-]+\.webp/g)).toHaveLength(6);
     expect(Math.min(390 - 8, 620)).toBe(382);
     expect(Math.min(768 - 8, 620)).toBe(620);
   });
@@ -102,6 +111,15 @@ describe("reading-end static stop-loss resource", () => {
     expect(
       parseReadingEndOutput({ ...output, snapshot: { ...output.snapshot, thoughtCount: -1 } })
     ).toBeUndefined();
+  });
+
+  it("selects one of six backgrounds deterministically from the saved snapshot id", () => {
+    const first = selectReadingEndBackground(output.snapshot.id);
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(first).toBeLessThan(6);
+    expect(selectReadingEndBackground(output.snapshot.id)).toBe(first);
+    expect(new Set(Array.from({ length: 24 }, (_, index) => selectReadingEndBackground(`snapshot-${index}`))).size)
+      .toBeGreaterThan(1);
   });
 
   it("reports a non-zero raw size before the initialize handshake completes", () => {
@@ -116,7 +134,7 @@ describe("reading-end static stop-loss resource", () => {
       expect.objectContaining({
         jsonrpc: "2.0",
         method: "ui/initialize",
-        id: "reading-end-static-v4-initialize"
+        id: "reading-end-static-v5-initialize"
       })
     );
   });
@@ -126,7 +144,7 @@ describe("reading-end static stop-loss resource", () => {
     harness.flushFrame();
     harness.emitMessage({
       jsonrpc: "2.0",
-      id: "reading-end-static-v4-initialize",
+      id: "reading-end-static-v5-initialize",
       result: { protocolVersion: "2026-01-26" }
     });
     harness.flushFrame();
@@ -155,7 +173,7 @@ describe("reading-end static stop-loss resource", () => {
       params: { structuredContent: output }
     });
 
-    expect(document.getElementById("reading-end-static-v4")?.dataset.state).toBe("snapshot");
+    expect(document.getElementById("reading-end-static-v5")?.dataset.state).toBe("snapshot");
     expect(document.getElementById("reading-end-title")?.textContent).toBe("《打怪》");
     expect(document.body.textContent).toContain(output.snapshot.progressSummary);
     expect(document.body.textContent).toContain(output.snapshot.readingSummary);
@@ -163,6 +181,11 @@ describe("reading-end static stop-loss resource", () => {
     expect(document.body.textContent).toContain(output.snapshot.galeThought);
     expect(document.body.textContent).toContain(output.snapshot.openQuestion);
     expect(document.body.textContent).toContain("《书页边缘》待同步");
+    const root = document.getElementById("reading-end-static-v5");
+    expect(root?.style.getPropertyValue("--reading-end-image")).toContain("url(");
+    expect(root?.dataset.backgroundIndex).toBe(
+      String(selectReadingEndBackground(output.snapshot.id) + 1)
+    );
   });
 
   it("reads already-available compatibility output and reports the same intrinsic height", () => {
@@ -172,7 +195,7 @@ describe("reading-end static stop-loss resource", () => {
     });
     harness.flushFrame();
 
-    expect(document.getElementById("reading-end-static-v4")?.dataset.state).toBe("snapshot");
+    expect(document.getElementById("reading-end-static-v5")?.dataset.state).toBe("snapshot");
     expect(notifyIntrinsicHeight).toHaveBeenCalledWith({ height: 320 });
   });
 
@@ -204,7 +227,7 @@ describe("reading-end static stop-loss resource", () => {
     const harness = createHarness();
     harness.emitGlobals({ view: "reading_end", snapshot: {} });
 
-    expect(document.getElementById("reading-end-static-v4")?.dataset.state).toBe("error");
+    expect(document.getElementById("reading-end-static-v5")?.dataset.state).toBe("error");
     expect(document.getElementById("reading-end-title")?.textContent).toBe("静态收尾卡已加载");
     expect(document.getElementById("reading-end-status")?.textContent).toContain("快照不完整");
   });

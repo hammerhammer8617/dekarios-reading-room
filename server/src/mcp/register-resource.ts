@@ -2,13 +2,16 @@ import { registerAppResource, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/e
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   BOOKSHELF_RESOURCE_URI,
+  OLDEST_BOOKSHELF_RESOURCE_URI,
   PREVIOUS_BOOKSHELF_RESOURCE_URI,
+  PREVIOUS_READING_END_RESOURCE_URI,
   READING_END_RESOURCE_URI
 } from "@ss/shared";
 import { READING_NEST_URI } from "./register-tools.js";
 
 export const READING_NEST_RESOURCE_URIS = [
   READING_NEST_URI,
+  "ui://ss-reading-nest/app-v36.html",
   "ui://ss-reading-nest/app-v35.html",
   "ui://ss-reading-nest/app-v34.html",
   "ui://ss-reading-nest/app-v33.html",
@@ -89,36 +92,43 @@ export function registerReadingEndResource(
   const resourceCsp = { connectDomains: [], resourceDomains: [] };
   const openaiWidgetCsp = { connect_domains: [], resource_domains: [] };
   const description =
-    "一个最小、预渲染的‘今天读到这里’收尾卡，只显示已保存的权威阅读快照。";
+    "一个轻量、预渲染并内嵌底图的‘今天读到这里’收尾卡，只显示已保存的权威阅读快照。";
 
-  registerAppResource(
-    server,
-    "德卡里奥斯家的书房｜今天读到这里",
+  for (const [index, resourceUri] of [
     READING_END_RESOURCE_URI,
-    {
-      description,
-      _meta: {
-        ui: { csp: resourceCsp, prefersBorder: false },
-        "openai/widgetCSP": openaiWidgetCsp,
-        "openai/widgetDescription": description
-      }
-    },
-    async () => ({
-      contents: [
-        {
-          uri: READING_END_RESOURCE_URI,
-          mimeType: RESOURCE_MIME_TYPE,
-          text: readingEndHtml,
-          _meta: {
-            ui: { csp: resourceCsp, prefersBorder: false },
-            "openai/widgetCSP": openaiWidgetCsp,
-            "openai/widgetDescription": description,
-            "openai/widgetPrefersBorder": false
-          }
+    PREVIOUS_READING_END_RESOURCE_URI
+  ].entries()) {
+    registerAppResource(
+      server,
+      index === 0
+        ? "德卡里奥斯家的书房｜今天读到这里"
+        : "德卡里奥斯家的书房｜今天读到这里兼容资源",
+      resourceUri,
+      {
+        description,
+        _meta: {
+          ui: { csp: resourceCsp, prefersBorder: false },
+          "openai/widgetCSP": openaiWidgetCsp,
+          "openai/widgetDescription": description
         }
-      ]
-    })
-  );
+      },
+      async () => ({
+        contents: [
+          {
+            uri: resourceUri,
+            mimeType: RESOURCE_MIME_TYPE,
+            text: readingEndHtml,
+            _meta: {
+              ui: { csp: resourceCsp, prefersBorder: false },
+              "openai/widgetCSP": openaiWidgetCsp,
+              "openai/widgetDescription": description,
+              "openai/widgetPrefersBorder": false
+            }
+          }
+        ]
+      })
+    );
+  }
 }
 
 export function registerBookshelfResource(server: McpServer, bookshelfHtml: string) {
@@ -129,7 +139,8 @@ export function registerBookshelfResource(server: McpServer, bookshelfHtml: stri
 
   for (const [index, resourceUri] of [
     BOOKSHELF_RESOURCE_URI,
-    PREVIOUS_BOOKSHELF_RESOURCE_URI
+    PREVIOUS_BOOKSHELF_RESOURCE_URI,
+    OLDEST_BOOKSHELF_RESOURCE_URI
   ].entries()) {
     registerAppResource(
       server,

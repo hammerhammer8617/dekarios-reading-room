@@ -166,6 +166,10 @@ export const TOOL_CONFIGS = {
       ...mutation,
       destructiveHint: true,
       idempotentHint: true
+    },
+    _meta: {
+      ui: { visibility: ["model", "app"] },
+      "openai/widgetAccessible": true
     }
   },
   send_current_context: {

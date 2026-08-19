@@ -8,12 +8,17 @@ import {
   getOrStartBookContextInputSchema,
   LEGACY_BOOKSHELF_TOOL_NAME,
   markNotionSyncedInputSchema,
+  OLDEST_BOOKSHELF_RESOURCE_URI,
+  OLDEST_BOOKSHELF_TOOL_NAME,
   openBookshelfInputSchema,
   openBookshelfOutputSchema,
   PREVIOUS_BOOKSHELF_RESOURCE_URI,
   PREVIOUS_BOOKSHELF_TOOL_NAME,
+  PREVIOUS_READING_END_RESOURCE_URI,
+  PREVIOUS_READING_END_TOOL_NAME,
   prepareNotionSyncInputSchema,
   READING_END_RESOURCE_URI,
+  READING_END_TOOL_NAME,
   recordCasebookUpdateInputSchema,
   recordReadingTurnInputSchema,
   renderReadingEndCardInputSchema,
@@ -174,7 +179,7 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     {
       title: "打开德卡里奥斯家的书架（兼容入口）",
       description:
-        "Legacy app-only bookshelf entry retained for already-mounted reading-room components. Models must use open_bookshelf_v3 instead.",
+        "Legacy app-only bookshelf entry retained for already-mounted reading-room components. Models must use open_bookshelf_v4 instead.",
       inputSchema: openBookshelfInputSchema,
       outputSchema: openBookshelfOutputSchema,
       annotations: readOnly,
@@ -189,11 +194,30 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
 
   registerAppTool(
     server,
-    PREVIOUS_BOOKSHELF_TOOL_NAME,
+    OLDEST_BOOKSHELF_TOOL_NAME,
     {
       title: "打开德卡里奥斯家的书架（v2 兼容入口）",
       description:
-        "Previous app-only bookshelf entry retained for cached v2 components. Models must use open_bookshelf_v3 instead.",
+        "Older app-only bookshelf entry retained for cached v2 components. Models must use open_bookshelf_v4 instead.",
+      inputSchema: openBookshelfInputSchema,
+      outputSchema: openBookshelfOutputSchema,
+      annotations: readOnly,
+      _meta: {
+        ui: { resourceUri: OLDEST_BOOKSHELF_RESOURCE_URI, visibility: ["app"] },
+        "openai/outputTemplate": OLDEST_BOOKSHELF_RESOURCE_URI,
+        "openai/widgetAccessible": true
+      }
+    },
+    renderBookshelf
+  );
+
+  registerAppTool(
+    server,
+    PREVIOUS_BOOKSHELF_TOOL_NAME,
+    {
+      title: "打开德卡里奥斯家的书架（v3 兼容入口）",
+      description:
+        "Previous app-only bookshelf entry retained for cached v3 components. Models must use open_bookshelf_v4 instead.",
       inputSchema: openBookshelfInputSchema,
       outputSchema: openBookshelfOutputSchema,
       annotations: readOnly,
@@ -212,7 +236,7 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     {
       title: "打开德卡里奥斯家的书架",
       description:
-        "Use this versioned render tool when the user explicitly asks to open the bookshelf, see what they are reading, inspect book records, or open a casebook. It replaces the cached open_bookshelf_v2 descriptor. Do not render it for each page photo or ordinary reading turn.",
+        "Use this versioned render tool when the user explicitly asks to open the bookshelf, see what they are reading, inspect or delete book records, or open a casebook. It replaces the cached open_bookshelf_v3 descriptor. Do not render it for each page photo or ordinary reading turn.",
       inputSchema: openBookshelfInputSchema,
       outputSchema: openBookshelfOutputSchema,
       annotations: readOnly,
@@ -247,27 +271,48 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
       toolResult(await service.getStatusCard(bookId), "共读状态卡已经显示；直接继续讨论书页。")
   );
 
+  const renderReadingEndCard = async (input: Parameters<ReadingRoomService["getEndCard"]>[0]) =>
+    toolResult(
+      await service.getEndCard(input),
+      "收尾卡已经显示；不要在卡片外机械复述统计。"
+    );
+
   registerAppTool(
     server,
-    "render_reading_end_card_v4",
+    PREVIOUS_READING_END_TOOL_NAME,
     {
-      title: "显示今天读到这里",
+      title: "显示今天读到这里（v4 兼容入口）",
       description:
-        "Render the isolated ‘今天读到这里’ card only from the snapshotId returned by record_reading_turn. Do not pass or invent render-time summary text. If the snapshot is missing or incomplete, the tool fails instead of mounting an empty card.",
+        "Previous app-only reading-end entry retained for cached v4 components. Models must use render_reading_end_card_v5 instead.",
       inputSchema: renderReadingEndCardInputSchema,
       outputSchema: renderReadingEndCardOutputSchema,
       annotations: readOnly,
       _meta: {
-        ui: { resourceUri: READING_END_RESOURCE_URI },
+        ui: { resourceUri: PREVIOUS_READING_END_RESOURCE_URI, visibility: ["app"] },
+        "openai/outputTemplate": PREVIOUS_READING_END_RESOURCE_URI
+      }
+    },
+    renderReadingEndCard
+  );
+
+  registerAppTool(
+    server,
+    READING_END_TOOL_NAME,
+    {
+      title: "显示今天读到这里",
+      description:
+        "Render the isolated image-backed ‘今天读到这里’ card only from the snapshotId returned by record_reading_turn. It replaces the cached v4 descriptor. Do not pass or invent render-time summary text. If the snapshot is missing or incomplete, the tool fails instead of mounting an empty card.",
+      inputSchema: renderReadingEndCardInputSchema,
+      outputSchema: renderReadingEndCardOutputSchema,
+      annotations: readOnly,
+      _meta: {
+        ui: { resourceUri: READING_END_RESOURCE_URI, visibility: ["model", "app"] },
         "openai/outputTemplate": READING_END_RESOURCE_URI,
+        "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "正在合上今天的书页…",
         "openai/toolInvocation/invoked": "今天读到这里"
       }
     },
-    async (input) =>
-      toolResult(
-        await service.getEndCard(input),
-        "收尾卡已经显示；不要在卡片外机械复述统计。"
-      )
+    renderReadingEndCard
   );
 }

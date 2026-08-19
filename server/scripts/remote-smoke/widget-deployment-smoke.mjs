@@ -71,10 +71,10 @@ async function waitForDeployedWidgets(health) {
         "ChatGPT resource URI does not match deployed health"
       );
       const readingEndTool = tools.tools.find(
-        (tool) => tool.name === "render_reading_end_card_v4"
+        (tool) => tool.name === "render_reading_end_card_v5"
       );
-      assert(readingEndTool, "render_reading_end_card_v4 is missing");
-      const readingEndResourceUri = "ui://ss-reading-nest/reading-end-v4.html";
+      assert(readingEndTool, "render_reading_end_card_v5 is missing");
+      const readingEndResourceUri = "ui://ss-reading-nest/reading-end-v5.html";
       assert(
         readingEndTool._meta?.ui?.resourceUri === readingEndResourceUri,
         "standard reading-end resource URI is stale"
@@ -87,24 +87,49 @@ async function waitForDeployedWidgets(health) {
         JSON.stringify(readingEndTool.inputSchema?.required) === JSON.stringify(["snapshotId"]),
         "reading-end tool contract is not the authoritative snapshot-only schema"
       );
+      const previousReadingEndTool = tools.tools.find(
+        (tool) => tool.name === "render_reading_end_card_v4"
+      );
+      assert(previousReadingEndTool, "previous render_reading_end_card_v4 is missing");
+      assert(
+        JSON.stringify(previousReadingEndTool._meta?.ui?.visibility) === JSON.stringify(["app"]),
+        "previous render_reading_end_card_v4 must remain app-only"
+      );
       const legacyBookshelfTool = tools.tools.find((tool) => tool.name === "open_bookshelf");
       assert(legacyBookshelfTool, "legacy open_bookshelf compatibility tool is missing");
       assert(
         JSON.stringify(legacyBookshelfTool._meta?.ui?.visibility) === JSON.stringify(["app"]),
         "legacy open_bookshelf must remain app-only"
       );
-      const previousBookshelfTool = tools.tools.find(
+      const oldestBookshelfTool = tools.tools.find(
         (tool) => tool.name === "open_bookshelf_v2"
       );
-      assert(previousBookshelfTool, "previous open_bookshelf_v2 compatibility tool is missing");
+      assert(oldestBookshelfTool, "older open_bookshelf_v2 compatibility tool is missing");
+      assert(
+        JSON.stringify(oldestBookshelfTool._meta?.ui?.visibility) === JSON.stringify(["app"]),
+        "older open_bookshelf_v2 must remain app-only"
+      );
+      const previousBookshelfTool = tools.tools.find(
+        (tool) => tool.name === "open_bookshelf_v3"
+      );
+      assert(previousBookshelfTool, "previous open_bookshelf_v3 compatibility tool is missing");
       assert(
         JSON.stringify(previousBookshelfTool._meta?.ui?.visibility) === JSON.stringify(["app"]),
-        "previous open_bookshelf_v2 must remain app-only"
+        "previous open_bookshelf_v3 must remain app-only"
       );
-      const bookshelfToolName = "open_bookshelf_v3";
+      const deleteBookTool = tools.tools.find(
+        (tool) => tool.name === "delete_reading_session"
+      );
+      assert(deleteBookTool, "delete_reading_session is missing");
+      assert(
+        JSON.stringify(deleteBookTool._meta?.ui?.visibility) === JSON.stringify(["model", "app"]) &&
+          deleteBookTool._meta?.["openai/widgetAccessible"] === true,
+        "delete_reading_session is not callable from the bookshelf app"
+      );
+      const bookshelfToolName = "open_bookshelf_v4";
       const bookshelfTool = tools.tools.find((tool) => tool.name === bookshelfToolName);
       assert(bookshelfTool, `${bookshelfToolName} is missing`);
-      const bookshelfResourceUri = "ui://ss-reading-nest/bookshelf-static-v3.html";
+      const bookshelfResourceUri = "ui://ss-reading-nest/bookshelf-static-v4.html";
       assert(
         bookshelfTool._meta?.ui?.resourceUri === bookshelfResourceUri,
         "standard bookshelf resource URI is stale"
@@ -170,18 +195,21 @@ async function waitForDeployedWidgets(health) {
         "deployed bookshelf resource has the wrong MCP Apps MIME type"
       );
       assert(
-        bookshelfHtml.includes("data-bookshelf-static-v3"),
+        bookshelfHtml.includes("data-bookshelf-static-v4"),
         "deployed bookshelf resource is missing its interactive static shell"
       );
       assert(
-        bookshelfHtml.includes('data-bookshelf-height-strategy="raw-postmessage-v3"'),
+        bookshelfHtml.includes('data-bookshelf-height-strategy="raw-postmessage-v4"'),
         "deployed bookshelf resource is missing raw intrinsic-height recovery"
       );
       assert(
         bookshelfHtml.includes("tools/call") &&
           bookshelfHtml.includes("get_book_details") &&
+          bookshelfHtml.includes("delete_reading_session") &&
+          bookshelfHtml.includes("确认删除") &&
+          bookshelfHtml.includes("bookshelf-pagination") &&
           bookshelfHtml.includes("返回书架"),
-        "deployed bookshelf resource is missing book-detail interaction"
+        "deployed bookshelf resource is missing bounded management interaction"
       );
       assert(
         bookshelfHtml.includes("data:image/webp;base64"),
@@ -197,11 +225,11 @@ async function waitForDeployedWidgets(health) {
       )?.text;
       assert(typeof readingEndHtml === "string", "deployed reading-end resource returned no HTML");
       assert(
-        readingEndHtml.includes("data-reading-end-static-v4"),
+        readingEndHtml.includes("data-reading-end-static-v5"),
         "deployed reading-end resource is missing its pre-rendered static shell"
       );
       assert(
-        readingEndHtml.includes('data-reading-end-height-strategy="raw-postmessage-v4"'),
+        readingEndHtml.includes('data-reading-end-height-strategy="raw-postmessage-v5"'),
         "deployed reading-end resource is missing raw intrinsic-height recovery"
       );
       assert(
@@ -209,8 +237,12 @@ async function waitForDeployedWidgets(health) {
         "deployed reading-end resource is missing the card UI"
       );
       assert(
-        readingEndHtml.length > 4_000 && readingEndHtml.length < 50_000,
-        "deployed reading-end resource is outside the stop-loss size budget"
+        (readingEndHtml.match(/data:image\/webp;base64/g)?.length ?? 0) === 6,
+        "deployed reading-end resource does not contain all six embedded backgrounds"
+      );
+      assert(
+        readingEndHtml.length > 250_000 && readingEndHtml.length < 500_000,
+        "deployed reading-end resource is outside the image-backed size budget"
       );
       return {
         resourceUri,

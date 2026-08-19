@@ -7,13 +7,17 @@ import {
 } from "./register-tools.js";
 
 describe("tool descriptors", () => {
-  it("binds the UI resource only to the primary render tool", () => {
+  it("exposes only the intended app-callable reading tools", () => {
     expect(TOOL_CONFIGS.open_reading_nest._meta?.ui).toEqual({
       resourceUri: READING_NEST_URI,
       visibility: ["app"]
     });
     for (const [name, config] of Object.entries(TOOL_CONFIGS)) {
-      if (name !== "open_reading_nest" && name !== "upload_cloud_source") {
+      if (
+        name !== "open_reading_nest" &&
+        name !== "upload_cloud_source" &&
+        name !== "delete_reading_session"
+      ) {
         const meta = "_meta" in config ? (config._meta as Record<string, unknown>) : undefined;
         expect(meta?.ui).toBeUndefined();
       }
@@ -245,6 +249,10 @@ describe("tool descriptors", () => {
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true
+    });
+    expect(TOOL_CONFIGS.delete_reading_session._meta).toMatchObject({
+      ui: { visibility: ["model", "app"] },
+      "openai/widgetAccessible": true
     });
     expect(
       TOOL_CONFIGS.delete_reading_session.inputSchema.parse({

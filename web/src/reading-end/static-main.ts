@@ -1,3 +1,10 @@
+import endBooksTea from "../assets/reading-room/static-v5/end-books-tea.webp";
+import endCinemaPopcorn from "../assets/reading-room/static-v5/end-cinema-popcorn.webp";
+import endGameNight from "../assets/reading-room/static-v5/end-game-night.webp";
+import endOrangeTree from "../assets/reading-room/static-v5/end-orange-tree.webp";
+import endSharedTableClose from "../assets/reading-room/static-v5/end-shared-table-close.webp";
+import endSharedTableWide from "../assets/reading-room/static-v5/end-shared-table-wide.webp";
+
 type ReadingEndSnapshot = {
   id: string;
   bookId: string;
@@ -39,7 +46,15 @@ export type StaticReadingEndDependencies = {
 };
 
 const PROTOCOL_VERSION = "2026-01-26";
-const INITIALIZE_ID = "reading-end-static-v4-initialize";
+const INITIALIZE_ID = "reading-end-static-v5-initialize";
+const readingEndBackgrounds = [
+  endBooksTea,
+  endCinemaPopcorn,
+  endGameNight,
+  endOrangeTree,
+  endSharedTableClose,
+  endSharedTableWide
+] as const;
 const syncLabels: Record<ReadingEndSnapshot["notionSyncStatus"], string> = {
   synced: "已同步到《书页边缘》",
   pending: "《书页边缘》待同步",
@@ -82,7 +97,7 @@ const defaultDependencies: StaticReadingEndDependencies = {
         320,
         document.documentElement.scrollHeight,
         document.body.scrollHeight,
-        document.getElementById("reading-end-static-v4")?.scrollHeight ?? 0
+        document.getElementById("reading-end-static-v5")?.scrollHeight ?? 0
       )
     )
   })
@@ -220,6 +235,15 @@ export function parseReadingEndOutput(value: unknown): ReadingEndOutput | undefi
 }
 
 export function renderReadingEndSnapshot(doc: Document, snapshot: ReadingEndSnapshot) {
+  const root = doc.getElementById("reading-end-static-v5");
+  const backgroundIndex = selectReadingEndBackground(snapshot.id);
+  if (root) {
+    root.style.setProperty(
+      "--reading-end-image",
+      `url("${readingEndBackgrounds[backgroundIndex]}")`
+    );
+    root.dataset.backgroundIndex = String(backgroundIndex + 1);
+  }
   setText(doc, "reading-end-title", `《${snapshot.title}》`);
   setText(doc, "reading-end-position", snapshot.positionLabel);
   setText(doc, "reading-end-progress", snapshot.progressSummary);
@@ -242,13 +266,20 @@ export function renderReadingEndSnapshot(doc: Document, snapshot: ReadingEndSnap
     "reading-end-status",
     `${snapshot.thoughtCount} 个本次想法 · ${syncLabels[snapshot.notionSyncStatus]}`
   );
-  const root = doc.getElementById("reading-end-static-v4");
   if (root) root.dataset.state = "snapshot";
+}
+
+export function selectReadingEndBackground(snapshotId: string) {
+  let result = 0;
+  for (let index = 0; index < snapshotId.length; index += 1) {
+    result = (result * 31 + snapshotId.charCodeAt(index)) >>> 0;
+  }
+  return result % readingEndBackgrounds.length;
 }
 
 function showError(doc: Document, message: string) {
   setText(doc, "reading-end-status", message);
-  const root = doc.getElementById("reading-end-static-v4");
+  const root = doc.getElementById("reading-end-static-v5");
   if (root) root.dataset.state = "error";
 }
 
@@ -264,7 +295,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 if (
   typeof window !== "undefined" &&
   typeof document !== "undefined" &&
-  document.getElementById("reading-end-static-v4")
+  document.getElementById("reading-end-static-v5")
 ) {
   createStaticReadingEndApp();
 }

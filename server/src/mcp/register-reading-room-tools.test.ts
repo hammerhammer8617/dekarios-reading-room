@@ -8,9 +8,13 @@ import {
   BOOKSHELF_RESOURCE_URI,
   BOOKSHELF_TOOL_NAME,
   LEGACY_BOOKSHELF_TOOL_NAME,
+  OLDEST_BOOKSHELF_RESOURCE_URI,
+  OLDEST_BOOKSHELF_TOOL_NAME,
   PREVIOUS_BOOKSHELF_RESOURCE_URI,
   PREVIOUS_BOOKSHELF_TOOL_NAME,
-  READING_END_RESOURCE_URI
+  PREVIOUS_READING_END_TOOL_NAME,
+  READING_END_RESOURCE_URI,
+  READING_END_TOOL_NAME
 } from "@ss/shared";
 import { registerReadingRoomTools } from "./register-reading-room-tools.js";
 
@@ -32,15 +36,24 @@ describe("registerReadingRoomTools", () => {
     ]);
     expect(registerAppTool.mock.calls.map(([, name]) => name)).toEqual([
       LEGACY_BOOKSHELF_TOOL_NAME,
+      OLDEST_BOOKSHELF_TOOL_NAME,
       PREVIOUS_BOOKSHELF_TOOL_NAME,
       BOOKSHELF_TOOL_NAME,
       "render_reading_status",
-      "render_reading_end_card_v4"
+      PREVIOUS_READING_END_TOOL_NAME,
+      READING_END_TOOL_NAME
     ]);
     const legacyBookshelfDescriptor = registerAppTool.mock.calls.find(
       ([, name]) => name === LEGACY_BOOKSHELF_TOOL_NAME
     )?.[2];
     expect(legacyBookshelfDescriptor._meta.ui.visibility).toEqual(["app"]);
+    const oldestBookshelfDescriptor = registerAppTool.mock.calls.find(
+      ([, name]) => name === OLDEST_BOOKSHELF_TOOL_NAME
+    )?.[2];
+    expect(oldestBookshelfDescriptor._meta.ui).toEqual({
+      resourceUri: OLDEST_BOOKSHELF_RESOURCE_URI,
+      visibility: ["app"]
+    });
     const previousBookshelfDescriptor = registerAppTool.mock.calls.find(
       ([, name]) => name === PREVIOUS_BOOKSHELF_TOOL_NAME
     )?.[2];
@@ -60,9 +73,11 @@ describe("registerReadingRoomTools", () => {
     )?.[2];
     expect(statusDescriptor._meta.ui.resourceUri).toBe(READING_NEST_URI);
     const endDescriptor = registerAppTool.mock.calls.find(
-      ([, name]) => name === "render_reading_end_card_v4"
+      ([, name]) => name === READING_END_TOOL_NAME
     )?.[2];
     expect(endDescriptor._meta.ui.resourceUri).toBe(READING_END_RESOURCE_URI);
+    expect(endDescriptor._meta.ui.visibility).toEqual(["model", "app"]);
+    expect(endDescriptor._meta["openai/widgetAccessible"]).toBe(true);
     expect(endDescriptor.outputSchema).toBeDefined();
   });
 
@@ -119,7 +134,7 @@ describe("registerReadingRoomTools", () => {
     expect(bookshelfDescriptor.description).toContain("explicitly asks");
     expect(bookshelfDescriptor.description).toContain("Do not render it for each page photo");
     const endCardDescriptor = registerAppTool.mock.calls.find(
-      ([, name]) => name === "render_reading_end_card_v4"
+      ([, name]) => name === READING_END_TOOL_NAME
     )?.[2];
     expect(endCardDescriptor.description).toContain("snapshotId");
     expect(endCardDescriptor.description).toContain("Do not pass or invent render-time summary text");
