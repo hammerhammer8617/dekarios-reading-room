@@ -4,6 +4,8 @@ import type { ToolCallResult } from "../types/openai.js";
 
 let app: McpApp | undefined;
 let appReady: Promise<void> | undefined;
+let lastToolResult: ToolCallResult | undefined;
+const toolResultListeners = new Set<(result: ToolCallResult) => void>();
 let lastModelContext: Record<string, unknown> | undefined;
 let lastRangeTextContext:
   | {
@@ -34,9 +36,20 @@ function connectApp() {
   if (typeof window === "undefined" || window.parent === window) return undefined;
   if (!app) {
     app = new McpApp({ name: "德卡里奥斯家的书房", version: READING_NEST_APP_VERSION });
+    // Tool results are one-shot MCP Apps notifications. This listener must be
+    // attached before connect() or the host may deliver the opening result
+    // during the initialize handshake and the UI will miss it permanently.
+    app.addEventListener("toolresult", (result) => {
+      publishToolResult(result as ToolCallResult);
+    });
     appReady = app.connect().catch(() => undefined);
   }
   return app;
+}
+
+function publishToolResult(result: ToolCallResult) {
+  lastToolResult = result;
+  for (const listener of toolResultListeners) listener(result);
 }
 
 export async function callTool(
@@ -306,6 +319,43 @@ export function initialWidgetState(): ReaderWidgetState | undefined {
 
 export function initialToolOutput<T>(): T | undefined {
   return window.openai?.toolOutput as T | undefined;
+}
+
+export function initialToolResult(): ToolCallResult | undefined {
+  if (lastToolResult) return lastToolResult;
+  const structuredContent = window.openai?.toolOutput;
+  return isRecord(structuredContent) ? { structuredContent } : undefined;
+}
+
+export function subscribeToolResult(
+  listener: (result: ToolCallResult) => void
+): () => void {
+  toolResultListeners.add(listener);
+
+  // Register the shared MCP listener before the initialize handshake starts.
+  connectApp();
+
+  const initial = initialToolResult();
+  if (initial) queueMicrotask(() => listener(initial));
+
+  // Older ChatGPT hosts expose only the compatibility alias and may populate
+  // it just after the iframe mounts. A short poll keeps that path reliable
+  // without making it the primary transport.
+  let observedLegacyOutput = window.openai?.toolOutput;
+  const pollStartedAt = Date.now();
+  const pollId = window.setInterval(() => {
+    const legacyOutput = window.openai?.toolOutput;
+    if (isRecord(legacyOutput) && legacyOutput !== observedLegacyOutput) {
+      observedLegacyOutput = legacyOutput;
+      publishToolResult({ structuredContent: legacyOutput });
+    }
+    if (Date.now() - pollStartedAt >= 2_000) window.clearInterval(pollId);
+  }, 50);
+
+  return () => {
+    toolResultListeners.delete(listener);
+    window.clearInterval(pollId);
+  };
 }
 
 export function subscribeHostContext(
