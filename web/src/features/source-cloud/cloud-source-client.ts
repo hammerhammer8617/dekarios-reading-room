@@ -253,7 +253,9 @@ function buildFetchBlockedMessage(uploadUrl: string, error: unknown): string {
 
 function describeUploadUrl(uploadUrl: string) {
   try {
-    const url = new URL(uploadUrl, window.location.href);
+    const url = /^[a-z][a-z\d+.-]*:/i.test(uploadUrl)
+      ? new URL(uploadUrl)
+      : new URL(uploadUrl, window.location.href);
     return {
       origin: url.origin,
       path: maskSourcePath(url.pathname)
