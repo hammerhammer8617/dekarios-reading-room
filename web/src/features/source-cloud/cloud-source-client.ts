@@ -1,5 +1,6 @@
 import type { CloudSourcePage, SourceManifest } from "@ss/shared";
 import type { ToolCallResult } from "../../types/openai.js";
+import { READING_NEST_BUILD_INFO } from "../../build-info.js";
 
 type FetchLike = typeof fetch;
 type ToolCaller = (name: string, args: Record<string, unknown>) => Promise<ToolCallResult>;
@@ -20,8 +21,8 @@ export interface CloudSourceUploadResult {
   diagnostics: CloudUploadDiagnostics;
 }
 
-const RESOURCE_VERSION = "app-v19";
-const APP_VERSION = "0.2.2";
+const RESOURCE_VERSION = READING_NEST_BUILD_INFO.resourceVersion;
+const APP_VERSION = READING_NEST_BUILD_INFO.appVersion;
 const MAX_BRIDGE_NOVEL_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 export class CloudSourceClient {

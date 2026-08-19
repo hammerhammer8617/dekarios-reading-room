@@ -1,7 +1,7 @@
 {
-  "name": "ss-reading-nest",
+  "name": "dekarios-reading-room",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "packageManager": "pnpm@10.15.1",
   "scripts": {
     "build": "pnpm --filter @ss/shared build && pnpm --filter @ss/web build && pnpm --filter @ss/bindery build && pnpm --filter @ss/server build",

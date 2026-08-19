@@ -1,4 +1,12 @@
 export type ReadingType = "novel" | "manga";
+export type BookGenre =
+  | "novel"
+  | "mystery"
+  | "nonfiction"
+  | "essay"
+  | "poetry"
+  | "manga"
+  | "other";
 export type SessionStatus = "active" | "completed";
 export type ReadingCommentMode =
   | "light_chat"
@@ -103,6 +111,10 @@ export interface ReadingSession {
   liveReadingEnabled: boolean;
   sessionPreferences: SessionPreferences;
   sourceManifest: SourceManifest | null;
+  author?: string;
+  genre?: BookGenre;
+  spoilerBoundary?: ReadingPosition;
+  lastNotionSyncedAt?: string;
   lastAssistantConfirmation?: {
     operationId: string;
     batchId: string;
@@ -112,6 +124,117 @@ export interface ReadingSession {
   updatedAt: string;
   lastReadAt: string;
   completedAt?: string;
+}
+
+export type ThoughtAuthor = "tav" | "gale" | "shared";
+export type ThoughtKind =
+  | "reaction"
+  | "interpretation"
+  | "disagreement"
+  | "question"
+  | "prediction"
+  | "connection"
+  | "clue";
+export type ThoughtStatus = "open" | "revised" | "resolved" | "rejected";
+
+export interface DurableThought {
+  id: string;
+  sessionId: string;
+  author: ThoughtAuthor;
+  kind: ThoughtKind;
+  content: string;
+  position?: ReadingPosition;
+  status: ThoughtStatus;
+  relatedThoughtId?: string;
+  operationId?: string;
+  notionSyncedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ReadingRoomCaseItemStatus =
+  | "suspected"
+  | "confirmed"
+  | "disproved"
+  | "unknown";
+export type ReadingRoomHypothesisStatus = "active" | "supported" | "rejected" | "solved";
+
+export interface ReadingRoomCaseEntity {
+  id: string;
+  name: string;
+  type: CaseEntityType;
+  aliases: string[];
+  description?: string;
+  firstSeenPosition?: ReadingPosition;
+  status: ReadingRoomCaseItemStatus;
+  updatedAt: string;
+}
+
+export interface ReadingRoomCaseRelation {
+  id: string;
+  fromEntityId: string;
+  toEntityId: string;
+  label: string;
+  status: ReadingRoomCaseItemStatus;
+  evidence: string[];
+  updatedAt: string;
+}
+
+export interface ReadingRoomClue {
+  id: string;
+  content: string;
+  position?: ReadingPosition;
+  entityIds: string[];
+  status: ReadingRoomCaseItemStatus;
+  operationId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReadingRoomHypothesis {
+  id: string;
+  title: string;
+  summary: string;
+  status: ReadingRoomHypothesisStatus;
+  confidence?: number;
+  evidenceFor: string[];
+  evidenceAgainst: string[];
+  operationId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReadingRoomTimelineEntry {
+  id: string;
+  label: string;
+  whenText: string;
+  note?: string;
+  position?: ReadingPosition;
+  entityIds: string[];
+  operationId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReadingRoomObservationTask {
+  id: string;
+  prompt: string;
+  status: "open" | "done" | "discarded";
+  position?: ReadingPosition;
+  operationId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MysteryReadingCasebook {
+  sessionId: string;
+  entities: ReadingRoomCaseEntity[];
+  relations: ReadingRoomCaseRelation[];
+  clues: ReadingRoomClue[];
+  hypotheses: ReadingRoomHypothesis[];
+  timeline: ReadingRoomTimelineEntry[];
+  observationTasks: ReadingRoomObservationTask[];
+  updatedAt: string;
 }
 
 export interface Quote {
@@ -278,7 +401,7 @@ export interface CaseBundle {
 }
 
 export interface ReadingDatabase {
-  schemaVersion: 6;
+  schemaVersion: 7;
   sessions: ReadingSession[];
   quotes: Quote[];
   reactions: Reaction[];
@@ -291,6 +414,8 @@ export interface ReadingDatabase {
   caseHypotheses: CaseHypothesis[];
   caseObservationTasks: CaseObservationTask[];
   caseSyncOperations: CaseSyncOperation[];
+  thoughts: DurableThought[];
+  readingRoomCasebooks: MysteryReadingCasebook[];
 }
 
 export type ReadingSyncMode =
@@ -321,6 +446,14 @@ export interface SessionBundle {
   quotes: Quote[];
   reactions: Reaction[];
   bookmarks: Bookmark[];
+}
+
+export interface BookContext {
+  session: ReadingSession;
+  recentThoughts: DurableThought[];
+  openQuestions: DurableThought[];
+  unsyncedThoughtCount: number;
+  casebook?: MysteryReadingCasebook;
 }
 
 export interface LocalCacheMetadata {

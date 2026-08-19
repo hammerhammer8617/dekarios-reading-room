@@ -12,7 +12,7 @@ import {
 export function normalizeReadingDatabase(input: unknown): ReadingDatabase {
   const database = migrateReadingDatabase(input);
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     sessions: database.sessions.map(copySession),
     quotes: database.quotes.map(copyQuote),
     reactions: database.reactions.map(copyReaction),
@@ -24,7 +24,9 @@ export function normalizeReadingDatabase(input: unknown): ReadingDatabase {
     caseRelations: structuredClone(database.caseRelations),
     caseHypotheses: structuredClone(database.caseHypotheses),
     caseObservationTasks: structuredClone(database.caseObservationTasks),
-    caseSyncOperations: structuredClone(database.caseSyncOperations)
+    caseSyncOperations: structuredClone(database.caseSyncOperations),
+    thoughts: structuredClone(database.thoughts),
+    readingRoomCasebooks: structuredClone(database.readingRoomCasebooks)
   };
 }
 
@@ -48,6 +50,14 @@ function copySession(session: ReadingSession): ReadingSession {
     liveReadingEnabled: session.liveReadingEnabled,
     sessionPreferences: structuredClone(session.sessionPreferences),
     sourceManifest: copySourceManifest(session.sourceManifest),
+    ...(session.author ? { author: session.author } : {}),
+    ...(session.genre ? { genre: session.genre } : {}),
+    ...(session.spoilerBoundary
+      ? { spoilerBoundary: structuredClone(session.spoilerBoundary) }
+      : {}),
+    ...(session.lastNotionSyncedAt
+      ? { lastNotionSyncedAt: session.lastNotionSyncedAt }
+      : {}),
     ...(session.lastAssistantConfirmation
       ? { lastAssistantConfirmation: structuredClone(session.lastAssistantConfirmation) }
       : {}),
