@@ -452,5 +452,197 @@ export const confirmCaseSyncInputSchema = z
   })
   .strict();
 
+export const bookGenreSchema = z.enum([
+  "novel",
+  "mystery",
+  "nonfiction",
+  "essay",
+  "poetry",
+  "manga",
+  "other"
+]);
+export const thoughtAuthorSchema = z.enum(["tav", "gale", "shared"]);
+export const thoughtKindSchema = z.enum([
+  "reaction",
+  "interpretation",
+  "disagreement",
+  "question",
+  "prediction",
+  "connection",
+  "clue"
+]);
+export const thoughtStatusSchema = z.enum(["open", "revised", "resolved", "rejected"]);
+
+export const getOrStartBookContextInputSchema = z
+  .object({
+    bookId: sessionIdSchema.optional(),
+    title: z.string().trim().min(1).max(200).optional(),
+    author: z.string().trim().min(1).max(200).optional(),
+    genre: bookGenreSchema.optional(),
+    currentPosition: readingPositionSchema.optional(),
+    sharedPosition: readingPositionSchema.optional(),
+    spoilerBoundary: readingPositionSchema.optional(),
+    createIfMissing: z.boolean().optional().default(true)
+  })
+  .strict();
+
+export const recordReadingTurnInputSchema = z
+  .object({
+    bookId: sessionIdSchema,
+    progress: z
+      .object({
+        tav: readingPositionSchema.optional(),
+        shared: readingPositionSchema.optional(),
+        spoilerBoundary: readingPositionSchema.optional()
+      })
+      .strict()
+      .optional(),
+    thoughts: z
+      .array(
+        z
+          .object({
+            author: thoughtAuthorSchema,
+            kind: thoughtKindSchema,
+            content: z.string().trim().min(1).max(4_000),
+            position: readingPositionSchema.optional(),
+            status: thoughtStatusSchema.optional().default("open"),
+            relatedThoughtId: z.string().min(1).max(200).optional()
+          })
+          .strict()
+      )
+      .max(30)
+      .optional()
+      .default([]),
+    operationId: z.string().min(1).max(200)
+  })
+  .strict()
+  .refine((input) => input.progress || input.thoughts.length > 0, {
+    message: "Record at least progress or one durable thought"
+  });
+
+export const getBookDetailsInputSchema = z.object({ bookId: sessionIdSchema }).strict();
+export const openBookshelfInputSchema = z.object({}).strict();
+export const renderReadingStatusInputSchema = z.object({ bookId: sessionIdSchema }).strict();
+export const renderReadingEndCardInputSchema = z
+  .object({
+    bookId: sessionIdSchema,
+    operationId: z.string().min(1).max(200).optional()
+  })
+  .strict();
+export const prepareNotionSyncInputSchema = z
+  .object({
+    bookId: sessionIdSchema,
+    limit: z.number().int().min(1).max(100).optional().default(50)
+  })
+  .strict();
+export const markNotionSyncedInputSchema = z
+  .object({
+    bookId: sessionIdSchema,
+    thoughtIds: z.array(z.string().min(1).max(200)).min(1).max(100),
+    syncedAt: z.string().datetime().optional()
+  })
+  .strict();
+
+const readingRoomCaseItemStatusSchema = z.enum([
+  "suspected",
+  "confirmed",
+  "disproved",
+  "unknown"
+]);
+const readingRoomCasePositionSchema = readingPositionSchema.optional();
+export const recordCasebookUpdateInputSchema = z
+  .object({
+    bookId: sessionIdSchema,
+    entities: z
+      .array(
+        z
+          .object({
+            name: z.string().trim().min(1).max(120),
+            type: z.enum(["person", "place", "object", "organization", "event"]),
+            aliases: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
+            description: z.string().trim().max(1_000).optional(),
+            firstSeenPosition: readingRoomCasePositionSchema,
+            status: readingRoomCaseItemStatusSchema.optional().default("unknown")
+          })
+          .strict()
+      )
+      .max(30)
+      .optional(),
+    relations: z
+      .array(
+        z
+          .object({
+            from: z.string().trim().min(1).max(120),
+            to: z.string().trim().min(1).max(120),
+            label: z.string().trim().min(1).max(200),
+            status: readingRoomCaseItemStatusSchema.optional().default("suspected"),
+            evidence: z.array(z.string().trim().min(1).max(500)).max(20).optional()
+          })
+          .strict()
+      )
+      .max(50)
+      .optional(),
+    clues: z
+      .array(
+        z
+          .object({
+            content: z.string().trim().min(1).max(2_000),
+            position: readingRoomCasePositionSchema,
+            entityNames: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
+            status: readingRoomCaseItemStatusSchema.optional().default("unknown")
+          })
+          .strict()
+      )
+      .max(50)
+      .optional(),
+    hypotheses: z
+      .array(
+        z
+          .object({
+            title: z.string().trim().min(1).max(200),
+            summary: z.string().trim().min(1).max(2_000),
+            status: z.enum(["active", "supported", "rejected", "solved"]).optional().default("active"),
+            confidence: z.number().min(0).max(1).optional(),
+            evidenceFor: z.array(z.string().trim().min(1).max(500)).max(30).optional(),
+            evidenceAgainst: z.array(z.string().trim().min(1).max(500)).max(30).optional()
+          })
+          .strict()
+      )
+      .max(20)
+      .optional(),
+    timeline: z
+      .array(
+        z
+          .object({
+            label: z.string().trim().min(1).max(200),
+            whenText: z.string().trim().min(1).max(200),
+            note: z.string().trim().max(1_000).optional(),
+            position: readingRoomCasePositionSchema,
+            entityNames: z.array(z.string().trim().min(1).max(120)).max(20).optional()
+          })
+          .strict()
+      )
+      .max(50)
+      .optional(),
+    observationTasks: z
+      .array(
+        z
+          .object({
+            prompt: z.string().trim().min(1).max(1_000),
+            status: z.enum(["open", "done", "discarded"]).optional().default("open"),
+            position: readingRoomCasePositionSchema
+          })
+          .strict()
+      )
+      .max(20)
+      .optional(),
+    operationId: z.string().min(1).max(200)
+  })
+  .strict();
+export const getCasebookInputSchema = z.object({ bookId: sessionIdSchema }).strict();
+
 export type SendCurrentContextInput = z.infer<typeof sendCurrentContextInputSchema>;
 export type UploadCloudSourceInput = z.infer<typeof uploadCloudSourceInputSchema>;
+export type GetOrStartBookContextInput = z.infer<typeof getOrStartBookContextInputSchema>;
+export type RecordReadingTurnInput = z.infer<typeof recordReadingTurnInputSchema>;
+export type RecordCasebookUpdateInput = z.infer<typeof recordCasebookUpdateInputSchema>;

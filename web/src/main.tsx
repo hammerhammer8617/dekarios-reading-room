@@ -2,6 +2,10 @@ import { StrictMode, useCallback, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Boot } from "./Boot.js";
 import { CasebookApp } from "./CasebookApp.js";
+import {
+  ReadingRoomSurface,
+  type RoomOutput
+} from "./components/ReadingRoomSurface.js";
 import type { OpenOutput } from "./App.js";
 import { callTool } from "./bridge/host.js";
 import { EpubImportBridge } from "./features/book-import/EpubImportBridge.js";
@@ -15,6 +19,11 @@ const smokeLabEnabled = new URLSearchParams(window.location.search).has("epub-sm
 const casebookEnabled =
   new URLSearchParams(window.location.search).has("casebook") ||
   (window.openai?.toolOutput as { appView?: string } | undefined)?.appView === "casebook";
+const roomOutput = window.openai?.toolOutput as RoomOutput | undefined;
+const readingRoomEnabled =
+  roomOutput?.view === "bookshelf" ||
+  roomOutput?.view === "reading_status" ||
+  roomOutput?.view === "reading_end";
 
 function ReadingNestRoot() {
   const [view, setView] = useState<"reading" | "casebook">(
@@ -76,6 +85,8 @@ if (rootElement) {
     <StrictMode>
       {smokeLabEnabled ? (
         <EpubSmokeLab />
+      ) : readingRoomEnabled && roomOutput ? (
+        <ReadingRoomSurface initialOutput={roomOutput} />
       ) : (
         <ReadingNestRoot />
       )}

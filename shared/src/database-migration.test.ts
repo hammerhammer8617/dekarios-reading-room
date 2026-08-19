@@ -33,8 +33,8 @@ const disabledCloudSync = {
   provider: "r2"
 };
 
-describe("migrateReadingDatabase v6", () => {
-  it("migrates v1 directly to v6 and preserves all records", () => {
+describe("migrateReadingDatabase v7", () => {
+  it("migrates v1 directly to v7 and preserves all records", () => {
     const migrated = migrateReadingDatabase({
       schemaVersion: 1,
       sessions: [
@@ -54,7 +54,7 @@ describe("migrateReadingDatabase v6", () => {
       bookmarks: [bookmark]
     });
 
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.sessions[0]).toMatchObject({
       userCurrentPosition: { index: 12 },
       assistantSyncedPosition: null,
@@ -75,7 +75,7 @@ describe("migrateReadingDatabase v6", () => {
     expect(migrated.bookmarks).toEqual([bookmark]);
   });
 
-  it("migrates v2 to v6 without losing dual positions or status", () => {
+  it("migrates v2 to v7 without losing dual positions or status", () => {
     const migrated = migrateReadingDatabase({
       schemaVersion: 2,
       sessions: [
@@ -98,7 +98,7 @@ describe("migrateReadingDatabase v6", () => {
       bookmarks: [bookmark]
     });
 
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.sessions[0]).toMatchObject({
       status: "completed",
       userCurrentPosition: { index: 20 },
@@ -138,7 +138,7 @@ describe("migrateReadingDatabase v6", () => {
     expect(migrated.companionComments).toEqual([]);
   });
 
-  it("migrates v3 source metadata to v6 disabled cloud sync without object keys", () => {
+  it("migrates v3 source metadata to v7 disabled cloud sync without object keys", () => {
     const sourceManifest = {
       sourceId: "source-1",
       sourceKind: "pasted_text" as const,
@@ -190,7 +190,7 @@ describe("migrateReadingDatabase v6", () => {
       companionComments: [companionComment]
     });
 
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.sessions[0].sessionPreferences).toEqual({
       readingCommentMode: "cp_talk",
       commentLength: "normal",
@@ -279,7 +279,7 @@ describe("migrateReadingDatabase v6", () => {
       companionComments: []
     });
 
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.sessions[0].sourceManifest?.cloudSync).toEqual(disabledCloudSync);
     expect(migrated.quotes).toEqual([quote]);
     expect(migrated.reactions).toEqual([reaction]);

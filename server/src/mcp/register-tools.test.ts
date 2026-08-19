@@ -9,7 +9,8 @@ import {
 describe("tool descriptors", () => {
   it("binds the UI resource only to the primary render tool", () => {
     expect(TOOL_CONFIGS.open_reading_nest._meta?.ui).toEqual({
-      resourceUri: READING_NEST_URI
+      resourceUri: READING_NEST_URI,
+      visibility: ["app"]
     });
     for (const [name, config] of Object.entries(TOOL_CONFIGS)) {
       if (name !== "open_reading_nest" && name !== "upload_cloud_source") {

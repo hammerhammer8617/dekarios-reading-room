@@ -9,7 +9,7 @@ import {
 import type { ReadingRepository } from "./reading-repository.js";
 
 const emptyDatabase = (): ReadingDatabase => ({
-  schemaVersion: 6,
+  schemaVersion: 7,
   sessions: [],
   quotes: [],
   reactions: [],
@@ -21,7 +21,9 @@ const emptyDatabase = (): ReadingDatabase => ({
   caseRelations: [],
   caseHypotheses: [],
   caseObservationTasks: [],
-  caseSyncOperations: []
+  caseSyncOperations: [],
+  thoughts: [],
+  readingRoomCasebooks: []
 });
 
 export class JsonReadingRepository implements ReadingRepository {

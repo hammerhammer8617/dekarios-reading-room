@@ -6,9 +6,10 @@ import {
   useEffect,
   useState
 } from "react";
+import { READING_NEST_BUILD_INFO } from "./build-info.js";
 
-const RESOURCE_VERSION = "app-v19";
-const APP_VERSION = "0.2.2";
+const RESOURCE_VERSION = READING_NEST_BUILD_INFO.resourceVersion;
+const APP_VERSION = READING_NEST_BUILD_INFO.appVersion;
 
 type AppModule = {
   App: ComponentType;

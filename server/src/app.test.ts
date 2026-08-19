@@ -9,8 +9,8 @@ describe("server app", () => {
     expect(response.body).toEqual({
       ok: true,
       app: "德卡里奥斯家的书房",
-      version: "0.2.1",
-      resourceVersion: "app-v31",
+      version: "0.3.0",
+      resourceVersion: "app-v32",
       buildSha: "local"
     });
   });

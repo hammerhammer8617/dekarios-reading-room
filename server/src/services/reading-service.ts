@@ -65,6 +65,7 @@ export class ReadingService {
         liveReadingEnabled: false,
         sessionPreferences: structuredClone(DEFAULT_SESSION_PREFERENCES),
         sourceManifest: null,
+        genre: type === "manga" ? "manga" : "novel",
         createdAt: now,
         updatedAt: now,
         lastReadAt: now
@@ -496,6 +497,10 @@ export class ReadingService {
       database.reactions = database.reactions.filter((item) => item.sessionId !== sessionId);
       database.bookmarks = database.bookmarks.filter((item) => item.sessionId !== sessionId);
       database.companionComments = database.companionComments.filter(
+        (item) => item.sessionId !== sessionId
+      );
+      database.thoughts = database.thoughts.filter((item) => item.sessionId !== sessionId);
+      database.readingRoomCasebooks = database.readingRoomCasebooks.filter(
         (item) => item.sessionId !== sessionId
       );
       return {

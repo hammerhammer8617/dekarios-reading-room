@@ -51,7 +51,7 @@ export const TOOL_CONFIGS = {
     inputSchema: openReadingNestInputSchema,
     annotations: readOnly,
     _meta: {
-      ui: { resourceUri: READING_NEST_URI },
+      ui: { resourceUri: READING_NEST_URI, visibility: ["app"] },
       "openai/outputTemplate": READING_NEST_URI,
       "openai/toolInvocation/invoking": "正在点亮书房…",
       "openai/toolInvocation/invoked": "书房已经准备好"

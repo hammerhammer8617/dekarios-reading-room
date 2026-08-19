@@ -27,7 +27,7 @@ type StateRow = {
 };
 
 const emptyDatabase = (): ReadingDatabase => ({
-  schemaVersion: 6,
+  schemaVersion: 7,
   sessions: [],
   quotes: [],
   reactions: [],
@@ -39,7 +39,9 @@ const emptyDatabase = (): ReadingDatabase => ({
   caseRelations: [],
   caseHypotheses: [],
   caseObservationTasks: [],
-  caseSyncOperations: []
+  caseSyncOperations: [],
+  thoughts: [],
+  readingRoomCasebooks: []
 });
 
 export class D1ReadingRepository implements ReadingRepository {
