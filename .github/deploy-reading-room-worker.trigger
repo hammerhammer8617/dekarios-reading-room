@@ -1,1 +1,1 @@
-2026-08-19T19:23:55.605Z bookshelf-static-v3
+2026-08-20T04:33:57.531Z bookshelf-static-v4 reading-end-v5
