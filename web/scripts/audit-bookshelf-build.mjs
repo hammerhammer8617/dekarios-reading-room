@@ -8,7 +8,7 @@ const forbidden = [
   "open_reading_nest",
   "render_reading_end_card",
   "reader-jump-toolbar",
-  "app-v36",
+  "app-v37",
   "react-dom",
   "jsx-runtime",
   "__REACT",
@@ -25,13 +25,17 @@ const required = [
   "我们的书架",
   "返回书架",
   "get_book_details",
+  "delete_reading_session",
+  "确认删除",
+  "正文副本不会删除",
+  "bookshelf-pagination",
   "tools/call",
   "ui/notifications/tool-result",
   "ui/notifications/size-changed",
   "ui/initialize",
   "notifyIntrinsicHeight",
   "data:image/webp;base64",
-  'data-bookshelf-height-strategy="raw-postmessage-v3"'
+  'data-bookshelf-height-strategy="raw-postmessage-v4"'
 ];
 for (const value of required) {
   if (!html.includes(value)) throw new Error(`Bookshelf build is missing: ${value}`);

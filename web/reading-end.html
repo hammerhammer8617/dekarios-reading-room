@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-reading-end-resource="static-v4">
+<html lang="zh-CN" data-reading-end-resource="static-v5">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -24,22 +24,42 @@
 
       body { padding: 4px; }
 
-      #reading-end-static-v4 {
+      #reading-end-static-v5 {
         width: 100%;
         min-height: 312px;
         margin: 0;
       }
 
       .card {
+        position: relative;
         width: min(100%, 620px);
         min-height: 304px;
         margin: 0 auto;
-        padding: 20px;
+        overflow: hidden;
         border: 1px solid #c8bda8;
         border-radius: 18px;
         background: #f6efe1;
         color: #25231f;
         box-shadow: 0 8px 24px rgba(42, 35, 27, 0.1);
+      }
+
+      .card-art {
+        position: absolute;
+        inset: 0 0 0 66%;
+        background-image:
+          linear-gradient(90deg, rgba(246, 239, 225, 0.96), rgba(246, 239, 225, 0.08) 58%),
+          var(--reading-end-image);
+        background-position: center;
+        background-size: cover;
+      }
+
+      .card-paper {
+        position: relative;
+        z-index: 1;
+        width: 72%;
+        min-height: 304px;
+        padding: 20px;
+        background: linear-gradient(90deg, rgba(246, 239, 225, 1) 82%, rgba(246, 239, 225, 0.82));
       }
 
       .eyebrow,
@@ -116,57 +136,88 @@
 
       @media (prefers-color-scheme: dark) {
         .card { border-color: #5b5145; background: #28241f; color: #f2eadc; }
+        .card-art {
+          background-image:
+            linear-gradient(90deg, rgba(40, 36, 31, 0.98), rgba(40, 36, 31, 0.08) 58%),
+            var(--reading-end-image);
+        }
+        .card-paper { background: linear-gradient(90deg, rgba(40, 36, 31, 1) 82%, rgba(40, 36, 31, 0.82)); }
         .eyebrow, .label { color: #dba995; }
         .position { background: #443a31; color: #ead9c8; }
         .probe { border-color: #5b5145; background: #332d27; }
         .probe, .section { border-color: #5b5145; }
         .status { color: #bdb2a4; }
       }
+
+      @media (max-width: 520px) {
+        .card-art {
+          position: relative;
+          inset: auto;
+          height: 126px;
+          background-image:
+            linear-gradient(180deg, rgba(32, 38, 31, 0.02), rgba(32, 38, 31, 0.22)),
+            var(--reading-end-image);
+          background-position: center 45%;
+        }
+
+        .card-paper {
+          width: 100%;
+          min-height: 0;
+          background: #f6efe1;
+        }
+      }
+
+      @media (max-width: 520px) and (prefers-color-scheme: dark) {
+        .card-paper { background: #28241f; }
+      }
     </style>
   </head>
   <body>
     <main
-      id="reading-end-static-v4"
-      data-reading-end-static-v4
-      data-reading-end-height-strategy="raw-postmessage-v4"
+      id="reading-end-static-v5"
+      data-reading-end-static-v5
+      data-reading-end-height-strategy="raw-postmessage-v5"
       data-state="shell"
     >
       <article class="card" aria-live="polite">
-        <header>
-          <p class="eyebrow">今天读到这里</p>
-          <h1 id="reading-end-title">静态收尾卡已加载</h1>
-          <p id="reading-end-position" class="position">reading-end-v4 · HTML 可见性探针</p>
-        </header>
+        <div id="reading-end-art" class="card-art" aria-hidden="true"></div>
+        <div class="card-paper">
+          <header>
+            <p class="eyebrow">今天读到这里</p>
+            <h1 id="reading-end-title">静态收尾卡已加载</h1>
+            <p id="reading-end-position" class="position">reading-end-v5 · 图片内嵌探针</p>
+          </header>
 
-        <section id="reading-end-probe" class="probe" role="status">
-          <strong>如果你看见这张卡，ChatGPT 已经渲染了普通 HTML。</strong>
-          <p>它不依赖 React、图片、MCP Apps SDK 或初始化握手；权威快照抵达后，才会替换为本次共读内容。</p>
-        </section>
+          <section id="reading-end-probe" class="probe" role="status">
+            <strong>如果你看见这张卡，ChatGPT 已经渲染了图片内嵌的普通 HTML。</strong>
+            <p>它不依赖 React 或外部图片请求；权威快照抵达后，才会替换为本次共读内容。</p>
+          </section>
 
-        <div id="reading-end-content" hidden>
-          <section class="section">
-            <h2 class="label">读到哪里</h2>
-            <p id="reading-end-progress"></p>
-          </section>
-          <section class="section">
-            <h2 class="label">今天读了什么</h2>
-            <p id="reading-end-summary"></p>
-          </section>
-          <section class="section" data-optional="tavThought" hidden>
-            <h2 class="label">塔芙留下</h2>
-            <p data-value="tavThought"></p>
-          </section>
-          <section class="section" data-optional="galeThought" hidden>
-            <h2 class="label">盖尔留下</h2>
-            <p data-value="galeThought"></p>
-          </section>
-          <section class="section" data-optional="openQuestion" hidden>
-            <h2 class="label">留到下次</h2>
-            <p data-value="openQuestion"></p>
-          </section>
+          <div id="reading-end-content" hidden>
+            <section class="section">
+              <h2 class="label">读到哪里</h2>
+              <p id="reading-end-progress"></p>
+            </section>
+            <section class="section">
+              <h2 class="label">今天读了什么</h2>
+              <p id="reading-end-summary"></p>
+            </section>
+            <section class="section" data-optional="tavThought" hidden>
+              <h2 class="label">塔芙留下</h2>
+              <p data-value="tavThought"></p>
+            </section>
+            <section class="section" data-optional="galeThought" hidden>
+              <h2 class="label">盖尔留下</h2>
+              <p data-value="galeThought"></p>
+            </section>
+            <section class="section" data-optional="openQuestion" hidden>
+              <h2 class="label">留到下次</h2>
+              <p data-value="openQuestion"></p>
+            </section>
+          </div>
+
+          <p id="reading-end-status" class="status">等待权威快照；静态外壳已经存在。</p>
         </div>
-
-        <p id="reading-end-status" class="status">等待权威快照；静态外壳已经存在。</p>
       </article>
     </main>
     <script type="module" src="/src/reading-end/static-main.ts"></script>

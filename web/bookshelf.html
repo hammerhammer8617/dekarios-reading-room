@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-bookshelf-resource="static-v3">
+<html lang="zh-CN" data-bookshelf-resource="static-v4">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -24,7 +24,7 @@
 
       body { padding: 4px; }
 
-      #bookshelf-static-v3 {
+      #bookshelf-static-v4 {
         width: 100%;
         min-height: 312px;
         margin: 0;
@@ -44,10 +44,10 @@
 
       .hero {
         position: relative;
-        min-height: 142px;
+        min-height: clamp(176px, 32vw, 196px);
         overflow: hidden;
         background-image: url("/src/assets/reading-room/bookroom-background-static-v3.webp");
-        background-position: 50% 43%;
+        background-position: 50% 0%;
         background-size: cover;
       }
 
@@ -153,14 +153,53 @@
 
       .book:hover { border-color: #b99c78; background: #fffdf7; }
       .book:active { transform: translateY(1px); }
-      .book:focus-visible, .back:focus-visible { outline: 3px solid rgba(138, 94, 75, 0.35); outline-offset: 2px; }
+      .book:focus-visible,
+      .back:focus-visible,
+      .page-button:focus-visible,
+      .delete-trigger:focus-visible,
+      .delete-cancel:focus-visible,
+      .delete-confirm:focus-visible { outline: 3px solid rgba(138, 94, 75, 0.35); outline-offset: 2px; }
       .book:disabled { cursor: wait; opacity: 0.62; }
       .book[data-status="completed"] { border-left-color: #6e7c62; }
       .meta { margin: 3px 0 0; color: #706a61; }
       .position { margin: 9px 0 0; font-size: 14px; line-height: 1.55; }
-      .thought { margin: 7px 0 0; color: #604f44; font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", Georgia, serif; font-size: 13px; line-height: 1.55; }
+      .thought {
+        display: -webkit-box;
+        margin: 7px 0 0;
+        overflow: hidden;
+        color: #604f44;
+        font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+        font-size: 13px;
+        line-height: 1.55;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
       .facts { margin: 8px 0 0; color: #805447; }
       .status { margin: 16px 0 0; color: #706a61; }
+
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .page-button,
+      .delete-trigger,
+      .delete-cancel,
+      .delete-confirm {
+        border: 1px solid #c9bba5;
+        border-radius: 999px;
+        background: #fffaf0;
+        color: #805447;
+        font: 750 12px var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+        cursor: pointer;
+      }
+
+      .page-button { min-width: 72px; padding: 7px 11px; }
+      .page-button:disabled { cursor: default; opacity: 0.42; }
+      .page-label { min-width: 64px; color: #706a61; font-size: 12px; text-align: center; }
 
       .back {
         margin: 0 0 12px;
@@ -195,6 +234,14 @@
       .thought-meta span:last-child { margin-left: auto; }
       .question-list { display: grid; gap: 8px; margin: 9px 0 0; padding: 0; list-style: none; }
       .question-list li { padding: 10px 12px; border-radius: 11px; background: rgba(128, 84, 71, 0.09); font-size: 13px; line-height: 1.55; }
+      .danger-zone { margin-top: 21px; padding-top: 14px; border-top: 1px dashed #cfb7aa; }
+      .delete-trigger { padding: 7px 12px; border-color: #b67565; background: transparent; color: #994d3b; }
+      .delete-confirmation { margin-top: 10px; padding: 12px; border: 1px solid #d8b7aa; border-radius: 12px; background: rgba(153, 77, 59, 0.07); }
+      .delete-confirmation p { margin: 0; font-size: 12px; line-height: 1.6; }
+      .delete-actions { display: flex; gap: 8px; margin-top: 10px; }
+      .delete-cancel, .delete-confirm { padding: 7px 12px; }
+      .delete-confirm { border-color: #994d3b; background: #994d3b; color: #fffaf0; }
+      .delete-error { margin-top: 8px !important; color: #994d3b; }
       .empty { margin: 9px 0 0; color: #706a61; font-size: 13px; }
       [hidden] { display: none !important; }
 
@@ -204,20 +251,26 @@
         .probe, .book, .thought-row { border-color: #5b5145; background: #332d27; }
         .book:hover { border-color: #866f59; background: #3a332c; }
         .meta, .status, .section-heading > span, .detail-header > p, .detail-label, .thought-meta, .empty { color: #bdb2a4; }
-        .facts, .back { color: #dba995; }
+        .facts, .back, .page-button, .delete-trigger { color: #dba995; }
         .thought { color: #dccabb; }
+        .page-button, .delete-cancel { border-color: #5b5145; background: #332d27; }
+        .page-label { color: #bdb2a4; }
         .detail-header { border-color: #5b5145; background: linear-gradient(135deg, #332d27, #453a30); }
         .detail-grid { border-color: #5b5145; background: #5b5145; }
         .detail-grid > div { background: #332d27; }
         .question-list li { background: rgba(219, 169, 149, 0.09); }
+        .danger-zone { border-color: #665149; }
+        .delete-confirmation { border-color: #704f45; background: rgba(219, 169, 149, 0.07); }
+        .delete-confirm { border-color: #a95f4d; background: #a95f4d; color: #fffaf0; }
+        .delete-error { color: #e0a28f; }
       }
     </style>
   </head>
   <body>
     <main
-      id="bookshelf-static-v3"
-      data-bookshelf-static-v3
-      data-bookshelf-height-strategy="raw-postmessage-v3"
+      id="bookshelf-static-v4"
+      data-bookshelf-static-v4
+      data-bookshelf-height-strategy="raw-postmessage-v4"
       data-state="shell"
     >
       <article class="shelf" aria-live="polite">
@@ -241,6 +294,11 @@
               <span id="bookshelf-count"></span>
             </div>
             <div id="bookshelf-list" class="books" aria-label="书架作品"></div>
+            <nav id="bookshelf-pagination" class="pagination" aria-label="书架分页" hidden>
+              <button id="bookshelf-previous" class="page-button" type="button">上一页</button>
+              <span id="bookshelf-page" class="page-label" aria-live="polite"></span>
+              <button id="bookshelf-next" class="page-button" type="button">下一页</button>
+            </nav>
           </section>
 
           <section id="bookshelf-detail" hidden></section>

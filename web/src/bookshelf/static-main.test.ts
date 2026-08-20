@@ -54,6 +54,16 @@ const bookshelfOutput = {
   ]
 };
 
+const pagedBookshelfOutput = {
+  view: "bookshelf" as const,
+  bookshelf: Array.from({ length: 5 }, (_, index) => ({
+    ...bookshelfOutput.bookshelf[0],
+    bookId: `book-${index + 1}`,
+    title: `分页书 ${index + 1}`,
+    latestThought: undefined
+  }))
+};
+
 const bookDetailsOutput = {
   session: {
     id: "book-debris",
@@ -96,12 +106,17 @@ const bookDetailsOutput = {
 
 function mountShell() {
   document.body.innerHTML = `
-    <main id="bookshelf-static-v3" data-state="shell">
+    <main id="bookshelf-static-v4" data-state="shell">
       <section id="bookshelf-probe"></section>
       <section id="bookshelf-content" hidden>
         <h2 id="bookshelf-title">我们的书架</h2>
         <span id="bookshelf-count"></span>
         <div id="bookshelf-list"></div>
+        <nav id="bookshelf-pagination" hidden>
+          <button id="bookshelf-previous" type="button">上一页</button>
+          <span id="bookshelf-page"></span>
+          <button id="bookshelf-next" type="button">下一页</button>
+        </nav>
       </section>
       <section id="bookshelf-detail" hidden></section>
       <p id="bookshelf-status"></p>
@@ -145,6 +160,7 @@ function createHarness({ compatibility }: {
       return frames.length;
     },
     cancelFrame: vi.fn(),
+    createOperationId: () => "delete-op-1",
     measure: () => ({ ...dimensions })
   });
   return {
@@ -166,7 +182,7 @@ describe("bookshelf static interactive resource", () => {
     const html = readFileSync(resolve(process.cwd(), "bookshelf.html"), "utf8");
     expect(html).toContain("width: min(100%, 620px)");
     expect(html).toContain("min-height: 320px !important");
-    expect(html).toContain("data-bookshelf-static-v3");
+    expect(html).toContain("data-bookshelf-static-v4");
     expect(html).toContain("bookroom-background-static-v3.webp");
     expect(html).not.toMatch(/100(?:d?vh|svh|lvh)/u);
     expect(html).not.toMatch(/overflow\s*:\s*(?:auto|scroll)/u);
@@ -215,7 +231,7 @@ describe("bookshelf static interactive resource", () => {
       expect.objectContaining({
         jsonrpc: "2.0",
         method: "ui/initialize",
-        id: "bookshelf-static-v3-initialize"
+        id: "bookshelf-static-v4-initialize"
       })
     );
   });
@@ -225,7 +241,7 @@ describe("bookshelf static interactive resource", () => {
     harness.flushFrame();
     harness.emitMessage({
       jsonrpc: "2.0",
-      id: "bookshelf-static-v3-initialize",
+      id: "bookshelf-static-v4-initialize",
       result: { protocolVersion: "2026-01-26" }
     });
     harness.flushFrame();
@@ -254,7 +270,7 @@ describe("bookshelf static interactive resource", () => {
       params: { structuredContent: bookshelfOutput }
     });
 
-    expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("bookshelf");
+    expect(document.getElementById("bookshelf-static-v4")?.dataset.state).toBe("bookshelf");
     expect(document.getElementById("bookshelf-title")?.textContent).toBe("我们的书架");
     expect(document.body.textContent).toContain("《侦破我的命案》");
     expect(document.body.textContent).toContain("塔芙：第 91 页 · 共同进度：第 88 页");
@@ -264,6 +280,28 @@ describe("bookshelf static interactive resource", () => {
     expect(document.querySelectorAll("button.book")).toHaveLength(2);
   });
 
+  it("bounds a growing shelf to three books per page without nested scrolling", () => {
+    const harness = createHarness();
+    harness.emitMessage({
+      jsonrpc: "2.0",
+      method: "ui/notifications/tool-result",
+      params: { structuredContent: pagedBookshelfOutput }
+    });
+
+    expect(document.querySelectorAll("button.book")).toHaveLength(3);
+    expect(document.body.textContent).toContain("《分页书 1》");
+    expect(document.body.textContent).not.toContain("《分页书 4》");
+    expect(document.getElementById("bookshelf-page")?.textContent).toBe("第 1 / 2 页");
+    expect(document.getElementById("bookshelf-pagination")?.hasAttribute("hidden")).toBe(false);
+
+    document.querySelector<HTMLButtonElement>("#bookshelf-next")?.click();
+    expect(document.querySelectorAll("button.book")).toHaveLength(2);
+    expect(document.body.textContent).toContain("《分页书 4》");
+    expect(document.body.textContent).not.toContain("《分页书 1》");
+    expect(document.getElementById("bookshelf-page")?.textContent).toBe("第 2 / 2 页");
+    expect(document.querySelector<HTMLButtonElement>("#bookshelf-next")?.disabled).toBe(true);
+  });
+
   it("reads already-available compatibility output and reports the same intrinsic height", () => {
     const notifyIntrinsicHeight = vi.fn<(input: { height: number }) => void>();
     const harness = createHarness({
@@ -271,7 +309,7 @@ describe("bookshelf static interactive resource", () => {
     });
     harness.flushFrame();
 
-    expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("bookshelf");
+    expect(document.getElementById("bookshelf-static-v4")?.dataset.state).toBe("bookshelf");
     expect(notifyIntrinsicHeight).toHaveBeenCalledWith({ height: 320 });
   });
 
@@ -331,7 +369,7 @@ describe("bookshelf static interactive resource", () => {
       result: { structuredContent: bookDetailsOutput }
     });
     await vi.waitFor(() => {
-      expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("detail");
+      expect(document.getElementById("bookshelf-static-v4")?.dataset.state).toBe("detail");
     });
 
     expect(document.body.textContent).toContain("我们把书读厚的地方");
@@ -339,8 +377,82 @@ describe("bookshelf static interactive resource", () => {
     expect(callTool).not.toHaveBeenCalled();
 
     document.querySelector<HTMLButtonElement>("button.back")?.click();
-    expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("bookshelf");
+    expect(document.getElementById("bookshelf-static-v4")?.dataset.state).toBe("bookshelf");
     expect(document.querySelectorAll("button.book")).toHaveLength(2);
+  });
+
+  it("requires inline confirmation and deletes only the selected structured record", async () => {
+    const harness = createHarness();
+    harness.emitMessage({
+      jsonrpc: "2.0",
+      method: "ui/notifications/tool-result",
+      params: { structuredContent: bookshelfOutput }
+    });
+    document.querySelector<HTMLButtonElement>("button.book")?.click();
+
+    const detailRequest = harness.posted.find(
+      (value) =>
+        typeof value === "object" &&
+        value !== null &&
+        "method" in value &&
+        value.method === "tools/call" &&
+        "params" in value &&
+        (value.params as { name?: string }).name === "get_book_details"
+    ) as { id: string };
+    harness.emitMessage({
+      jsonrpc: "2.0",
+      id: detailRequest.id,
+      result: { structuredContent: bookDetailsOutput }
+    });
+    await vi.waitFor(() => {
+      expect(document.querySelector("button.delete-trigger")).not.toBeNull();
+    });
+
+    document.querySelector<HTMLButtonElement>("button.delete-trigger")?.click();
+    expect(document.body.textContent).toContain("正文副本不会删除");
+    expect(
+      harness.posted.some(
+        (value) =>
+          typeof value === "object" &&
+          value !== null &&
+          "params" in value &&
+          (value.params as { name?: string }).name === "delete_reading_session"
+      )
+    ).toBe(false);
+
+    document.querySelector<HTMLButtonElement>("button.delete-confirm")?.click();
+    const deleteRequest = harness.posted.find(
+      (value) =>
+        typeof value === "object" &&
+        value !== null &&
+        "method" in value &&
+        value.method === "tools/call" &&
+        "params" in value &&
+        (value.params as { name?: string }).name === "delete_reading_session"
+    ) as { id: string; params: unknown };
+    expect(deleteRequest).toMatchObject({
+      method: "tools/call",
+      params: {
+        name: "delete_reading_session",
+        arguments: { sessionId: "book-debris", operationId: "delete-op-1" }
+      }
+    });
+
+    harness.emitMessage({
+      jsonrpc: "2.0",
+      id: deleteRequest.id,
+      result: { structuredContent: { deleted: true, sessionId: "book-debris" } }
+    });
+    await vi.waitFor(() => {
+      expect(document.getElementById("bookshelf-static-v4")?.dataset.state).toBe("bookshelf");
+      expect(document.querySelectorAll("button.book")).toHaveLength(1);
+    });
+    expect(document.querySelector("button.book")?.textContent).not.toContain("《侦破我的命案》");
+    expect(document.getElementById("bookshelf-status")?.textContent).toContain("正文副本仍保留");
+
+    harness.emitGlobals(bookshelfOutput);
+    expect(document.querySelectorAll("button.book")).toHaveLength(1);
+    expect(document.querySelector("button.book")?.textContent).not.toContain("《侦破我的命案》");
   });
 
   it("falls back to the compatibility bridge when the standard request is rejected", async () => {
@@ -367,7 +479,7 @@ describe("bookshelf static interactive resource", () => {
     });
 
     await vi.waitFor(() => {
-      expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("detail");
+      expect(document.getElementById("bookshelf-static-v4")?.dataset.state).toBe("detail");
     });
     expect(callTool).toHaveBeenCalledWith("get_book_details", { bookId: "book-debris" });
   });
@@ -376,7 +488,7 @@ describe("bookshelf static interactive resource", () => {
     const harness = createHarness();
     harness.emitGlobals({ view: "bookshelf", bookshelf: [{}] });
 
-    expect(document.getElementById("bookshelf-static-v3")?.dataset.state).toBe("error");
+    expect(document.getElementById("bookshelf-static-v4")?.dataset.state).toBe("error");
     expect(document.getElementById("bookshelf-title")?.textContent).toBe("我们的书架");
     expect(document.getElementById("bookshelf-status")?.textContent).toContain("结果不完整");
   });
