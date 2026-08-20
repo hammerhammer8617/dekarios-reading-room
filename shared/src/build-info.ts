@@ -1,15 +1,15 @@
 export const READING_NEST_APP_VERSION = "0.3.0";
-export const READING_NEST_RESOURCE_VERSION = "app-v37";
+export const READING_NEST_RESOURCE_VERSION = "app-v38";
 export const READING_NEST_RESOURCE_URI =
   `ui://ss-reading-nest/${READING_NEST_RESOURCE_VERSION}.html` as const;
 
-export const READING_END_TOOL_NAME = "render_reading_end_card_v5";
-export const PREVIOUS_READING_END_TOOL_NAME = "render_reading_end_card_v4";
-export const READING_END_RESOURCE_VERSION = "reading-end-v5";
+export const READING_END_TOOL_NAME = "render_reading_end_card_v6";
+export const PREVIOUS_READING_END_TOOL_NAME = "render_reading_end_card_v5";
+export const READING_END_RESOURCE_VERSION = "reading-end-v6";
 export const READING_END_RESOURCE_URI =
   `ui://ss-reading-nest/${READING_END_RESOURCE_VERSION}.html` as const;
 export const PREVIOUS_READING_END_RESOURCE_URI =
-  "ui://ss-reading-nest/reading-end-v4.html" as const;
+  "ui://ss-reading-nest/reading-end-v5.html" as const;
 
 export const BOOKSHELF_TOOL_NAME = "open_bookshelf_v4";
 export const PREVIOUS_BOOKSHELF_TOOL_NAME = "open_bookshelf_v3";

@@ -29,8 +29,8 @@ const output = {
 
 function mountShell() {
   document.body.innerHTML = `
-    <main id="reading-end-static-v5" data-state="shell">
-      <div id="reading-end-art"></div>
+    <main id="reading-end-static-v6" data-state="shell">
+      <img id="reading-end-art" alt="" />
       <h1 id="reading-end-title">静态收尾卡已加载</h1>
       <p id="reading-end-position"></p>
       <section id="reading-end-probe"></section>
@@ -95,9 +95,14 @@ describe("reading-end static stop-loss resource", () => {
     const source = readFileSync(resolve(process.cwd(), "src/reading-end/static-main.ts"), "utf8");
     expect(html).toContain("width: min(100%, 620px)");
     expect(html).toContain("min-height: 320px !important");
-    expect(html).toContain("data-reading-end-static-v5");
+    expect(html).toContain("data-reading-end-static-v6");
+    expect(html).toContain('data-reading-end-layout="full-bleed-overlay-v6"');
     expect(html).toContain("class=\"card-art\"");
-    expect(html).toContain("var(--reading-end-image)");
+    expect(html).toContain("inset: 0;");
+    expect(html).toContain("object-fit: cover");
+    expect(html).toContain("background: transparent");
+    expect(html).not.toContain("inset: 0 0 0 66%");
+    expect(html).not.toContain("width: 72%");
     expect(html).not.toMatch(/100(?:d?vh|svh|lvh)/u);
     expect(html).not.toMatch(/overflow\s*:\s*(?:auto|scroll)/u);
     expect(source.match(/static-v5\/end-[a-z-]+\.webp/g)).toHaveLength(6);
@@ -134,7 +139,7 @@ describe("reading-end static stop-loss resource", () => {
       expect.objectContaining({
         jsonrpc: "2.0",
         method: "ui/initialize",
-        id: "reading-end-static-v5-initialize"
+        id: "reading-end-static-v6-initialize"
       })
     );
   });
@@ -144,7 +149,7 @@ describe("reading-end static stop-loss resource", () => {
     harness.flushFrame();
     harness.emitMessage({
       jsonrpc: "2.0",
-      id: "reading-end-static-v5-initialize",
+      id: "reading-end-static-v6-initialize",
       result: { protocolVersion: "2026-01-26" }
     });
     harness.flushFrame();
@@ -173,7 +178,7 @@ describe("reading-end static stop-loss resource", () => {
       params: { structuredContent: output }
     });
 
-    expect(document.getElementById("reading-end-static-v5")?.dataset.state).toBe("snapshot");
+    expect(document.getElementById("reading-end-static-v6")?.dataset.state).toBe("snapshot");
     expect(document.getElementById("reading-end-title")?.textContent).toBe("《打怪》");
     expect(document.body.textContent).toContain(output.snapshot.progressSummary);
     expect(document.body.textContent).toContain(output.snapshot.readingSummary);
@@ -181,8 +186,10 @@ describe("reading-end static stop-loss resource", () => {
     expect(document.body.textContent).toContain(output.snapshot.galeThought);
     expect(document.body.textContent).toContain(output.snapshot.openQuestion);
     expect(document.body.textContent).toContain("《书页边缘》待同步");
-    const root = document.getElementById("reading-end-static-v5");
-    expect(root?.style.getPropertyValue("--reading-end-image")).toContain("url(");
+    const root = document.getElementById("reading-end-static-v6");
+    expect(document.getElementById("reading-end-art")?.getAttribute("src")).toMatch(
+      /end-[a-z-]+\.webp$/
+    );
     expect(root?.dataset.backgroundIndex).toBe(
       String(selectReadingEndBackground(output.snapshot.id) + 1)
     );
@@ -195,7 +202,7 @@ describe("reading-end static stop-loss resource", () => {
     });
     harness.flushFrame();
 
-    expect(document.getElementById("reading-end-static-v5")?.dataset.state).toBe("snapshot");
+    expect(document.getElementById("reading-end-static-v6")?.dataset.state).toBe("snapshot");
     expect(notifyIntrinsicHeight).toHaveBeenCalledWith({ height: 320 });
   });
 
@@ -227,7 +234,7 @@ describe("reading-end static stop-loss resource", () => {
     const harness = createHarness();
     harness.emitGlobals({ view: "reading_end", snapshot: {} });
 
-    expect(document.getElementById("reading-end-static-v5")?.dataset.state).toBe("error");
+    expect(document.getElementById("reading-end-static-v6")?.dataset.state).toBe("error");
     expect(document.getElementById("reading-end-title")?.textContent).toBe("静态收尾卡已加载");
     expect(document.getElementById("reading-end-status")?.textContent).toContain("快照不完整");
   });

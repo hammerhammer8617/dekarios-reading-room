@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="zh-CN" data-reading-end-resource="static-v5">
+<html lang="zh-CN" data-reading-end-resource="static-v6">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>今天读到这里</title>
     <style>
       :root {
-        color-scheme: light dark;
+        color-scheme: dark;
         font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
       }
 
@@ -24,7 +24,7 @@
 
       body { padding: 4px; }
 
-      #reading-end-static-v5 {
+      #reading-end-static-v6 {
         width: 100%;
         min-height: 312px;
         margin: 0;
@@ -32,34 +32,48 @@
 
       .card {
         position: relative;
+        isolation: isolate;
         width: min(100%, 620px);
         min-height: 304px;
         margin: 0 auto;
         overflow: hidden;
-        border: 1px solid #c8bda8;
+        border: 1px solid #766957;
         border-radius: 18px;
-        background: #f6efe1;
-        color: #25231f;
-        box-shadow: 0 8px 24px rgba(42, 35, 27, 0.1);
+        background: #211c18;
+        color: #fff8eb;
+        box-shadow: 0 12px 32px rgba(12, 9, 7, 0.24);
       }
 
       .card-art {
         position: absolute;
-        inset: 0 0 0 66%;
-        background-image:
-          linear-gradient(90deg, rgba(246, 239, 225, 0.96), rgba(246, 239, 225, 0.08) 58%),
-          var(--reading-end-image);
-        background-position: center;
-        background-size: cover;
+        inset: 0;
+        z-index: -2;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        transform: scale(1.002);
+      }
+
+      .card::after {
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        content: "";
+        pointer-events: none;
+        background:
+          linear-gradient(90deg, rgba(25, 21, 18, 0.96) 0%, rgba(25, 21, 18, 0.9) 36%, rgba(25, 21, 18, 0.66) 66%, rgba(25, 21, 18, 0.18) 100%),
+          linear-gradient(0deg, rgba(17, 14, 12, 0.68) 0%, rgba(17, 14, 12, 0.02) 62%);
       }
 
       .card-paper {
         position: relative;
         z-index: 1;
-        width: 72%;
+        width: min(78%, 485px);
         min-height: 304px;
         padding: 20px;
-        background: linear-gradient(90deg, rgba(246, 239, 225, 1) 82%, rgba(246, 239, 225, 0.82));
+        background: transparent;
+        text-shadow: 0 1px 2px rgba(10, 8, 6, 0.42);
       }
 
       .eyebrow,
@@ -71,7 +85,7 @@
 
       .eyebrow {
         margin: 0 0 5px;
-        color: #805447;
+        color: #f2b49d;
         font-weight: 750;
         letter-spacing: 0.06em;
       }
@@ -88,8 +102,10 @@
         margin: 8px 0 0;
         padding: 4px 9px;
         border-radius: 999px;
-        background: #e9ddc8;
-        color: #694d42;
+        border: 1px solid rgba(255, 238, 216, 0.12);
+        background: rgba(84, 68, 55, 0.82);
+        color: #fff1df;
+        backdrop-filter: blur(5px);
         font-size: 12px;
         font-weight: 650;
       }
@@ -98,15 +114,16 @@
       .section {
         margin-top: 16px;
         padding-top: 13px;
-        border-top: 1px solid #d9cfbd;
+        border-top: 1px solid rgba(255, 241, 222, 0.28);
       }
 
       .probe {
         min-height: 116px;
         padding: 15px;
-        border: 1px solid #d9cfbd;
+        border: 1px solid rgba(255, 241, 222, 0.24);
         border-radius: 12px;
-        background: #fffaf0;
+        background: rgba(35, 29, 24, 0.7);
+        backdrop-filter: blur(8px);
       }
 
       .probe strong { font-size: 15px; }
@@ -122,70 +139,48 @@
 
       .label {
         margin: 0;
-        color: #805447;
+        color: #f2b49d;
         font-weight: 800;
         letter-spacing: 0.05em;
       }
 
       .status {
         margin: 17px 0 0;
-        color: #706a61;
+        color: rgba(255, 242, 226, 0.72);
       }
 
       [hidden] { display: none !important; }
 
-      @media (prefers-color-scheme: dark) {
-        .card { border-color: #5b5145; background: #28241f; color: #f2eadc; }
-        .card-art {
-          background-image:
-            linear-gradient(90deg, rgba(40, 36, 31, 0.98), rgba(40, 36, 31, 0.08) 58%),
-            var(--reading-end-image);
-        }
-        .card-paper { background: linear-gradient(90deg, rgba(40, 36, 31, 1) 82%, rgba(40, 36, 31, 0.82)); }
-        .eyebrow, .label { color: #dba995; }
-        .position { background: #443a31; color: #ead9c8; }
-        .probe { border-color: #5b5145; background: #332d27; }
-        .probe, .section { border-color: #5b5145; }
-        .status { color: #bdb2a4; }
-      }
-
       @media (max-width: 520px) {
-        .card-art {
-          position: relative;
-          inset: auto;
-          height: 126px;
-          background-image:
-            linear-gradient(180deg, rgba(32, 38, 31, 0.02), rgba(32, 38, 31, 0.22)),
-            var(--reading-end-image);
-          background-position: center 45%;
+        .card::after {
+          background:
+            linear-gradient(180deg, rgba(25, 21, 18, 0.58) 0%, rgba(25, 21, 18, 0.88) 42%, rgba(25, 21, 18, 0.97) 100%),
+            linear-gradient(90deg, rgba(25, 21, 18, 0.7), rgba(25, 21, 18, 0.34));
         }
 
         .card-paper {
           width: 100%;
           min-height: 0;
-          background: #f6efe1;
+          padding: 18px;
         }
-      }
-
-      @media (max-width: 520px) and (prefers-color-scheme: dark) {
-        .card-paper { background: #28241f; }
       }
     </style>
   </head>
   <body>
     <main
-      id="reading-end-static-v5"
-      data-reading-end-static-v5
-      data-reading-end-height-strategy="raw-postmessage-v5"
+      id="reading-end-static-v6"
+      data-reading-end-static-v6
+      data-reading-end-layout="full-bleed-overlay-v6"
+      data-reading-end-height-strategy="raw-postmessage-v6"
       data-state="shell"
     >
       <article class="card" aria-live="polite">
-        <div id="reading-end-art" class="card-art" aria-hidden="true"></div>
+        <img id="reading-end-art" class="card-art" alt="" aria-hidden="true" />
         <div class="card-paper">
           <header>
             <p class="eyebrow">今天读到这里</p>
             <h1 id="reading-end-title">静态收尾卡已加载</h1>
-            <p id="reading-end-position" class="position">reading-end-v5 · 图片内嵌探针</p>
+            <p id="reading-end-position" class="position">reading-end-v6 · 全幅画面探针</p>
           </header>
 
           <section id="reading-end-probe" class="probe" role="status">
