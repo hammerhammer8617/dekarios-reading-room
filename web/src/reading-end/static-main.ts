@@ -46,7 +46,7 @@ export type StaticReadingEndDependencies = {
 };
 
 const PROTOCOL_VERSION = "2026-01-26";
-const INITIALIZE_ID = "reading-end-static-v5-initialize";
+const INITIALIZE_ID = "reading-end-static-v6-initialize";
 const readingEndBackgrounds = [
   endBooksTea,
   endCinemaPopcorn,
@@ -97,7 +97,7 @@ const defaultDependencies: StaticReadingEndDependencies = {
         320,
         document.documentElement.scrollHeight,
         document.body.scrollHeight,
-        document.getElementById("reading-end-static-v5")?.scrollHeight ?? 0
+        document.getElementById("reading-end-static-v6")?.scrollHeight ?? 0
       )
     )
   })
@@ -235,15 +235,14 @@ export function parseReadingEndOutput(value: unknown): ReadingEndOutput | undefi
 }
 
 export function renderReadingEndSnapshot(doc: Document, snapshot: ReadingEndSnapshot) {
-  const root = doc.getElementById("reading-end-static-v5");
+  const root = doc.getElementById("reading-end-static-v6");
   const backgroundIndex = selectReadingEndBackground(snapshot.id);
   if (root) {
-    root.style.setProperty(
-      "--reading-end-image",
-      `url("${readingEndBackgrounds[backgroundIndex]}")`
-    );
     root.dataset.backgroundIndex = String(backgroundIndex + 1);
   }
+  doc
+    .getElementById("reading-end-art")
+    ?.setAttribute("src", readingEndBackgrounds[backgroundIndex]!);
   setText(doc, "reading-end-title", `《${snapshot.title}》`);
   setText(doc, "reading-end-position", snapshot.positionLabel);
   setText(doc, "reading-end-progress", snapshot.progressSummary);
@@ -279,7 +278,7 @@ export function selectReadingEndBackground(snapshotId: string) {
 
 function showError(doc: Document, message: string) {
   setText(doc, "reading-end-status", message);
-  const root = doc.getElementById("reading-end-static-v5");
+  const root = doc.getElementById("reading-end-static-v6");
   if (root) root.dataset.state = "error";
 }
 
@@ -295,7 +294,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 if (
   typeof window !== "undefined" &&
   typeof document !== "undefined" &&
-  document.getElementById("reading-end-static-v5")
+  document.getElementById("reading-end-static-v6")
 ) {
   createStaticReadingEndApp();
 }

@@ -8,7 +8,7 @@ const forbidden = [
   "open_reading_nest",
   "render_reading_end_card",
   "reader-jump-toolbar",
-  "app-v37",
+  "app-v38",
   "react-dom",
   "jsx-runtime",
   "__REACT",

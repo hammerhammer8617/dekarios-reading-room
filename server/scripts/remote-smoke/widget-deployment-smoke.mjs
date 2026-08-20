@@ -71,10 +71,10 @@ async function waitForDeployedWidgets(health) {
         "ChatGPT resource URI does not match deployed health"
       );
       const readingEndTool = tools.tools.find(
-        (tool) => tool.name === "render_reading_end_card_v5"
+        (tool) => tool.name === "render_reading_end_card_v6"
       );
-      assert(readingEndTool, "render_reading_end_card_v5 is missing");
-      const readingEndResourceUri = "ui://ss-reading-nest/reading-end-v5.html";
+      assert(readingEndTool, "render_reading_end_card_v6 is missing");
+      const readingEndResourceUri = "ui://ss-reading-nest/reading-end-v6.html";
       assert(
         readingEndTool._meta?.ui?.resourceUri === readingEndResourceUri,
         "standard reading-end resource URI is stale"
@@ -88,12 +88,12 @@ async function waitForDeployedWidgets(health) {
         "reading-end tool contract is not the authoritative snapshot-only schema"
       );
       const previousReadingEndTool = tools.tools.find(
-        (tool) => tool.name === "render_reading_end_card_v4"
+        (tool) => tool.name === "render_reading_end_card_v5"
       );
-      assert(previousReadingEndTool, "previous render_reading_end_card_v4 is missing");
+      assert(previousReadingEndTool, "previous render_reading_end_card_v5 is missing");
       assert(
         JSON.stringify(previousReadingEndTool._meta?.ui?.visibility) === JSON.stringify(["app"]),
-        "previous render_reading_end_card_v4 must remain app-only"
+        "previous render_reading_end_card_v5 must remain app-only"
       );
       const legacyBookshelfTool = tools.tools.find((tool) => tool.name === "open_bookshelf");
       assert(legacyBookshelfTool, "legacy open_bookshelf compatibility tool is missing");
@@ -225,12 +225,18 @@ async function waitForDeployedWidgets(health) {
       )?.text;
       assert(typeof readingEndHtml === "string", "deployed reading-end resource returned no HTML");
       assert(
-        readingEndHtml.includes("data-reading-end-static-v5"),
+        readingEndHtml.includes("data-reading-end-static-v6"),
         "deployed reading-end resource is missing its pre-rendered static shell"
       );
       assert(
-        readingEndHtml.includes('data-reading-end-height-strategy="raw-postmessage-v5"'),
+        readingEndHtml.includes('data-reading-end-height-strategy="raw-postmessage-v6"'),
         "deployed reading-end resource is missing raw intrinsic-height recovery"
+      );
+      assert(
+        readingEndHtml.includes('data-reading-end-layout="full-bleed-overlay-v6"') &&
+          readingEndHtml.includes("object-fit: cover") &&
+          !readingEndHtml.includes("inset: 0 0 0 66%"),
+        "deployed reading-end resource is missing the full-bleed artwork layout"
       );
       assert(
         readingEndHtml.includes("今天读到这里"),

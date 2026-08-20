@@ -10,7 +10,7 @@ const forbidden = [
   "正在打开书架",
   "手边的书",
   "案件簿",
-  "app-v37",
+  "app-v38",
   "react",
   "McpApp"
 ];
@@ -30,7 +30,9 @@ const required = [
   "notifyIntrinsicHeight",
   "如果你看见这张卡，ChatGPT 已经渲染了图片内嵌的普通 HTML。",
   "data:image/webp;base64",
-  'data-reading-end-height-strategy="raw-postmessage-v5"'
+  'data-reading-end-layout="full-bleed-overlay-v6"',
+  'data-reading-end-height-strategy="raw-postmessage-v6"',
+  "object-fit: cover"
 ];
 for (const value of required) {
   if (!html.includes(value)) throw new Error(`Reading-end build is missing: ${value}`);
@@ -44,6 +46,10 @@ if (bytes < 250_000 || bytes > 500_000) {
 const embeddedWebpCount = html.match(/data:image\/webp;base64/g)?.length ?? 0;
 if (embeddedWebpCount !== 6) {
   throw new Error(`Expected exactly six embedded WebPs, found ${embeddedWebpCount}`);
+}
+
+if (html.includes("inset: 0 0 0 66%") || html.includes("width: 72%")) {
+  throw new Error("Reading-end build still contains the old hard-split artwork layout");
 }
 
 console.log(

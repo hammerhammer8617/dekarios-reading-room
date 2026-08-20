@@ -281,9 +281,9 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     server,
     PREVIOUS_READING_END_TOOL_NAME,
     {
-      title: "显示今天读到这里（v4 兼容入口）",
+      title: "显示今天读到这里（v5 兼容入口）",
       description:
-        "Previous app-only reading-end entry retained for cached v4 components. Models must use render_reading_end_card_v5 instead.",
+        "Previous app-only reading-end entry retained for cached v5 components. Models must use render_reading_end_card_v6 instead.",
       inputSchema: renderReadingEndCardInputSchema,
       outputSchema: renderReadingEndCardOutputSchema,
       annotations: readOnly,
@@ -301,7 +301,7 @@ export function registerReadingRoomTools(server: McpServer, service: ReadingRoom
     {
       title: "显示今天读到这里",
       description:
-        "Render the isolated image-backed ‘今天读到这里’ card only from the snapshotId returned by record_reading_turn. It replaces the cached v4 descriptor. Do not pass or invent render-time summary text. If the snapshot is missing or incomplete, the tool fails instead of mounting an empty card.",
+        "Render the isolated full-bleed image-backed ‘今天读到这里’ card only from the snapshotId returned by record_reading_turn. It replaces the cached v5 descriptor. Do not pass or invent render-time summary text. If the snapshot is missing or incomplete, the tool fails instead of mounting an empty card.",
       inputSchema: renderReadingEndCardInputSchema,
       outputSchema: renderReadingEndCardOutputSchema,
       annotations: readOnly,
