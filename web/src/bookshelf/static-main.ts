@@ -43,6 +43,64 @@ type DetailThought = {
   updatedAt?: string;
 };
 
+type CaseItemStatus = "suspected" | "confirmed" | "disproved" | "unknown";
+type ReadingCaseEntity = {
+  id: string;
+  name: string;
+  type: "person" | "place" | "object" | "organization" | "event";
+  aliases: string[];
+  description?: string;
+  status: CaseItemStatus;
+};
+type ReadingCaseRelation = {
+  id: string;
+  fromEntityId: string;
+  toEntityId: string;
+  label: string;
+  status: CaseItemStatus;
+  evidence: string[];
+};
+type ReadingCaseClue = {
+  id: string;
+  content: string;
+  position?: ReadingPosition;
+  entityIds: string[];
+  status: CaseItemStatus;
+};
+type ReadingCaseHypothesis = {
+  id: string;
+  title: string;
+  summary: string;
+  status: "active" | "supported" | "rejected" | "solved";
+  confidence?: number;
+  evidenceFor: string[];
+  evidenceAgainst: string[];
+};
+type ReadingCaseTimelineEntry = {
+  id: string;
+  label: string;
+  whenText: string;
+  note?: string;
+  position?: ReadingPosition;
+  entityIds: string[];
+};
+type ReadingCaseObservationTask = {
+  id: string;
+  prompt: string;
+  status: "open" | "done" | "discarded";
+  position?: ReadingPosition;
+};
+type ReadingCasebook = {
+  sessionId?: string;
+  entities?: ReadingCaseEntity[];
+  relations?: ReadingCaseRelation[];
+  clues?: ReadingCaseClue[];
+  hypotheses?: ReadingCaseHypothesis[];
+  timeline?: ReadingCaseTimelineEntry[];
+  observationTasks?: ReadingCaseObservationTask[];
+  updatedAt?: string;
+};
+
 type BookDetailsOutput = {
   session: {
     id: string;
@@ -61,7 +119,7 @@ type BookDetailsOutput = {
   unsyncedThoughtCount: number;
   quotes?: unknown[];
   bookmarks?: unknown[];
-  casebook?: Record<string, unknown>;
+  casebook?: ReadingCasebook;
 };
 
 type ToolCallResult = {
@@ -607,6 +665,9 @@ export function renderBookDetails(
   header.append(counts);
 
   target.append(back, header);
+  if (details.casebook || details.session.genre === "mystery") {
+    appendReadingCaseboard(doc, target, details);
+  }
   appendThoughtSection(doc, target, details.thoughts);
   appendQuestionSection(doc, target, details.openQuestions);
   appendDeleteControls(doc, target, details.session.title, onDelete);
@@ -616,6 +677,435 @@ export function renderBookDetails(
   target.removeAttribute("hidden");
   setText(doc, "bookshelf-status", "已打开《" + details.session.title + "》的共读记录。");
   setRootState(doc, "detail");
+}
+
+function appendReadingCaseboard(
+  doc: Document,
+  target: Element,
+  details: BookDetailsOutput
+) {
+  const casebook = details.casebook ?? {};
+  const entities = casebook.entities ?? [];
+  const relations = casebook.relations ?? [];
+  const clues = casebook.clues ?? [];
+  const hypotheses = casebook.hypotheses ?? [];
+  const timeline = casebook.timeline ?? [];
+  const tasks = casebook.observationTasks ?? [];
+  const section = doc.createElement("section");
+  section.className = "reading-caseboard";
+
+  const heading = doc.createElement("div");
+  heading.className = "caseboard-heading";
+  const headingCopy = doc.createElement("div");
+  const eyebrow = doc.createElement("span");
+  eyebrow.className = "caseboard-eyebrow";
+  eyebrow.textContent = "G.T.D. LIVE CASEBOARD";
+  const title = doc.createElement("h3");
+  title.textContent = "共同案情板";
+  const subtitle = doc.createElement("p");
+  subtitle.textContent = "只展示我们读到这里时已经知道的事。";
+  headingCopy.append(eyebrow, title, subtitle);
+  const boundary = doc.createElement("div");
+  boundary.className = "caseboard-boundary";
+  const boundaryLabel = doc.createElement("span");
+  boundaryLabel.textContent = "剧透边界";
+  const boundaryValue = doc.createElement("strong");
+  boundaryValue.textContent =
+    details.session.spoilerBoundary?.label ?? details.session.userCurrentPosition.label;
+  boundary.append(boundaryLabel, boundaryValue);
+  heading.append(headingCopy, boundary);
+
+  const tabs = doc.createElement("nav");
+  tabs.className = "caseboard-tabs";
+  tabs.setAttribute("aria-label", "案情板视图");
+  const panels = doc.createElement("div");
+  panels.className = "caseboard-panels";
+  const tabDefinitions = [
+    ["overview", "案情总览"],
+    ["places", "地点地图"],
+    ["people", "人物关系"],
+    ["analysis", "线索推演"]
+  ] as const;
+
+  for (const [id, label] of tabDefinitions) {
+    const button = doc.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.dataset.caseboardTab = id;
+    button.setAttribute("aria-pressed", id === "overview" ? "true" : "false");
+    button.addEventListener("click", () => {
+      for (const other of tabs.querySelectorAll<HTMLButtonElement>("button")) {
+        other.setAttribute(
+          "aria-pressed",
+          other.dataset.caseboardTab === id ? "true" : "false"
+        );
+      }
+      for (const panel of panels.querySelectorAll<HTMLElement>("[data-caseboard-panel]")) {
+        panel.toggleAttribute("hidden", panel.dataset.caseboardPanel !== id);
+      }
+    });
+    tabs.append(button);
+  }
+
+  const overview = createCaseboardPanel(doc, "overview", false);
+  appendCaseMetrics(doc, overview, entities, clues, hypotheses, timeline);
+  appendCurrentEvidence(doc, overview, clues);
+  appendCaseTimeline(doc, overview, timeline);
+  appendObservationTasks(doc, overview, tasks);
+  appendTruthVault(doc, overview, details.session.status === "completed");
+
+  const places = createCaseboardPanel(doc, "places", true);
+  const placeEntities = entities.filter((entity) =>
+    ["place", "object", "event"].includes(entity.type)
+  );
+  appendEntityGraph(
+    doc,
+    places,
+    placeEntities,
+    relations,
+    "还没有地点、物件或事件被钉上地图。"
+  );
+
+  const people = createCaseboardPanel(doc, "people", true);
+  const peopleEntities = entities.filter((entity) =>
+    ["person", "organization"].includes(entity.type)
+  );
+  appendEntityGraph(
+    doc,
+    people,
+    peopleEntities,
+    relations,
+    "人物关系板还在等待第一张名片。"
+  );
+
+  const analysis = createCaseboardPanel(doc, "analysis", true);
+  appendAnalysisLedger(doc, analysis, clues, hypotheses);
+
+  panels.append(overview, places, people, analysis);
+  section.append(heading, tabs, panels);
+  target.append(section);
+}
+
+function createCaseboardPanel(doc: Document, id: string, hidden: boolean) {
+  const panel = doc.createElement("div");
+  panel.className = "caseboard-panel";
+  panel.dataset.caseboardPanel = id;
+  panel.toggleAttribute("hidden", hidden);
+  return panel;
+}
+
+function appendCaseMetrics(
+  doc: Document,
+  target: Element,
+  entities: ReadingCaseEntity[],
+  clues: ReadingCaseClue[],
+  hypotheses: ReadingCaseHypothesis[],
+  timeline: ReadingCaseTimelineEntry[]
+) {
+  const metrics = doc.createElement("div");
+  metrics.className = "caseboard-metrics";
+  const values = [
+    [entities.filter((item) => item.type === "person").length, "人物"],
+    [entities.filter((item) => item.type === "place").length, "地点"],
+    [clues.length, "线索"],
+    [hypotheses.filter((item) => item.status !== "rejected").length, "推理中"],
+    [timeline.length, "时间点"]
+  ] as const;
+  for (const [value, label] of values) {
+    const item = doc.createElement("div");
+    const number = doc.createElement("strong");
+    number.textContent = String(value);
+    const text = doc.createElement("span");
+    text.textContent = label;
+    item.append(number, text);
+    metrics.append(item);
+  }
+  target.append(metrics);
+}
+
+function appendCurrentEvidence(
+  doc: Document,
+  target: Element,
+  clues: ReadingCaseClue[]
+) {
+  const block = doc.createElement("section");
+  block.className = "caseboard-block evidence-block";
+  block.append(createSectionHeading(doc, "此刻已知", String(clues.length) + " 条"));
+  const list = doc.createElement("div");
+  list.className = "caseboard-note-grid";
+  for (const [index, clue] of [...clues].reverse().slice(0, 6).entries()) {
+    const note = doc.createElement("article");
+    note.className = "caseboard-note";
+    note.dataset.status = clue.status;
+    const pin = doc.createElement("i");
+    pin.setAttribute("aria-hidden", "true");
+    const label = doc.createElement("b");
+    label.textContent = String(clues.length - index).padStart(2, "0");
+    const text = doc.createElement("p");
+    text.textContent = clue.content;
+    const meta = doc.createElement("small");
+    meta.textContent =
+      (clue.position?.label ?? "来源待标记") + " · " + caseStatusLabel(clue.status);
+    note.append(pin, label, text, meta);
+    list.append(note);
+  }
+  if (clues.length === 0) appendCaseboardEmpty(doc, list, "第一条聊天记录会从这里开始生长。" );
+  block.append(list);
+  target.append(block);
+}
+
+function appendCaseTimeline(
+  doc: Document,
+  target: Element,
+  timeline: ReadingCaseTimelineEntry[]
+) {
+  if (timeline.length === 0) return;
+  const block = doc.createElement("section");
+  block.className = "caseboard-block timeline-block";
+  block.append(createSectionHeading(doc, "事件时间线", String(timeline.length) + " 项"));
+  const list = doc.createElement("ol");
+  for (const item of timeline) {
+    const row = doc.createElement("li");
+    const when = doc.createElement("b");
+    when.textContent = item.whenText;
+    const copy = doc.createElement("span");
+    copy.textContent = item.label;
+    row.append(when, copy);
+    if (item.note) {
+      const note = doc.createElement("small");
+      note.textContent = item.note;
+      row.append(note);
+    }
+    list.append(row);
+  }
+  block.append(list);
+  target.append(block);
+}
+
+function appendObservationTasks(
+  doc: Document,
+  target: Element,
+  tasks: ReadingCaseObservationTask[]
+) {
+  const open = tasks.filter((task) => task.status === "open");
+  if (open.length === 0) return;
+  const block = doc.createElement("section");
+  block.className = "caseboard-block observation-block";
+  block.append(createSectionHeading(doc, "下一次留意", String(open.length) + " 项"));
+  const list = doc.createElement("ul");
+  for (const task of open) {
+    const item = doc.createElement("li");
+    item.textContent = task.prompt;
+    list.append(item);
+  }
+  block.append(list);
+  target.append(block);
+}
+
+function appendTruthVault(doc: Document, target: Element, completed: boolean) {
+  const vault = doc.createElement("div");
+  vault.className = "caseboard-vault";
+  const mark = doc.createElement("span");
+  mark.textContent = completed ? "✓" : "⌁";
+  const copy = doc.createElement("div");
+  const title = doc.createElement("b");
+  title.textContent = completed ? "结案卷已允许整理" : "结案真相仍在封印中";
+  const note = doc.createElement("small");
+  note.textContent = completed
+    ? "只采用我们实际读到并记录过的材料复盘。"
+    : "读完前，后文答案不会进入这张案情板。";
+  copy.append(title, note);
+  vault.append(mark, copy);
+  target.append(vault);
+}
+
+function appendEntityGraph(
+  doc: Document,
+  target: Element,
+  entities: ReadingCaseEntity[],
+  relations: ReadingCaseRelation[],
+  emptyText: string
+) {
+  if (entities.length === 0) {
+    appendCaseboardEmpty(doc, target, emptyText);
+    return;
+  }
+  const board = doc.createElement("div");
+  board.className = "caseboard-graph";
+  const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 520 330");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "当前进度内的结构关系图");
+  const visible = entities.slice(0, 12);
+  const points = new Map<string, { x: number; y: number }>();
+  for (const [index, entity] of visible.entries()) {
+    const angle = (Math.PI * 2 * index) / Math.max(visible.length, 1) - Math.PI / 2;
+    const radiusX = visible.length < 4 ? 120 : 190;
+    const radiusY = visible.length < 4 ? 76 : 112;
+    points.set(entity.id, {
+      x: 260 + Math.cos(angle) * radiusX,
+      y: 165 + Math.sin(angle) * radiusY
+    });
+  }
+  for (const relation of relations) {
+    if (relation.status === "disproved") continue;
+    const from = points.get(relation.fromEntityId);
+    const to = points.get(relation.toEntityId);
+    if (!from || !to) continue;
+    const line = doc.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(from.x));
+    line.setAttribute("y1", String(from.y));
+    line.setAttribute("x2", String(to.x));
+    line.setAttribute("y2", String(to.y));
+    line.setAttribute("class", "graph-line graph-line--" + relation.status);
+    const label = doc.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", String((from.x + to.x) / 2));
+    label.setAttribute("y", String((from.y + to.y) / 2 - 6));
+    label.setAttribute("class", "graph-label");
+    label.textContent = shortenText(relation.label, 8);
+    svg.append(line, label);
+  }
+  for (const entity of visible) {
+    const point = points.get(entity.id)!;
+    const group = doc.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("class", "graph-entity graph-entity--" + entity.status);
+    const rect = doc.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x", String(point.x - 54));
+    rect.setAttribute("y", String(point.y - 25));
+    rect.setAttribute("width", "108");
+    rect.setAttribute("height", "50");
+    rect.setAttribute("rx", "3");
+    const pin = doc.createElementNS("http://www.w3.org/2000/svg", "circle");
+    pin.setAttribute("cx", String(point.x));
+    pin.setAttribute("cy", String(point.y - 20));
+    pin.setAttribute("r", "4");
+    const name = doc.createElementNS("http://www.w3.org/2000/svg", "text");
+    name.setAttribute("x", String(point.x));
+    name.setAttribute("y", String(point.y + 4));
+    name.setAttribute("text-anchor", "middle");
+    name.setAttribute("class", "graph-name");
+    name.textContent = shortenText(entity.name, 8);
+    const type = doc.createElementNS("http://www.w3.org/2000/svg", "text");
+    type.setAttribute("x", String(point.x));
+    type.setAttribute("y", String(point.y + 17));
+    type.setAttribute("text-anchor", "middle");
+    type.setAttribute("class", "graph-type");
+    type.textContent = entityTypeLabel(entity.type);
+    group.append(rect, pin, name, type);
+    svg.append(group);
+  }
+  board.append(svg);
+  target.append(board);
+
+  const cards = doc.createElement("div");
+  cards.className = "caseboard-entity-cards";
+  for (const entity of visible) {
+    const card = doc.createElement("article");
+    card.dataset.status = entity.status;
+    const meta = doc.createElement("span");
+    meta.textContent = entityTypeLabel(entity.type) + " · " + caseStatusLabel(entity.status);
+    const name = doc.createElement("b");
+    name.textContent = entity.name;
+    const description = doc.createElement("p");
+    description.textContent = entity.description ?? "说明将随阅读补全。";
+    card.append(meta, name, description);
+    cards.append(card);
+  }
+  target.append(cards);
+}
+
+function appendAnalysisLedger(
+  doc: Document,
+  target: Element,
+  clues: ReadingCaseClue[],
+  hypotheses: ReadingCaseHypothesis[]
+) {
+  const layout = doc.createElement("div");
+  layout.className = "analysis-ledger";
+  const evidence = doc.createElement("section");
+  evidence.append(createSectionHeading(doc, "线索账", String(clues.length) + " 条"));
+  const evidenceList = doc.createElement("div");
+  evidenceList.className = "analysis-list";
+  for (const [index, clue] of clues.entries()) {
+    const card = doc.createElement("article");
+    card.dataset.status = clue.status;
+    const number = doc.createElement("b");
+    number.textContent = String(index + 1).padStart(2, "0");
+    const text = doc.createElement("p");
+    text.textContent = clue.content;
+    const meta = doc.createElement("small");
+    meta.textContent = (clue.position?.label ?? "位置待标记") + " · " + caseStatusLabel(clue.status);
+    card.append(number, text, meta);
+    evidenceList.append(card);
+  }
+  if (clues.length === 0) appendCaseboardEmpty(doc, evidenceList, "还没有进入线索账的材料。" );
+  evidence.append(evidenceList);
+
+  const theory = doc.createElement("section");
+  theory.append(createSectionHeading(doc, "假说历史", String(hypotheses.length) + " 条"));
+  const theoryList = doc.createElement("div");
+  theoryList.className = "analysis-list theory-list";
+  for (const item of hypotheses) {
+    const card = doc.createElement("article");
+    card.dataset.status = item.status;
+    const name = doc.createElement("b");
+    name.textContent = item.title;
+    const text = doc.createElement("p");
+    text.textContent = item.summary;
+    const meta = doc.createElement("small");
+    meta.textContent =
+      hypothesisStatusLabel(item.status) +
+      (item.confidence !== undefined ? " · " + String(Math.round(item.confidence * 100)) + "%" : "");
+    card.append(name, text, meta);
+    theoryList.append(card);
+  }
+  if (hypotheses.length === 0) appendCaseboardEmpty(doc, theoryList, "第一条假说尚未形成。" );
+  theory.append(theoryList);
+  layout.append(evidence, theory);
+  target.append(layout);
+}
+
+function appendCaseboardEmpty(doc: Document, target: Element, text: string) {
+  const empty = doc.createElement("p");
+  empty.className = "caseboard-empty";
+  empty.textContent = text;
+  target.append(empty);
+}
+
+function caseStatusLabel(status: CaseItemStatus) {
+  return status === "confirmed"
+    ? "已确认"
+    : status === "suspected"
+      ? "待核验"
+      : status === "disproved"
+        ? "已排除"
+        : "未分类";
+}
+
+function hypothesisStatusLabel(status: ReadingCaseHypothesis["status"]) {
+  return status === "active"
+    ? "推理中"
+    : status === "supported"
+      ? "证据增强"
+      : status === "rejected"
+        ? "已推翻"
+        : "已解开";
+}
+
+function entityTypeLabel(type: ReadingCaseEntity["type"]) {
+  return type === "person"
+    ? "人物"
+    : type === "place"
+      ? "地点"
+      : type === "object"
+        ? "物件"
+        : type === "organization"
+          ? "组织"
+          : "事件";
+}
+
+function shortenText(value: string, length: number) {
+  return value.length > length ? value.slice(0, length) + "…" : value;
 }
 
 function appendDeleteControls(
@@ -821,10 +1311,13 @@ function appendDetailItem(doc: Document, grid: Element, label: string, value: st
   grid.append(item);
 }
 
-function countCasebookItems(value: Record<string, unknown> | undefined) {
+function countCasebookItems(value: ReadingCasebook | undefined) {
   if (!value) return 0;
   return ["entities", "relations", "clues", "hypotheses", "timeline", "observationTasks"]
-    .map((key) => (Array.isArray(value[key]) ? value[key].length : 0))
+    .map((key) => {
+      const collection = value[key as keyof ReadingCasebook];
+      return Array.isArray(collection) ? collection.length : 0;
+    })
     .reduce((total, count) => total + count, 0);
 }
 

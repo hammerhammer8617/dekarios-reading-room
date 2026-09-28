@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type {
+  CSSProperties,
+  PointerEvent as ReactPointerEvent,
+  ReactNode
+} from "react";
 import type {
   CaseBundle,
   CaseEntity,
@@ -25,7 +29,7 @@ type CasebookOutput = {
   cases?: InvestigationCase[];
 };
 
-type Tab = "entries" | "graph";
+type Tab = "overview" | "places" | "people" | "analysis" | "record";
 type DragState = {
   entityId: string;
   offsetX: number;
@@ -60,6 +64,12 @@ const quickEntryPrefixes: Array<{ prefix: string; kind: CaseEntryKind }> = [
   { prefix: "物证", kind: "evidence" },
   { prefix: "事实", kind: "observation" }
 ];
+
+const THE_APPEAL_STARTER = {
+  title: "凶手就在聊天记录中",
+  sourceType: "novel" as const,
+  sourceLabel: "珍妮丝·哈雷特｜The Appeal"
+};
 
 export function detectQuickEntryKind(content: string): CaseEntryKind | null {
   const normalized = content.trimStart();
@@ -101,7 +111,7 @@ export function CasebookApp(props: {
   const [cases, setCases] = useState<InvestigationCase[]>(() => initial?.cases ?? []);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [bundle, setBundle] = useState<CaseBundle | null>(null);
-  const [tab, setTab] = useState<Tab>("entries");
+  const [tab, setTab] = useState<Tab>("overview");
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -176,14 +186,17 @@ export function CasebookApp(props: {
     [entryContent, entryKind]
   );
 
-  async function createCase() {
-    if (!title.trim() || busy) return;
+  async function createCase(starter?: typeof THE_APPEAL_STARTER) {
+    const nextTitle = starter?.title ?? title.trim();
+    const nextSourceType = starter?.sourceType ?? sourceType;
+    const nextSourceLabel = starter?.sourceLabel ?? sourceLabel.trim();
+    if (!nextTitle || busy) return;
     setBusy(true);
     try {
       const result = await callTool("case_create", {
-        title: title.trim(),
-        sourceType,
-        ...(sourceLabel.trim() ? { sourceLabel: sourceLabel.trim() } : {})
+        title: nextTitle,
+        sourceType: nextSourceType,
+        ...(nextSourceLabel ? { sourceLabel: nextSourceLabel } : {})
       });
       const investigationCase = result.structuredContent?.case as InvestigationCase | undefined;
       if (!investigationCase) throw new Error("Missing case");
@@ -192,6 +205,7 @@ export function CasebookApp(props: {
       setSourceLabel("");
       await loadCases();
       setSelectedCaseId(investigationCase.id);
+      setTab("overview");
       setToast("案件已经展开。");
     } catch {
       setToast("案件没有建立成功，请重试。");
@@ -400,7 +414,10 @@ export function CasebookApp(props: {
     const graph = graphRef.current?.getBoundingClientRect();
     if (!graph) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    const position = entityPosition(entity, bundle?.entities ?? []);
+    const position = entityPosition(
+      entity,
+      graphEntitiesForTab(bundle?.entities ?? [], tab)
+    );
     setDrag({
       entityId: entity.id,
       offsetX: event.clientX - graph.left - position.x,
@@ -452,6 +469,30 @@ export function CasebookApp(props: {
             <button className="action-primary" onClick={() => setCreating(true)}>新建案件</button>
           </div>
         </header>
+        {!cases.some((item) => item.title === THE_APPEAL_STARTER.title) ? (
+          <section className="featured-case-starter" aria-label="本次试读案卷">
+            <div className="redacted-cover" aria-hidden="true">
+              <span>THE APPEAL</span>
+              <b>凶手就在</b>
+              <b>聊天记录中</b>
+              <i />
+              <i />
+              <i />
+            </div>
+            <div>
+              <span className="casebook-kicker">FIRST LIVE CASE · 无剧透</span>
+              <h2>就用这一本，试运行活案情板</h2>
+              <p>从第一条聊天记录开始，人物、地点、口径冲突与假说会随阅读逐步长出来。</p>
+              <button
+                className="action-primary"
+                disabled={busy}
+                onClick={() => void createCase(THE_APPEAL_STARTER)}
+              >
+                {busy ? "正在铺开案卷…" : "建立《凶手就在聊天记录中》案卷"}
+              </button>
+            </div>
+          </section>
+        ) : null}
         {creating ? (
           <CaseCreateForm
             title={title}
@@ -487,6 +528,12 @@ export function CasebookApp(props: {
   }
 
   const unsynced = bundle.case.caseRevision - bundle.case.assistantSyncedRevision;
+  const graphEntities = graphEntitiesForTab(bundle.entities, tab);
+  const graphRelations = bundle.relations.filter(
+    (relation) =>
+      graphEntities.some((entity) => entity.id === relation.sourceEntityId) &&
+      graphEntities.some((entity) => entity.id === relation.targetEntityId)
+  );
 
   return (
     <div className="casebook-shell">
@@ -495,7 +542,7 @@ export function CasebookApp(props: {
           ‹ 案件列表
         </button>
         <div className="casebook-heading">
-          <div>
+          <div className="casebook-heading-copy">
             <span className="casebook-kicker">{sourceTypeLabel(bundle.case.sourceType)}</span>
             <h1>{bundle.case.title}</h1>
             {bundle.case.sourceLabel ? <p>{bundle.case.sourceLabel}</p> : null}
@@ -515,11 +562,18 @@ export function CasebookApp(props: {
       </header>
 
       <nav className="casebook-tabs" aria-label="案件视图">
-        <button aria-pressed={tab === "entries"} onClick={() => setTab("entries")}>案情记录</button>
-        <button aria-pressed={tab === "graph"} onClick={() => setTab("graph")}>结构图</button>
+        <button aria-pressed={tab === "overview"} onClick={() => setTab("overview")}>案情总览</button>
+        <button aria-pressed={tab === "places"} onClick={() => setTab("places")}>地点地图</button>
+        <button aria-pressed={tab === "people"} onClick={() => setTab("people")}>人物关系</button>
+        <button aria-pressed={tab === "analysis"} onClick={() => setTab("analysis")}>线索推演</button>
+        <button aria-pressed={tab === "record"} onClick={() => setTab("record")}>记录案情</button>
       </nav>
 
-      {tab === "entries" ? (
+      {tab === "overview" ? (
+        <CaseOverview bundle={bundle} onOpenTab={setTab} />
+      ) : null}
+
+      {tab === "record" ? (
         <main className="casebook-content">
           <section className="case-entry-composer">
             {entryDrafts ? (
@@ -643,7 +697,9 @@ export function CasebookApp(props: {
             onStatus={(task, status) => void updateObservationTaskStatus(task, status)}
           />
         </main>
-      ) : (
+      ) : null}
+
+      {tab === "places" || tab === "people" ? (
         <main className="casebook-content graph-content">
           <section className="graph-toolbar">
             <div className="case-inline-form">
@@ -671,9 +727,14 @@ export function CasebookApp(props: {
             onPointerUp={() => void endDrag()}
             onPointerCancel={() => setDrag(null)}
           >
-            <GraphEdges entities={bundle.entities} relations={bundle.relations} />
-            {bundle.entities.map((entity) => {
-              const position = entityPosition(entity, bundle.entities);
+            <div className="board-caption">
+              <span className="casebook-kicker">{tab === "places" ? "PLACES & ROUTES" : "PEOPLE & TIES"}</span>
+              <strong>{tab === "places" ? "地点、物件与事件路径" : "人物、组织与已知关系"}</strong>
+              <small>实线为确认，虚线为待核验；被驳回的关系保留在档案中，但不再连线。</small>
+            </div>
+            <GraphEdges entities={graphEntities} relations={graphRelations} />
+            {graphEntities.map((entity) => {
+              const position = entityPosition(entity, graphEntities);
               return (
                 <button
                   key={entity.id}
@@ -687,7 +748,11 @@ export function CasebookApp(props: {
                 </button>
               );
             })}
-            {bundle.entities.length === 0 ? <p className="graph-empty">先添加一个人物、地点或物件。</p> : null}
+            {graphEntities.length === 0 ? (
+              <p className="graph-empty">
+                {tab === "places" ? "还没有被钉上地图的地点、物件或事件。" : "人物关系板还在等第一张名片。"}
+              </p>
+            ) : null}
           </section>
 
           {selectedEntity ? (
@@ -717,11 +782,193 @@ export function CasebookApp(props: {
             ))}
           </section>
         </main>
-      )}
+      ) : null}
+
+      {tab === "analysis" ? (
+        <CaseAnalysis
+          bundle={bundle}
+          hypothesis={hypothesis}
+          busy={busy}
+          onHypothesis={setHypothesis}
+          onAddHypothesis={() => void addHypothesis()}
+          onHypothesisStatus={(item, status) => void updateHypothesisStatus(item, status)}
+          onTaskStatus={(task, status) => void updateObservationTaskStatus(task, status)}
+        />
+      ) : null}
 
       {toast ? <div className="toast" role="status">{toast}</div> : null}
     </div>
   );
+}
+
+function CaseOverview({
+  bundle,
+  onOpenTab
+}: {
+  bundle: CaseBundle;
+  onOpenTab: (tab: Tab) => void;
+}) {
+  const recentEntries = [...bundle.entries].reverse().slice(0, 4);
+  const activeHypotheses = bundle.hypotheses.filter((item) => item.status !== "rejected");
+  const openTasks = bundle.observationTasks.filter((item) => item.status === "open");
+  const latestPosition = recentEntries.find((entry) => entry.sourcePosition)?.sourcePosition;
+  const counts = {
+    places: graphEntitiesForTab(bundle.entities, "places").length,
+    people: graphEntitiesForTab(bundle.entities, "people").length,
+    clues: bundle.entries.filter((entry) =>
+      ["observation", "claim", "evidence"].includes(entry.kind)
+    ).length,
+    hypotheses: activeHypotheses.length
+  };
+
+  return (
+    <main className="casebook-content live-case-overview">
+      <section className="case-progress-ledger">
+        <div>
+          <span className="casebook-kicker">CURRENT EVIDENCE BOUNDARY</span>
+          <strong>{latestPosition ?? "尚未写入阅读位置"}</strong>
+        </div>
+        <p>案情板只使用我们已经读到的材料；后文真相保持封存。</p>
+      </section>
+
+      <section className="case-metric-grid" aria-label="案件概况">
+        <button onClick={() => onOpenTab("places")}><b>{counts.places}</b><span>地点与事件</span></button>
+        <button onClick={() => onOpenTab("people")}><b>{counts.people}</b><span>人物与组织</span></button>
+        <button onClick={() => onOpenTab("analysis")}><b>{counts.clues}</b><span>事实与证词</span></button>
+        <button onClick={() => onOpenTab("analysis")}><b>{counts.hypotheses}</b><span>仍在推理</span></button>
+      </section>
+
+      <section className="paper-caseboard overview-board">
+        <div className="paper-board-heading">
+          <div>
+            <span className="casebook-kicker">LIVE CASEBOARD</span>
+            <h2>此刻的案情，不替未来装聪明</h2>
+          </div>
+          <div className="evidence-legend" aria-label="记录类型图例">
+            <i className="legend-fact">事实</i>
+            <i className="legend-claim">证词</i>
+            <i className="legend-theory">推测</i>
+          </div>
+        </div>
+
+        <div className="overview-columns">
+          <section className="pinned-stack">
+            <div className="subsection-heading"><h3>最近钉上的材料</h3><button onClick={() => onOpenTab("record")}>继续记录 →</button></div>
+            {recentEntries.length ? recentEntries.map((entry, index) => (
+              <article key={entry.id} className={`paper-note note-${entry.kind}`} style={{ "--tilt": `${index % 2 ? 0.45 : -0.35}deg` } as CSSProperties}>
+                <span className="pin" aria-hidden="true" />
+                <div><b>{entryLabels[entry.kind]}</b><small>{authorLabel(entry.author)} · v{entry.createdRevision}</small></div>
+                <p>{entry.content}</p>
+                {entry.sourcePosition ? <em>{entry.sourcePosition}</em> : null}
+              </article>
+            )) : <DossierEmpty>第一条聊天、邮件或不对劲的措辞，会从这里开始。</DossierEmpty>}
+          </section>
+
+          <section className="pinned-stack">
+            <div className="subsection-heading"><h3>正在成立的假说</h3><button onClick={() => onOpenTab("analysis")}>展开推演 →</button></div>
+            {activeHypotheses.length ? activeHypotheses.slice(0, 3).map((item) => (
+              <article key={item.id} className={`theory-slip theory-${item.status}`}>
+                <span>{authorLabel(item.author)}</span>
+                <p>{item.claim}</p>
+                <small>{hypothesisStatusLabel(item.status)}{item.confidence !== undefined ? ` · ${Math.round(item.confidence * 100)}%` : ""}</small>
+              </article>
+            )) : <DossierEmpty>目前没有足够材料形成假说——这是一种美德。</DossierEmpty>}
+
+            <div className="subsection-heading observation-heading"><h3>下一次留意</h3><span>{openTasks.length} 项</span></div>
+            {openTasks.slice(0, 3).map((task) => (
+              <article className="observation-slip" key={task.id}>
+                <span aria-hidden="true">⌕</span><p>{task.instruction}</p>
+              </article>
+            ))}
+          </section>
+        </div>
+
+        <div className="truth-vault" aria-label="结案真相尚未开放">
+          <span aria-hidden="true">⌁</span>
+          <div><b>结案真相仍在封印中</b><small>读完前不会把后文答案混进当前案卷。</small></div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function CaseAnalysis({
+  bundle,
+  hypothesis,
+  busy,
+  onHypothesis,
+  onAddHypothesis,
+  onHypothesisStatus,
+  onTaskStatus
+}: {
+  bundle: CaseBundle;
+  hypothesis: string;
+  busy: boolean;
+  onHypothesis: (value: string) => void;
+  onAddHypothesis: () => void;
+  onHypothesisStatus: (item: CaseHypothesis, status: CaseHypothesis["status"]) => void;
+  onTaskStatus: (task: CaseObservationTask, status: CaseObservationTask["status"]) => void;
+}) {
+  const evidence = bundle.entries.filter((entry) =>
+    ["observation", "claim", "evidence"].includes(entry.kind)
+  );
+  const questions = bundle.entries.filter((entry) => entry.kind === "question");
+  return (
+    <main className="casebook-content analysis-content">
+      <section className="paper-caseboard evidence-board">
+        <div className="paper-board-heading">
+          <div><span className="casebook-kicker">EVIDENCE LEDGER</span><h2>事实、证词与尚未解释的缝隙</h2></div>
+          <span>{evidence.length} 条材料</span>
+        </div>
+        <div className="evidence-card-grid">
+          {evidence.length ? [...evidence].reverse().map((entry, index) => (
+            <article key={entry.id} className={`evidence-card evidence-${entry.kind}`}>
+              <span className="evidence-number">{String(evidence.length - index).padStart(2, "0")}</span>
+              <div><b>{entryLabels[entry.kind]}</b><small>{authorLabel(entry.author)}</small></div>
+              <p>{entry.content}</p>
+              <em>{entry.sourcePosition ?? `案件 v${entry.createdRevision}`}</em>
+            </article>
+          )) : <DossierEmpty>我们还没有把任何材料判定为事实、证词或物证。</DossierEmpty>}
+        </div>
+      </section>
+
+      <section className="case-section hypothesis-section live-hypotheses">
+        <div className="section-heading"><div><span className="casebook-kicker">HYPOTHESES</span><h2>我们的推理历史</h2></div><span>{bundle.hypotheses.length} 条</span></div>
+        <div className="case-inline-form">
+          <input value={hypothesis} onChange={(event) => onHypothesis(event.target.value)} placeholder="我现在怀疑……" />
+          <button disabled={!hypothesis.trim() || busy} onClick={onAddHypothesis}>保存猜想</button>
+        </div>
+        <div className="hypothesis-timeline">
+          {bundle.hypotheses.map((item) => (
+            <article key={item.id} className={`hypothesis-card author-${item.author} status-${item.status}`}>
+              <div><strong>{authorLabel(item.author)}</strong><span>{hypothesisStatusLabel(item.status)}</span></div>
+              <p>{item.claim}</p>
+              <small>{new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(new Date(item.createdAt))}</small>
+              <div className="compact-actions">
+                {item.status === "active" ? <button onClick={() => onHypothesisStatus(item, "weakened")}>证据削弱</button> : null}
+                {item.status !== "confirmed" ? <button onClick={() => onHypothesisStatus(item, "confirmed")}>证实</button> : null}
+                {item.status !== "rejected" ? <button onClick={() => onHypothesisStatus(item, "rejected")}>推翻</button> : null}
+              </div>
+            </article>
+          ))}
+          {bundle.hypotheses.length === 0 ? <DossierEmpty>第一条假说尚未形成。</DossierEmpty> : null}
+        </div>
+      </section>
+
+      {questions.length ? (
+        <section className="case-section open-question-board">
+          <div className="section-heading"><h2>仍悬着的问题</h2><span>{questions.length} 条</span></div>
+          <ol>{questions.map((entry) => <li key={entry.id}>{entry.content}<small>{entry.sourcePosition ?? authorLabel(entry.author)}</small></li>)}</ol>
+        </section>
+      ) : null}
+
+      <ObservationTasks tasks={bundle.observationTasks} busy={busy} onStatus={onTaskStatus} />
+    </main>
+  );
+}
+
+function DossierEmpty({ children }: { children: ReactNode }) {
+  return <p className="dossier-empty">{children}</p>;
 }
 
 function ObservationTasks(props: {
@@ -814,9 +1061,25 @@ function GraphEdges({ entities, relations }: { entities: CaseEntity[]; relations
 }
 
 function entityPosition(entity: CaseEntity, entities: CaseEntity[]) {
-  if (entity.x !== undefined && entity.y !== undefined) return { x: entity.x, y: entity.y };
+  if (entity.x !== undefined && entity.y !== undefined) {
+    return { x: entity.x, y: Math.max(entity.y, 112) };
+  }
   const index = Math.max(0, entities.findIndex((item) => item.id === entity.id));
-  return { x: 24 + (index % 3) * 190, y: 28 + Math.floor(index / 3) * 105 };
+  return { x: 24 + (index % 3) * 190, y: 118 + Math.floor(index / 3) * 105 };
+}
+
+function graphEntitiesForTab(entities: CaseEntity[], tab: Tab) {
+  if (tab === "places") {
+    return entities.filter((entity) =>
+      ["place", "object", "event"].includes(entity.entityType)
+    );
+  }
+  if (tab === "people") {
+    return entities.filter((entity) =>
+      ["person", "organization"].includes(entity.entityType)
+    );
+  }
+  return entities;
 }
 
 function entityNameById(entities: CaseEntity[], id: string) {

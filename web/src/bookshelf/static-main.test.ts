@@ -101,7 +101,27 @@ const bookDetailsOutput = {
   unsyncedThoughtCount: 1,
   quotes: [],
   bookmarks: [],
-  casebook: { clues: [{ id: "clue-1" }], hypotheses: [] }
+  casebook: {
+    sessionId: "book-debris",
+    entities: [
+      { id: "person-1", name: "剧团经理", type: "person", aliases: [], status: "suspected" },
+      { id: "place-1", name: "排练厅", type: "place", aliases: [], status: "confirmed" }
+    ],
+    relations: [],
+    clues: [
+      {
+        id: "clue-1",
+        content: "两封邮件对排练时间的说法不一致。",
+        position: { kind: "page" as const, index: 91, label: "第 91 页" },
+        entityIds: ["person-1", "place-1"],
+        status: "suspected" as const
+      }
+    ],
+    hypotheses: [],
+    timeline: [],
+    observationTasks: [],
+    updatedAt: "2026-08-19T12:00:00.000Z"
+  }
 };
 
 function mountShell() {
@@ -373,7 +393,13 @@ describe("bookshelf static interactive resource", () => {
     });
 
     expect(document.body.textContent).toContain("我们把书读厚的地方");
+    expect(document.body.textContent).toContain("共同案情板");
+    expect(document.body.textContent).toContain("两封邮件对排练时间的说法不一致。");
     expect(document.body.textContent).toContain("为什么会留下两条进度？");
+    document.querySelector<HTMLButtonElement>('button[data-caseboard-tab="people"]')?.click();
+    expect(document.body.textContent).toContain("剧团经理");
+    document.querySelector<HTMLButtonElement>('button[data-caseboard-tab="places"]')?.click();
+    expect(document.body.textContent).toContain("排练厅");
     expect(callTool).not.toHaveBeenCalled();
 
     document.querySelector<HTMLButtonElement>("button.back")?.click();

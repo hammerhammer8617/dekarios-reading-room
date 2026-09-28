@@ -288,22 +288,60 @@ function ThoughtRow({ thought }: { thought: DurableThought }) {
 }
 
 function Casebook({ casebook }: { casebook: MysteryReadingCasebook }) {
+  const [tab, setTab] = useState<"overview" | "places" | "people" | "analysis">("overview");
   const activeHypotheses = casebook.hypotheses.filter((item) => item.status !== "rejected");
+  const tabs = [
+    ["overview", "案情总览"],
+    ["places", "地点地图"],
+    ["people", "人物关系"],
+    ["analysis", "线索推演"]
+  ] as const;
   return (
-    <section className="casebook">
-      <div className="section-heading"><div><span className="room-kicker">Casebook</span><h3>案件簿</h3></div><span>{casebook.clues.length} 条线索</span></div>
-      {casebook.entities.length > 0 ? <RelationMap casebook={casebook} /> : null}
-      <div className="casebook-columns">
-        <section><h4>假说</h4>{activeHypotheses.length ? activeHypotheses.map((item) => <article key={item.id}><b>{item.title}</b><p>{item.summary}</p><small>{hypothesisLabel(item.status)}{item.confidence !== undefined ? ` · ${Math.round(item.confidence * 100)}%` : ""}</small></article>) : <p>还没有成形的假说。</p>}</section>
-        <section><h4>接下来留意</h4>{casebook.observationTasks.filter((item) => item.status === "open").map((item) => <article key={item.id}><p>{item.prompt}</p><small>{item.position?.label ?? "下一页"}</small></article>)}</section>
-      </div>
-      {casebook.timeline.length > 0 ? <ol className="case-timeline">{casebook.timeline.map((item) => <li key={item.id}><b>{item.whenText}</b><span>{item.label}</span>{item.note ? <small>{item.note}</small> : null}</li>)}</ol> : null}
+    <section className="casebook casebook--live">
+      <div className="section-heading"><div><span className="room-kicker">G.T.D. Live Caseboard</span><h3>共同案情板</h3></div><span>{casebook.clues.length} 条线索</span></div>
+      <nav className="room-case-tabs" aria-label="案情板视图">
+        {tabs.map(([id, label]) => <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}
+      </nav>
+      {tab === "overview" ? (
+        <>
+          <div className="room-case-metrics">
+            <span><b>{casebook.entities.filter((item) => item.type === "person").length}</b>人物</span>
+            <span><b>{casebook.entities.filter((item) => item.type === "place").length}</b>地点</span>
+            <span><b>{casebook.clues.length}</b>线索</span>
+            <span><b>{activeHypotheses.length}</b>推理中</span>
+          </div>
+          <div className="room-clue-grid">
+            {[...casebook.clues].reverse().slice(0, 6).map((item, index) => <article key={item.id} data-status={item.status}><i aria-hidden="true" /><b>{String(casebook.clues.length - index).padStart(2, "0")}</b><p>{item.content}</p><small>{item.position?.label ?? "来源待标记"}</small></article>)}
+            {casebook.clues.length === 0 ? <p className="caseboard-room-empty">第一条材料会从这里开始生长。</p> : null}
+          </div>
+          {casebook.timeline.length > 0 ? <ol className="case-timeline">{casebook.timeline.map((item) => <li key={item.id}><b>{item.whenText}</b><span>{item.label}</span>{item.note ? <small>{item.note}</small> : null}</li>)}</ol> : null}
+        </>
+      ) : null}
+      {tab === "places" ? <RelationMap casebook={casebook} entityTypes={["place", "object", "event"]} emptyText="还没有地点、物件或事件被钉上地图。" /> : null}
+      {tab === "people" ? <RelationMap casebook={casebook} entityTypes={["person", "organization"]} emptyText="人物关系板还在等待第一张名片。" /> : null}
+      {tab === "analysis" ? (
+        <div className="casebook-columns">
+          <section><h4>假说历史</h4>{casebook.hypotheses.length ? casebook.hypotheses.map((item) => <article key={item.id} data-status={item.status}><b>{item.title}</b><p>{item.summary}</p><small>{hypothesisLabel(item.status)}{item.confidence !== undefined ? ` · ${Math.round(item.confidence * 100)}%` : ""}</small></article>) : <p>还没有成形的假说。</p>}</section>
+          <section><h4>接下来留意</h4>{casebook.observationTasks.filter((item) => item.status === "open").map((item) => <article key={item.id}><p>{item.prompt}</p><small>{item.position?.label ?? "下一页"}</small></article>)}</section>
+        </div>
+      ) : null}
+      <div className="room-truth-vault"><span aria-hidden="true">⌁</span><p><b>结案真相仍在封印中</b><small>只使用当前进度内的证据。</small></p></div>
     </section>
   );
 }
 
-function RelationMap({ casebook }: { casebook: MysteryReadingCasebook }) {
-  const entities = casebook.entities.slice(0, 10);
+function RelationMap({
+  casebook,
+  entityTypes,
+  emptyText
+}: {
+  casebook: MysteryReadingCasebook;
+  entityTypes?: Array<MysteryReadingCasebook["entities"][number]["type"]>;
+  emptyText?: string;
+}) {
+  const entities = casebook.entities
+    .filter((entity) => !entityTypes || entityTypes.includes(entity.type))
+    .slice(0, 10);
   const points = useMemo(() => {
     const radius = entities.length < 5 ? 92 : 118;
     return new Map(entities.map((entity, index) => {
@@ -311,6 +349,7 @@ function RelationMap({ casebook }: { casebook: MysteryReadingCasebook }) {
       return [entity.id, { x: 180 + Math.cos(angle) * radius, y: 145 + Math.sin(angle) * radius }];
     }));
   }, [entities]);
+  if (entities.length === 0) return <p className="caseboard-room-empty">{emptyText ?? "案情板还在等待第一张卡片。"}</p>;
   return (
     <div className="relation-map" role="img" aria-label="案件人物关系图">
       <svg viewBox="0 0 360 290">

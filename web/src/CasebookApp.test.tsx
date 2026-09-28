@@ -64,16 +64,48 @@ describe("CasebookApp", () => {
 
     expect(screen.getByText("德卡里奥斯家的案件簿")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /温室失窃案/ }));
-    expect(await screen.findByText("案情记录")).toBeInTheDocument();
+    expect(await screen.findByText("案情总览")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /案件列表/ }));
     expect(screen.getByText("德卡里奥斯家的案件簿")).toBeInTheDocument();
   });
 
+  it("offers a spoiler-safe starter case for The Appeal", async () => {
+    vi.mocked(callTool).mockImplementation(async (name) => {
+      if (name === "case_list") return { structuredContent: { cases: [bundle.case] } };
+      if (name === "case_create") {
+        return {
+          structuredContent: {
+            case: {
+              ...bundle.case,
+              id: "case-appeal",
+              title: "凶手就在聊天记录中",
+              sourceLabel: "珍妮丝·哈雷特｜The Appeal"
+            }
+          }
+        };
+      }
+      if (name === "case_get") return { structuredContent: { bundle } };
+      return { structuredContent: {} };
+    });
+    render(<CasebookApp />);
+
+    fireEvent.click(screen.getByRole("button", { name: "建立《凶手就在聊天记录中》案卷" }));
+
+    await waitFor(() => {
+      expect(callTool).toHaveBeenCalledWith("case_create", {
+        title: "凶手就在聊天记录中",
+        sourceType: "novel",
+        sourceLabel: "珍妮丝·哈雷特｜The Appeal"
+      });
+    });
+  });
+
   it("saves Tav's wording as a structured case entry", async () => {
     render(<CasebookApp />);
     fireEvent.click(screen.getByRole("button", { name: /温室失窃案/ }));
-    await screen.findByText("案情记录");
+    await screen.findByText("案情总览");
+    fireEvent.click(screen.getByRole("button", { name: "记录案情" }));
 
     fireEvent.change(screen.getByLabelText("记录一条案情"), {
       target: { value: "窗台上有新鲜泥土。" }
@@ -119,7 +151,8 @@ describe("CasebookApp", () => {
   it("classifies quick syntax while preserving Tav's complete wording", async () => {
     render(<CasebookApp />);
     fireEvent.click(screen.getByRole("button", { name: /温室失窃案/ }));
-    await screen.findByText("案情记录");
+    await screen.findByText("案情总览");
+    fireEvent.click(screen.getByRole("button", { name: "记录案情" }));
 
     const content = "证词：园丁说九点后没有进入温室。";
     fireEvent.change(screen.getByLabelText("记录一条案情"), {
@@ -144,7 +177,8 @@ describe("CasebookApp", () => {
   it("reviews and atomically saves a multi-entry batch", async () => {
     render(<CasebookApp />);
     fireEvent.click(screen.getByRole("button", { name: /温室失窃案/ }));
-    await screen.findByText("案情记录");
+    await screen.findByText("案情总览");
+    fireEvent.click(screen.getByRole("button", { name: "记录案情" }));
 
     fireEvent.change(screen.getByLabelText("记录一条案情"), {
       target: {
@@ -195,6 +229,7 @@ describe("CasebookApp", () => {
     render(<CasebookApp />);
     fireEvent.click(screen.getByRole("button", { name: /温室失窃案/ }));
     expect(await screen.findByText("确认温室门锁是从内侧还是外侧损坏。")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "线索推演" }));
     fireEvent.click(screen.getByRole("button", { name: "带回情报" }));
 
     await waitFor(() => {
