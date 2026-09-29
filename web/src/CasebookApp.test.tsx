@@ -25,6 +25,7 @@ vi.mock("./bridge/host.js", () => ({
       }
     ]
   })),
+  isStandaloneCasebookPreview: vi.fn(() => false),
   requestReaderFullscreen: vi.fn().mockResolvedValue(true),
   updateModelContext: vi.fn().mockResolvedValue(true)
 }));

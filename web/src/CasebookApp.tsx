@@ -20,6 +20,7 @@ import {
   askChatGpt,
   callTool,
   initialToolOutput,
+  isStandaloneCasebookPreview,
   requestReaderFullscreen,
   updateModelContext
 } from "./bridge/host.js";
@@ -133,6 +134,7 @@ export function CasebookApp(props: {
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const graphRef = useRef<HTMLDivElement | null>(null);
+  const standalonePreview = isStandaloneCasebookPreview();
 
   const loadCases = useCallback(async () => {
     const result = await callTool("case_list", {});
@@ -469,6 +471,7 @@ export function CasebookApp(props: {
             <button className="action-primary" onClick={() => setCreating(true)}>新建案件</button>
           </div>
         </header>
+        {standalonePreview ? <LocalPreviewNotice /> : null}
         {!cases.some((item) => item.title === THE_APPEAL_STARTER.title) ? (
           <section className="featured-case-starter" aria-label="本次试读案卷">
             <div className="redacted-cover" aria-hidden="true">
@@ -555,11 +558,21 @@ export function CasebookApp(props: {
           <strong className={unsynced > 0 ? "pending" : "synced"}>
             {unsynced > 0 ? `${unsynced} 个版本待同步` : "认知同步"}
           </strong>
-          <button disabled={syncing} onClick={() => void syncCase()}>
-            {syncing ? "正在递过去…" : "给盖尔看新增案情"}
+          <button
+            disabled={syncing || standalonePreview}
+            title={standalonePreview ? "在 ChatGPT 中打开书房后可同步给盖尔" : undefined}
+            onClick={() => void syncCase()}
+          >
+            {standalonePreview
+              ? "回到 ChatGPT 同步"
+              : syncing
+                ? "正在递过去…"
+                : "给盖尔看新增案情"}
           </button>
         </div>
       </header>
+
+      {standalonePreview ? <LocalPreviewNotice /> : null}
 
       <nav className="casebook-tabs" aria-label="案件视图">
         <button aria-pressed={tab === "overview"} onClick={() => setTab("overview")}>案情总览</button>
@@ -798,6 +811,15 @@ export function CasebookApp(props: {
 
       {toast ? <div className="toast" role="status">{toast}</div> : null}
     </div>
+  );
+}
+
+function LocalPreviewNotice() {
+  return (
+    <aside className="local-casebook-notice" role="note">
+      <strong>网页试用模式</strong>
+      <span>这里的案卷只保存在当前浏览器；在 ChatGPT 中打开书房，才会写入共同资料库并能递给盖尔。</span>
+    </aside>
   );
 }
 

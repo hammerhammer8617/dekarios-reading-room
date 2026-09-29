@@ -1,6 +1,11 @@
 import { App as McpApp } from "@modelcontextprotocol/ext-apps";
 import { READING_NEST_APP_VERSION } from "@ss/shared";
 import type { ToolCallResult } from "../types/openai.js";
+import {
+  callLocalCasebookTool,
+  isLocalCasebookTool,
+  isStandaloneCasebookPreview
+} from "./local-casebook.js";
 
 let app: McpApp | undefined;
 let appReady: Promise<void> | undefined;
@@ -66,8 +71,13 @@ export async function callTool(
     const result = await window.openai.callTool(name, args);
     return withCurrentContextFallback(name, args, result);
   }
+  if (isStandaloneCasebookPreview() && isLocalCasebookTool(name)) {
+    return callLocalCasebookTool(name, args);
+  }
   return withCurrentContextFallback(name, args, { structuredContent: {} });
 }
+
+export { isStandaloneCasebookPreview };
 
 function withCurrentContextFallback(
   name: string,
